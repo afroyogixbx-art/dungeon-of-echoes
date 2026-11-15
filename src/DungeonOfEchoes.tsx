@@ -575,6 +575,7 @@ function vaultTake(g: Game): void {
   g.inv.push(inv); if (inv.ident) discover(inv.id);
   vaultSet(null);
   log(g, `🏦 You bring ${instName(inv)} out of the Echo Vault.`, "good");
+  if (!g.startPick && g.offers.length === 0) g.screen = "map";
 }
 function addItem(g: Game, inv: Inv): void {
   if (g.inv.length >= MAXINV) { const p = sellOf(inv); g.gold += p; gain(g, `Bag full: sold ${instName(inv)} +${p} gold`, GOLDC); return; }
@@ -855,13 +856,14 @@ function makeOffers(g: Game): Perk[] {
 }
 function applyPerk(g: Game, p: Perk): void {
   if (p.tier === 3 || (!p.st && !p.gold)) g.perks.push(p.id);
-  if (g.startPick) { g.startPick = false; g.vaultOffer = false; g.offers = []; }
+  const holdVault = g.startPick === true && g.vaultOffer === true && !!vaultGet();
+  if (g.startPick) { g.startPick = false; if (!holdVault) g.vaultOffer = false; g.offers = []; }
   if (p.id === "beastbond" && !g.cpet && g.cls !== "ranger") g.cpet = "wolf";
   syncPets(g, true);
   if (p.st) { addBonus(g, p.st); if (p.st.hp) g.hp += p.st.hp; if (p.st.mp) g.mp += p.st.mp; }
   if (p.gold) g.goldMult += p.gold;
   log(g, `${p.icon} ${p.rar === "Common" && g.turns === 0 ? "Starting perk" : "Upgrade gained"}: ${p.name}.`, "good");
-  g.screen = "map";
+  g.screen = holdVault ? "upgrade" : "map";
 }
 
 function gainXp(g: Game, n: number): void {
@@ -2659,13 +2661,13 @@ function validRun(x: unknown): Game | null {
   g.pets = Array.isArray(g.pets) ? g.pets.filter((p: Pet) => isObj(p) && !!PETS[p.k] && [p.hp, p.max, p.x, p.y].every(num)).map((p: Pet) => ({ k: p.k, hp: Math.max(0, p.hp), max: p.max, x: p.x, y: p.y, ko: num(p.ko) ? Math.max(0, p.ko) : 0, cd: 0.6 })) : [];
   for (const p of g.pets) if (solidT(g, Math.floor(p.x), Math.floor(p.y)) || Math.hypot(p.x - (g.wx ?? 0), p.y - (g.wy ?? 0)) > 8) { p.x = g.wx ?? g.px + 0.5; p.y = g.wy ?? g.py + 0.5; }
   syncPets(g);
-  g.startPick = g.startPick === true && g.offers.length > 0; g.vaultOffer = g.vaultOffer === true && g.startPick;
+  g.startPick = g.startPick === true && g.offers.length > 0; g.vaultOffer = g.vaultOffer === true && !!vaultGet();
   g.vaultThen = g.vaultThen === "victory" || g.vaultThen === "upgrade" || g.vaultThen === "map" ? g.vaultThen : undefined; g.vaultSel = undefined;
   if (g.screen === "vault" && !g.vaultThen) g.vaultThen = "map";
   const okScreens: Screen[] = ["map", "inventory", "shop", "upgrade", "codex", "help", "vault"];
   if (g.screen === "dead" || g.screen === "victory") return null;
   if (!okScreens.includes(g.screen)) g.screen = "map";
-  if (g.screen === "upgrade" && g.offers.length === 0) g.screen = "map";
+  if (g.screen === "upgrade" && g.offers.length === 0 && !g.vaultOffer) g.screen = "map";
   // in-world combat: positions/HP of engaged enemies are restored; old arena saves drop the encounter (the monster is still on the map)
   if ((g.screen as string) === "combat") g.screen = "map";
   const c = g.combat;
@@ -3679,14 +3681,14 @@ export default function DungeonOfEchoes() {
     return (
       <div style={root}>{style}
         {hud}
-        <div data-screen={g.startPick ? "starter" : "upgrade"} style={{ fontSize: 20, fontWeight: 800 }}>{g.startPick ? "✨ Choose your starting perk" : "∞ Boss slain — choose an upgrade"}</div>
-        <div style={small}>{g.startPick ? `Pick one of these 3 Common perks for this ${g.mode === "story" ? "Story" : "Endless"} run. The choice is rolled once — reloading won't reroll it.` : g.floor % 10 === 0 ? "Capstone reward: these perks change how your class plays." : "Capstone choices appear after every 10th-floor boss."}</div>
-        {g.startPick && g.vaultOffer && (() => { const v = vaultGet(); if (!v) return null; return (
+        <div data-screen={g.startPick ? "starter" : g.vaultOffer ? "vaultoffer" : "upgrade"} style={{ fontSize: 20, fontWeight: 800 }}>{g.startPick ? "✨ Choose your starting perk" : g.vaultOffer ? "🏦 Bring vaulted item?" : "∞ Boss slain — choose an upgrade"}</div>
+        <div style={small}>{g.startPick ? `Pick one of these 3 Common perks for this ${g.mode === "story" ? "Story" : "Endless"} run. The choice is rolled once — reloading won't reroll it.` : g.vaultOffer ? "Your starting perk is locked in. You can still bring the sealed item or leave it in the vault." : g.floor % 10 === 0 ? "Capstone reward: these perks change how your class plays." : "Capstone choices appear after every 10th-floor boss."}</div>
+        {g.vaultOffer && (() => { const v = vaultGet(); if (!v) return null; return (
           <div data-vaultoffer="1" style={{ ...card, display: "flex", flexDirection: "column", gap: 8, border: `2px solid ${RCOL[3]}` }}>
             <div style={{ fontWeight: 800 }}>🏦 Bring vaulted item?</div>
             <div style={small}>Stored from a {CLS[v.cls].name} run ({v.mode === "story" ? "Floor" : "Depth"} {v.floor}). Taking it empties the vault; leaving it keeps it safe for a later run.</div>
             {instDetail(v.item, g)}
-            <div style={row}>{btn("🎒 Bring it", () => run((gg: Game) => vaultTake(gg)), { tone: "primary", grow: true })}{btn("Leave it vaulted", () => run((gg: Game) => { gg.vaultOffer = false; }), { grow: true })}</div>
+            <div style={row}>{btn("🎒 Bring it", () => run((gg: Game) => vaultTake(gg)), { tone: "primary", grow: true })}{btn("Leave it vaulted", () => run((gg: Game) => { gg.vaultOffer = false; if (!gg.startPick && gg.offers.length === 0) gg.screen = "map"; }), { grow: true })}</div>
           </div>
         ); })()}
         {g.offers.map((p: Perk) => (
@@ -3970,7 +3972,7 @@ export default function DungeonOfEchoes() {
           <span style={{ position: "absolute", left: 3, bottom: 1, fontSize: 9, fontWeight: 800, color: "rgba(255,240,210,.85)", textShadow: "0 1px 2px #000" }}>{c ? "🔒" : "M"}</span>
         </button>
         {g.bannerTs && Date.now() - g.bannerTs < 3500 ? (
-          <div key={g.bannerTs} style={{ position: "absolute", left: "6%", right: "6%", top: "36%", textAlign: "center", padding: "10px 8px", borderRadius: 10, background: "rgba(8,6,12,.85)", border: `1px solid ${bio === "warren" ? "#6aa83a" : "#8a4ad0"}`, color: "#f0e8ff", animation: "doeBanner 3.2s ease-in-out forwards", pointerEvents: "none", zIndex: 3 }}>
+          <div key={g.bannerTs} style={{ position: "absolute", left: "6%", right: "6%", top: "36%", textAlign: "center", padding: "10px 8px", borderRadius: 10, background: "rgba(8,6,12,.85)", border: `1px solid ${bio === "warren" ? "#6aa83a" : "#8a4ad0"}`, color: "#f0e8ff", animation: "doeBanner 3.2s ease-in-out forwards", pointerEvents: "none", zIndex: 8 }}>
             <div style={{ fontSize: 11, letterSpacing: 2, opacity: 0.8 }}>{g.mode === "story" ? `FLOOR ${g.floor}` : `DEPTH ${g.floor}`}</div>
             <div style={{ fontSize: 18, fontWeight: 800 }}>{BIOME[bio].name}</div>
             <div style={{ fontSize: 11, opacity: 0.8 }}>{BIOME[bio].sub}</div>
