@@ -7,7 +7,7 @@ type GearSlot = Exclude<Slot, "consumable">;
 type StatKey = "hp" | "mp" | "atk" | "def" | "crit" | "dodge" | "ls" | "fire" | "ice" | "holy" | "poison";
 type Stats = Partial<Record<StatKey, number>>;
 type Behav = "brute" | "swift" | "tank" | "caster" | "poisoner" | "drainer" | "boss";
-type Screen = "map" | "combat" | "inventory" | "shop" | "upgrade" | "victory" | "dead" | "codex" | "help";
+type Screen = "map" | "inventory" | "shop" | "upgrade" | "victory" | "dead" | "codex" | "help";
 type Ui = "title" | "help" | "tree" | "codex" | "save";
 type Mode = "story" | "endless";
 type ActRes = "none" | "turn" | "end";
@@ -20,9 +20,9 @@ interface ClassT { id: ClassId; name: string; icon: string; tag: string; base: B
 interface Perk { id: string; name: string; icon: string; desc: string; tier: number; st?: Stats; gold?: number; }
 interface MonT { id: string; name: string; icon: string; hp: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; undead?: boolean; lo: number; hi: number; bio?: Biome; }
 interface Room { x: number; y: number; w: number; h: number; }
-interface MapMon { id: number; x: number; y: number; t: string; boss: boolean; awake: boolean; stun: number; fx?: number; fy?: number; }
-interface Enemy { uid: number; spr?: string; name: string; icon: string; hp: number; max: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; bk: string; undead: boolean; boss: boolean; stun: number; burnT: number; burnD: number; poisT: number; poisD: number; dead: boolean; x?: number; y?: number; atkT?: number; wind?: number; wm?: number; wk?: string; rt?: boolean; }
-interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number; boss: boolean; phase: number; charging: boolean; itemOpen: boolean; px?: number; py?: number; proj?: Proj[]; tele?: Tele[]; shots?: Shot[]; atkCd?: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; iT?: number; tick?: number; grace?: number; bossT?: number; fleeCd?: number; }
+interface MapMon { id: number; x: number; y: number; t: string; boss: boolean; awake: boolean; stun: number; fx?: number; fy?: number; hp?: number; max?: number; hx?: number; hy?: number; }
+interface Enemy { uid: number; spr?: string; name: string; icon: string; hp: number; max: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; bk: string; undead: boolean; boss: boolean; stun: number; burnT: number; burnD: number; poisT: number; poisD: number; dead: boolean; x?: number; y?: number; atkT?: number; wind?: number; wm?: number; wk?: string; rt?: boolean; mid?: number; hx?: number; hy?: number; lost?: number; minion?: boolean; mt?: string; away?: boolean; dt0?: number; }
+interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number; boss: boolean; phase: number; charging: boolean; itemOpen: boolean; px?: number; py?: number; proj?: Proj[]; tele?: Tele[]; shots?: Shot[]; atkCd?: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; iT?: number; tick?: number; grace?: number; bossT?: number; fleeCd?: number; v2?: boolean; calm?: number; upg?: boolean; }
 interface Proj { id: number; x: number; y: number; vx: number; vy: number; dmg: number; from: number; life: number; c: string; }
 interface Tele { id: number; x: number; y: number; r: number; t: number; max: number; dmg: number; from: number; kind: string; }
 interface Shot { id: number; x1: number; y1: number; x2: number; y2: number; ts: number; c: string; }
@@ -40,7 +40,7 @@ interface Game {
   px: number; py: number; wx?: number; wy?: number; mons: MapMon[]; sx: number; sy: number; log: LogL[]; combat: Combat | null;
   cds: Record<string, number>; buffs: Buffs; perks: string[]; bonus: Stats; goldMult: number; inAb: boolean;
   usedUndying: boolean; usedShadow: boolean; usedPhoenix: boolean; shop: Inv[];
-  offers: Perk[]; kills: number; sel: number; fx: Fx[]; turns: number; tokensEarned: number; stains?: number[]; rem?: string[]; hurtTs?: number; usedRes?: boolean; biome?: Biome; bannerTs?: number;
+  offers: Perk[]; kills: number; sel: number; fx: Fx[]; turns: number; tokensEarned: number; stains?: number[]; rem?: string[]; hurtTs?: number; usedRes?: boolean; biome?: Biome; bannerTs?: number; qs?: string;
 }
 
 const W = 32, H = 32, R = 4, MAXINV = 24, STORY_END = 10;
@@ -137,7 +137,7 @@ const ITEMS: ItemT[] = [
   I("c_anti", "Antidote", "🌿", "consumable", 0, 1, 12, undefined, { fx: "cleanse", pw: 15, desc: "Cure poison/burn, heal 15%." }),
   I("c_bomb", "Fire Bomb", "💣", "consumable", 1, 1, 40, undefined, { fx: "bomb", desc: "Combat: fire damage to ALL enemies + burn." }),
   I("c_frost", "Frost Grenade", "🧊", "consumable", 2, 2, 70, undefined, { fx: "frost", desc: "Combat: ice damage to ALL, freeze 2 turns." }),
-  I("c_smoke", "Smoke Bomb", "💨", "consumable", 1, 1, 30, undefined, { fx: "smoke", desc: "Combat: guaranteed escape (not bosses)." }),
+  I("c_smoke", "Smoke Bomb", "💨", "consumable", 1, 1, 30, undefined, { fx: "smoke", desc: "Combat: instantly break off the fight, foes are blinded (not bosses)." }),
   I("c_fury", "Scroll of Fury", "📜", "consumable", 1, 1, 40, undefined, { fx: "fury", desc: "Combat: +50% ATK for 3 turns." }),
   I("c_iron", "Scroll of Ironskin", "📃", "consumable", 1, 1, 40, undefined, { fx: "iron", desc: "Combat: +50% DEF for 3 turns." }),
   I("c_map", "Scroll of Revealing", "🗺️", "consumable", 0, 1, 20, undefined, { fx: "reveal", desc: "Map: reveal the whole floor." }),
@@ -524,6 +524,8 @@ function rollItem(f: number, minR: number, cls: ClassId, kind: "any" | "gear" | 
     if (c.length === 0) continue;
     let it = pick(c);
     if (it.cls && !it.cls.includes(cls) && Math.random() < 0.6) it = pick(c);
+    // difficulty: healing potions drop ~15% less often (rerolled into gear)
+    if (kind === "any" && (it.fx === "heal" || it.fx === "both") && Math.random() < POTION_CUT) return rollItem(f, minR, cls, "gear");
     return it.id;
   }
   return "c_hp1";
@@ -637,7 +639,7 @@ function genFloor(g: Game): void {
     map[y][x] = g.biome === "warren" ? 5 : 6; k++;
   }
   const pool = poolFor(g.floor, g.biome);
-  const nm = Math.min(16, 6 + tierOf(g.floor));
+  const nm = Math.min(18, 6 + tierOf(g.floor) + Math.floor(Math.max(0, g.floor - 2) / 3));
   for (let k = 0; k < nm; k++) { const s = spot(1, rooms.length); if (s) g.mons.push({ id: UID++, x: s.x, y: s.y, t: pick(pool).id, boss: false, awake: false, stun: 0 }); }
   g.usedUndying = false; g.usedShadow = false; g.usedPhoenix = false; g.usedRes = false;
 }
@@ -802,59 +804,83 @@ function resolveDeaths(g: Game): void {
   const c = g.combat; if (!c) return;
   for (const e of c.enemies) {
     if (e.dead || e.hp > 0) continue;
-    e.dead = true; e.hp = 0; g.kills++;
+    e.dead = true; e.hp = 0; e.wind = 0; e.wk = ""; e.dt0 = Date.now(); g.kills++;
     const gold = goldGain(g, e.gold * (0.8 + Math.random() * 0.4));
     gain(g, `+${e.xp} XP`, XPC); gain(g, `+${gold} gold`, GOLDC);
     gainXp(g, e.xp);
+    const ex = clampN(Math.floor(e.x ?? g.px + 0.5), 0, W - 1), ey = clampN(Math.floor(e.y ?? g.py + 0.5), 0, H - 1);
+    (g.rem = g.rem ?? []).push(`${ey * W + ex}:${sprOf(e)}`);
+    if ((g.rem ?? []).length > 120) g.rem.shift();
     const drops: Inv[] = [];
     if (e.boss) { for (let k = 0; k < 2; k++) drops.push(makeInst(rollItem(g.floor, 3, g.cls, "gear"), g.floor, true)); drops.push(makeInst("c_ident", g.floor, false)); }
     else if (Math.random() < 0.3) drops.push(makeInst(rollItem(g.floor, 0, g.cls, "any"), g.floor, true));
     for (const d of drops) { gain(g, `+ ${instName(d)}`, rarCol(d)); addItem(g, d); }
+    if (e.boss) bossDown(g, e);
   }
   const t = c.enemies[c.target];
   if (!t || t.dead) { const i = c.enemies.findIndex((x: Enemy) => !x.dead); if (i >= 0) c.target = i; }
 }
-function winCombat(g: Game): void {
+// the floor boss fell: its brood scatters, the stairs open; story ends / endless offers an upgrade once combat is over
+function bossDown(g: Game, b: Enemy): void {
   const c = g.combat; if (!c) return;
-  const deadMon = g.mons.find((m: MapMon) => m.id === c.monId);
-  if (deadMon) (g.rem = g.rem ?? []).push(`${deadMon.y * W + deadMon.x}:${deadMon.t}`);
-  g.mons = g.mons.filter((m: MapMon) => m.id !== c.monId);
-  g.combat = null; g.buffs = freshBuffs(); g.cds = {};
-  g.screen = "map";
-  if (c.boss) {
-    g.map[g.sy][g.sx] = 2;
-    log(g, "The stairs 🔽 appear where the boss fell.", "good");
-    if (g.mode === "story" && g.floor >= STORY_END) { g.screen = "victory"; return; }
-    if (g.mode === "endless") { g.offers = makeOffers(g); g.screen = "upgrade"; return; }
-    if (g.floor === 5) log(g, "The Broodmother is dead. Deeper halls await…", "good");
-    return;
-  }
-  log(g, "Victory! The fight is over.", "good");
+  for (const e of c.enemies) if (e !== b && e.minion && !e.dead) { e.dead = true; e.away = true; e.hp = 0; }
+  c.tele = []; c.proj = []; c.charging = false;
+  g.map[g.sy][g.sx] = 2;
+  log(g, "The stairs 🔽 appear where the boss fell.", "good");
+  if (g.mode === "story" && g.floor >= STORY_END) { g.combat = null; g.screen = "victory"; return; }
+  if (g.mode === "endless") { g.offers = makeOffers(g); c.upg = true; }
+  if (g.floor === 5 && g.mode === "story") log(g, "The Broodmother is dead. Deeper halls await…", "good");
+  void b;
 }
-function checkWin(g: Game): boolean {
-  resolveDeaths(g);
-  if (g.combat && alive(g.combat).length === 0) { winCombat(g); return true; }
-  return false;
+function endCombat(g: Game): void {
+  const c = g.combat; if (!c) return;
+  g.combat = null; g.buffs = freshBuffs();
+  log(g, "✅ Combat over — menus unlocked.", "good");
+  if (c.upg && g.mode === "endless" && g.offers.length > 0) g.screen = "upgrade";
 }
-
-function startCombat(g: Game, m: MapMon): void {
-  const enemies: Enemy[] = [];
-  if (m.boss) enemies.push(makeBoss(g.floor));
-  else {
-    enemies.push(makeEnemy(MON[m.t], g.floor));
-    const pool = poolFor(g.floor);
-    if (Math.random() < Math.min(0.6, 0.1 + 0.05 * g.floor)) enemies.push(makeEnemy(pick(pool), g.floor));
-    if (Math.random() < Math.min(0.35, 0.025 * g.floor)) enemies.push(makeEnemy(pick(pool), g.floor));
-  }
-  g.combat = { enemies, target: 0, monId: m.id, turn: 0, boss: m.boss, phase: 1, charging: false, itemOpen: false };
-  g.buffs = freshBuffs(); g.cds = {}; g.screen = "combat";
-  log(g, m.boss ? `${enemies[0].name} blocks the way down!` : `⚔️ Ambushed by ${enemies.map((e: Enemy) => e.name).join(", ")}!`, "bad");
-  if (g.perks.includes("shadowstep")) {
-    const t = enemies[0];
-    hitEnemy(g, t, 1.5, true, "🌑 Shadow Step");
-    if (t.hp > 0) stunE(g, t, 1);
-    checkWin(g);
-  }
+function newCombat(): Combat {
+  return { enemies: [], target: 0, monId: -1, turn: 0, boss: false, phase: 1, charging: false, itemOpen: false, proj: [], tele: [], shots: [], grace: 0, bossT: 3, tick: 0, v2: true, calm: 0 };
+}
+// real-time + difficulty scaling, applied once per enemy
+function rtScale(e: Enemy): void {
+  if (e.rt) return;
+  e.rt = true;
+  const m = (e.boss ? 1.8 : 1.5) * EHP;
+  e.max = Math.round(e.max * m); e.hp = Math.round(e.hp * m); e.atk = Math.max(1, Math.round(e.atk * EATK));
+}
+// a map monster gains aggro: it joins the (possibly new) encounter right where it stands
+function engage(g: Game, m: MapMon): void {
+  const fresh = !g.combat;
+  if (!g.combat) { g.combat = newCombat(); g.buffs = freshBuffs(); }
+  const c = g.combat;
+  const e = m.boss ? makeBoss(g.floor) : makeEnemy(MON[m.t], g.floor);
+  rtScale(e);
+  if (typeof m.hp === "number" && typeof m.max === "number" && isFinite(m.hp) && m.max > 0) { e.max = m.max; e.hp = Math.max(1, Math.min(m.max, m.hp)); }
+  e.x = m.fx ?? m.x + 0.5; e.y = m.fy ?? m.y + 0.5;
+  e.mid = m.id; e.hx = m.hx ?? e.x; e.hy = m.hy ?? e.y; e.mt = m.boss ? e.bk : m.t; e.lost = 0;
+  e.atkT = 0.5 + Math.random() * 0.8;
+  c.enemies.push(e);
+  g.mons = g.mons.filter((x: MapMon) => x !== m);
+  c.calm = 0;
+  if (m.boss) { c.boss = true; c.bossT = 2.5; log(g, `☠️ ${e.name} rises — the way down stays sealed until it falls!`, "bad"); addFx(g, "BOSS!", "bad", "p"); }
+  else log(g, fresh ? `⚔️ ${e.name} attacks!` : `⚔️ ${e.name} joins the fight!`, "bad");
+  const cur = c.enemies[c.target]; if (!cur || cur.dead) c.target = c.enemies.length - 1;
+  if (fresh && g.perks.includes("shadowstep")) { hitEnemy(g, e, 1.5, true, "🌑 Shadow Step"); if (e.hp > 0) stunE(g, e, 1); resolveDeaths(g); }
+}
+// an engaged enemy loses track of you and becomes a map monster again (damage taken is kept)
+function toMapMon(g: Game, e: Enemy, stun: number, home: boolean): void {
+  if (e.minion) return;
+  let x = e.x ?? g.px + 0.5, y = e.y ?? g.py + 0.5;
+  if (home && e.hx !== undefined && e.hy !== undefined) { x = e.hx; y = e.hy; }
+  const q = { x, y }; pushOut(g, q, MR);
+  if (solidT(g, Math.floor(q.x), Math.floor(q.y))) { q.x = (e.hx ?? x); q.y = (e.hy ?? y); }
+  g.mons.push({ id: e.mid ?? UID++, x: Math.floor(q.x), y: Math.floor(q.y), fx: q.x, fy: q.y, t: e.boss ? e.bk : (e.mt ?? e.spr ?? "rat"), boss: e.boss, awake: e.boss, stun, hp: e.hp, max: e.max, hx: e.hx, hy: e.hy });
+}
+function escapeAll(g: Game, stun: number): void {
+  const c = g.combat; if (!c) return;
+  for (const e of c.enemies) if (!e.dead) { toMapMon(g, e, stun, false); e.dead = true; e.away = true; }
+  g.combat = null; g.buffs = freshBuffs();
+  log(g, "✅ Combat over — menus unlocked.", "good");
 }
 
 function mobAct(g: Game, e: Enemy): void {
@@ -880,7 +906,12 @@ function summon(g: Game, boss: Enemy, n: number): void {
   for (let k = 0; k < n; k++) {
     if (alive(c).length >= 5) break;
     const lord = boss.bk === "lord";
-    c.enemies.push(mkEnemy({ spr: lord ? "shade" : "spiderling", name: lord ? "Echo Shade" : "Spiderling", icon: lord ? "👤" : "🕷️", hp: Math.round(boss.max * (lord ? 0.11 : 0.12)), atk: Math.round(boss.atk * (lord ? 0.6 : 0.5)), def: Math.round(boss.def * 0.4), dodge: 10, xp: Math.round(boss.xp * 0.06), gold: Math.round(boss.gold * 0.05), b: lord ? "drainer" : "poisoner", undead: lord, stun: 1 }));
+    const hp = Math.round(boss.max * (lord ? 0.11 : 0.12) * 1.5);
+    const m = mkEnemy({ spr: lord ? "shade" : "spiderling", name: lord ? "Echo Shade" : "Spiderling", icon: lord ? "👤" : "🕷️", hp, atk: Math.round(boss.atk * (lord ? 0.6 : 0.5)), def: Math.round(boss.def * 0.4), dodge: 10, xp: Math.round(boss.xp * 0.06), gold: Math.round(boss.gold * 0.05), b: lord ? "drainer" : "poisoner", undead: lord, stun: 1 });
+    const a = Math.random() * Math.PI * 2, q = { x: (boss.x ?? 0) + Math.cos(a) * 1.3, y: (boss.y ?? 0) + Math.sin(a) * 1.3 };
+    pushOut(g, q, MR); if (solidT(g, Math.floor(q.x), Math.floor(q.y)) || !los(g, boss.x ?? 0, boss.y ?? 0, q.x, q.y)) { q.x = boss.x ?? 0; q.y = boss.y ?? 0; }
+    m.rt = true; m.minion = true; m.x = q.x; m.y = q.y; m.hx = boss.hx; m.hy = boss.hy; m.lost = 0; m.atkT = 0.8 + Math.random() * 0.6;
+    c.enemies.push(m);
   }
 }
 function broodMelee(g: Game, e: Enemy): void {
@@ -907,10 +938,23 @@ function bossPhase(g: Game, e: Enemy): void {
   }
 }
 // ---------- REAL-TIME COMBAT ----------
-const AW = 100, AH = 70;
+// Combat happens on the exploration map, in tile units. U converts the old arena units (26 u/s ≈ 3.25 tiles/s).
+const U = 8;
+// ---- difficulty knobs (modest bump, see README) ----
+const EHP = 1.12;        // enemy HP ×1.12 (on top of the real-time ×1.5, bosses ×1.8)
+const EATK = 1.1;        // enemy damage ×1.1
+const WIND = 0.9;        // telegraph / wind-up durations ×0.9
+const WAKE = 4.5;        // sleeping monsters notice you (was 4)
+const AGGRO = 5.5;       // awake monsters with line of sight join the fight
+const BOSS_AGGRO = 5;    // bosses wake when you step into their lair (LOS)
+const REGEN_T = 1.8;     // seconds per passive regen tick out of combat (was 1.5)
+const POTION_CUT = 0.15; // healing-potion drops rerolled into gear 15% of the time
+const LEASH = 11, BOSS_LEASH = 7, LOSE_T = 4, CALM_T = 1.5, DASH_SPD = 13.75;
 const HELD = new Set<string>();
 let NAV_T = 0;
-// speed, reach, wind-up (s), cooldown (s)
+let NOTE_T = 0;
+function combatNote(g: Game, t: string): void { const n = Date.now(); if (n - NOTE_T < 2500) return; NOTE_T = n; log(g, t, "bad"); }
+// speed, reach, wind-up (s), cooldown (s) — speed/reach in old arena units (÷U for tiles)
 const RTB: Record<string, [number, number, number, number]> = { brute: [13, 11, 0.75, 1.9], swift: [21, 9, 0.4, 1.25], tank: [9, 12, 0.85, 2.3], caster: [11, 50, 0.7, 2.3], poisoner: [17, 9, 0.5, 1.6], drainer: [14, 10, 0.6, 1.7] };
 const ARATE: Record<ClassId, number> = { warrior: 0.62, mage: 0.6, rogue: 0.42, cleric: 0.6, ranger: 0.5 };
 const ARNG: Record<ClassId, number> = { warrior: 17, mage: 62, rogue: 15, cleric: 18, ranger: 72 };
@@ -923,32 +967,16 @@ function nearestIdx(c: Combat, r: number): number {
   c.enemies.forEach((e: Enemy, i: number) => { if (e.dead || e.hp <= 0) return; const d = eDist(c, e); if (d <= bd) { bd = d; bi = i; } });
   return bi;
 }
-function aimTarget(c: Combat, r: number): boolean {
+function canHit(g: Game, c: Combat, e: Enemy, r: number): boolean { return !e.dead && e.hp > 0 && eDist(c, e) <= r && los(g, c.px ?? 0, c.py ?? 0, e.x ?? 0, e.y ?? 0); }
+function aimTarget(g: Game, c: Combat, r: number): boolean {
   const cur = c.enemies[c.target];
-  if (cur && !cur.dead && cur.hp > 0 && eDist(c, cur) <= r) return true;
-  const i = nearestIdx(c, r); if (i >= 0) { c.target = i; return true; }
+  if (cur && canHit(g, c, cur, r)) return true;
+  let bi = -1, bd = Infinity;
+  c.enemies.forEach((e: Enemy, i: number) => { if (!canHit(g, c, e, r)) return; const d = eDist(c, e); if (d < bd) { bd = d; bi = i; } });
+  if (bi >= 0) { c.target = bi; return true; }
   return false;
 }
-function rtInit(g: Game): void {
-  const c = g.combat; if (!c) return;
-  if (c.px === undefined || c.py === undefined) { c.px = 16; c.py = AH / 2; }
-  if (!c.proj) c.proj = [];
-  if (!c.tele) c.tele = [];
-  if (!c.shots) c.shots = [];
-  if (c.grace === undefined) c.grace = 1;
-  if (c.bossT === undefined) c.bossT = 3;
-  const boss = c.enemies.find((e: Enemy) => e.boss);
-  let k = 0;
-  for (const e of c.enemies) {
-    if (!e.rt) { e.rt = true; const m = e.boss ? 1.8 : 1.5; e.max = Math.round(e.max * m); e.hp = Math.round(e.hp * m); }
-    if (e.x === undefined || e.y === undefined) {
-      if (boss && !e.boss) { e.x = clampN((boss.x ?? 75) + (Math.random() * 24 - 12), 8, AW - 8); e.y = clampN((boss.y ?? AH / 2) + (Math.random() * 30 - 15), 8, AH - 8); }
-      else { e.x = e.boss ? 76 : 64 + (k % 3) * 11; e.y = e.boss ? AH / 2 : 14 + ((k * 21) % (AH - 26)); }
-    }
-    if (e.atkT === undefined) e.atkT = 0.6 + Math.random() * 0.9;
-    k++;
-  }
-}
+function syncPos(g: Game): void { const c = g.combat; if (!c) return; c.px = g.wx ?? g.px + 0.5; c.py = g.wy ?? g.py + 0.5; }
 function shot(g: Game, col: string): void {
   const c = g.combat; if (!c) return;
   const e = c.enemies[c.target]; if (!e) return;
@@ -957,31 +985,30 @@ function shot(g: Game, col: string): void {
   if (s.length > 8) s.shift();
 }
 function rtAttack(g: Game): void {
-  const c = g.combat; if (!c || g.screen !== "combat" || (c.atkCd ?? 0) > 0 || (c.grace ?? 0) > 0) return;
-  const r = ARNG[g.cls];
-  if (!aimTarget(c, r)) { c.atkCd = 0.3; addFx(g, "too far", "sys", "p"); return; }
+  const c = g.combat; if (!c || g.screen !== "map" || (c.atkCd ?? 0) > 0) return;
+  syncPos(g);
+  const r = ARNG[g.cls] / U;
+  if (!aimTarget(g, c, r)) { c.atkCd = 0.3; addFx(g, "too far", "sys", "p"); return; }
   c.atkCd = ARATE[g.cls];
-  if (r > 30) shot(g, g.cls === "mage" ? "#b18cff" : "#e8d9a8");
+  if (r > 30 / U) shot(g, g.cls === "mage" ? "#b18cff" : "#e8d9a8");
   doAction(g, "attack", "");
-  if (g.screen === "combat") checkWin(g);
+  resolveDeaths(g);
 }
 function rtAbility(g: Game, id: string): void {
-  const c = g.combat; if (!c || g.screen !== "combat") return;
-  const r = ABR[id];
-  if (r !== undefined && !aimTarget(c, r)) { log(g, "No enemy in range — move closer."); addFx(g, "out of range", "sys", "p"); return; }
-  if (r !== undefined && r > 30) shot(g, "#ffd36b");
+  const c = g.combat; if (!c || g.screen !== "map") return;
+  syncPos(g);
+  const r = ABR[id] !== undefined ? ABR[id] / U : undefined;
+  if (r !== undefined && !aimTarget(g, c, r)) { log(g, "No enemy in range — move closer."); addFx(g, "out of range", "sys", "p"); return; }
+  if (r !== undefined && r > 30 / U) shot(g, "#ffd36b");
   combatAct(g, "ability", id);
 }
 function rtDodge(g: Game, mx: number, my: number): void {
-  const c = g.combat; if (!c || g.screen !== "combat" || (c.dashCd ?? 0) > 0) return;
+  const c = g.combat; if (!c || g.screen !== "map" || (c.dashCd ?? 0) > 0) return;
+  syncPos(g);
   let vx = mx, vy = my;
   if (Math.hypot(vx, vy) < 0.2) { const i = nearestIdx(c, 999); const e = i >= 0 ? c.enemies[i] : undefined; vx = e ? (c.px ?? 0) - (e.x ?? 0) : -1; vy = e ? (c.py ?? 0) - (e.y ?? 0) : 0; }
   const m = Math.hypot(vx, vy) || 1;
   c.dvx = vx / m; c.dvy = vy / m; c.dashT = 0.2; c.iT = 0.4; c.dashCd = g.cls === "rogue" ? 1.6 : 2.2;
-}
-function rtFlee(g: Game): void {
-  const c = g.combat; if (!c || (c.fleeCd ?? 0) > 0) return;
-  c.fleeCd = 3; combatAct(g, "flee", "");
 }
 function rtResolve(g: Game, e: Enemy, d: number, reach: number): void {
   const c = g.combat; if (!c) return;
@@ -990,10 +1017,10 @@ function rtResolve(g: Game, e: Enemy, d: number, reach: number): void {
     const hurt = alive(c).filter((x: Enemy) => x !== e && x.hp / x.max < 0.6);
     if (hurt.length > 0 && Math.random() < 0.35) { const h = hurt[0]; const amt = Math.round(h.max * 0.25); h.hp = Math.min(h.max, h.hp + amt); log(g, `${e.name} heals ${h.name} for ${amt}.`, "bad"); addFx(g, `+${amt}`, "heal", "e" + h.uid); return; }
     const dx = (c.px ?? 0) - (e.x ?? 0), dy = (c.py ?? 0) - (e.y ?? 0); const m = Math.hypot(dx, dy) || 1;
-    (c.proj ?? (c.proj = [])).push({ id: UID++, x: e.x ?? 0, y: e.y ?? 0, vx: (dx / m) * 48, vy: (dy / m) * 48, dmg: e.atk * 1.1, from: e.uid, life: 2.5, c: e.undead ? "#b48cff" : "#ff7a3a" });
+    (c.proj ?? (c.proj = [])).push({ id: UID++, x: e.x ?? 0, y: e.y ?? 0, vx: (dx / m) * 48 / U, vy: (dy / m) * 48 / U, dmg: e.atk * 1.1, from: e.uid, life: 2.5, c: e.undead ? "#b48cff" : "#ff7a3a" });
     return;
   }
-  if (d > reach + 5) { addFx(g, "whiff", "sys", "e" + e.uid); return; }
+  if (d > reach + 5 / U) { addFx(g, "whiff", "sys", "e" + e.uid); return; }
   if (e.bk === "lord") lordMelee(g, e); else if (e.bk === "brood") broodMelee(g, e); else mobAct(g, e);
 }
 function bossSpecial(g: Game, e: Enemy, dt: number): void {
@@ -1001,80 +1028,130 @@ function bossSpecial(g: Game, e: Enemy, dt: number): void {
   c.bossT = (c.bossT ?? 3) - dt;
   if (c.bossT > 0) return;
   const tl = c.tele ?? (c.tele = []);
-  const at = (r: number, t: number, dmg: number, kind: string, x: number, y: number): void => { tl.push({ id: UID++, x, y, r, t, max: t, dmg, from: e.uid, kind }); };
-  const px = c.px ?? 50, py = c.py ?? 35;
+  const at = (r: number, t: number, dmg: number, kind: string, x: number, y: number): void => { tl.push({ id: UID++, x, y, r: r / U, t: t * WIND, max: t * WIND, dmg, from: e.uid, kind }); };
+  const px = c.px ?? 0, py = c.py ?? 0;
+  const near = (): [number, number] => {
+    for (let k = 0; k < 6; k++) { const x = px + (Math.random() * 30 - 15) / U, y = py + (Math.random() * 24 - 12) / U; if (!solidT(g, Math.floor(x), Math.floor(y))) return [x, y]; }
+    return [px, py];
+  };
   if (e.bk === "brood") {
     at(12, 1.1, e.atk * 1.3, "acid", px, py);
-    if (c.phase === 2) at(10, 1.4, e.atk * 1.1, "acid", clampN(px + (Math.random() * 30 - 15), 6, AW - 6), clampN(py + (Math.random() * 24 - 12), 6, AH - 6));
+    if (c.phase === 2) { const [x, y] = near(); at(10, 1.4, e.atk * 1.1, "acid", x, y); }
     log(g, "🕸️ The Broodmother spits acid — get out of the green ring!", "bad");
     c.bossT = c.phase === 2 ? 3.2 : 4.5; return;
   }
   const atk = e.atk * (c.phase === 3 ? 1.35 : 1);
   if (c.phase === 1) { at(11, 1.1, atk * 1.2, "flame", px, py); c.bossT = 5; return; }
   if (c.phase === 3 && !c.charging && Math.random() < 0.45) {
-    c.charging = true; at(30, 2.2, atk * 2.4, "cata", e.x ?? 50, e.y ?? 35);
+    c.charging = true; at(30, 2.2, atk * 2.4, "cata", e.x ?? px, e.y ?? py);
     log(g, "⚠️ The Echo Lord gathers a CATACLYSM — get out of the purple ring!", "bad"); c.bossT = 4.5; return;
   }
   at(12, 1.0, atk * 1.25, "flame", px, py); log(g, "🔥 Shadow flame gathers beneath you — move!", "bad");
   c.bossT = c.phase === 3 ? 2.8 : 3.5;
 }
-function rtStep(g: Game, dt: number, mx: number, my: number, atk: boolean): void {
-  const c = g.combat; if (!c || g.screen !== "combat") return;
-  rtInit(g);
-  const f = full(g);
-  c.dashCd = Math.max(0, (c.dashCd ?? 0) - dt); c.iT = Math.max(0, (c.iT ?? 0) - dt); c.atkCd = Math.max(0, (c.atkCd ?? 0) - dt); c.fleeCd = Math.max(0, (c.fleeCd ?? 0) - dt);
-  for (const k of Object.keys(g.cds)) if (g.cds[k] > 0) g.cds[k] = Math.max(0, g.cds[k] - dt);
-  let vx = mx, vy = my, sp = ARENA_SPD + f.dodge * 0.25;
-  if ((c.dashT ?? 0) > 0) { c.dashT = Math.max(0, (c.dashT ?? 0) - dt); vx = c.dvx ?? 0; vy = c.dvy ?? 0; sp = 110; }
-  const mag = Math.hypot(vx, vy); if (mag > 1) { vx /= mag; vy /= mag; }
-  c.px = clampN((c.px ?? 16) + vx * sp * dt, 4, AW - 4); c.py = clampN((c.py ?? 35) + vy * sp * dt, 5, AH - 4);
-  if ((c.grace ?? 0) > 0) { c.grace = Math.max(0, (c.grace ?? 0) - dt); return; }
-  if (atk) { rtAttack(g); if (g.screen !== "combat") return; }
+// one step toward the player through the BFS flow field (used when there is no line of sight)
+function flowStep(g: Game, fld: Int16Array, x: number, y: number): [number, number] | null {
+  const tx0 = Math.floor(x), ty0 = Math.floor(y);
+  let bv = fld[ty0 * W + tx0]; if (bv < 0) return null;
+  let tx = -1, ty = -1;
+  for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) {
+    const nx = tx0 + ox, ny = ty0 + oy;
+    if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+    const v = fld[ny * W + nx];
+    if (v >= 0 && v < bv) { bv = v; tx = nx + 0.5; ty = ny + 0.5; }
+  }
+  return tx < 0 ? null : [tx, ty];
+}
+// in-world combat: runs every frame on the map while any enemy is engaged
+function combatStep(g: Game, dt: number, atk: boolean): void {
+  const c = g.combat; if (!c || g.screen !== "map") return;
+  if (!c.proj) c.proj = [];
+  if (!c.tele) c.tele = [];
+  if (!c.shots) c.shots = [];
+  syncPos(g);
+  const px = c.px ?? 0, py = c.py ?? 0;
+  c.dashCd = Math.max(0, (c.dashCd ?? 0) - dt); c.iT = Math.max(0, (c.iT ?? 0) - dt); c.atkCd = Math.max(0, (c.atkCd ?? 0) - dt);
+  const now = Date.now();
+  if (c.enemies.some((e: Enemy) => e.dead && (e.away || now - (e.dt0 ?? 0) > 900))) {
+    const tu = c.enemies[c.target]?.uid;
+    c.enemies = c.enemies.filter((e: Enemy) => !e.dead || (!e.away && now - (e.dt0 ?? 0) <= 900));
+    const ti = c.enemies.findIndex((e: Enemy) => e.uid === tu && !e.dead);
+    c.target = ti >= 0 ? ti : Math.max(0, c.enemies.findIndex((e: Enemy) => !e.dead));
+  }
+  if (alive(c).length === 0) {
+    c.proj = []; c.tele = []; c.charging = false;
+    c.calm = (c.calm ?? 0) + dt;
+    if (c.calm >= CALM_T) endCombat(g);
+    return;
+  }
+  c.calm = 0;
+  if (atk) { rtAttack(g); if (g.combat !== c || g.screen !== "map") return; }
   c.tick = (c.tick ?? 0) + dt;
   if (c.tick >= 1.5) {
     c.tick -= 1.5;
-    petPhase(g); if (checkWin(g)) return;
-    endRound(g); if (g.screen !== "combat") return;
-    if (checkWin(g)) return;
+    petPhase(g); resolveDeaths(g); if (g.combat !== c || g.screen !== "map") return;
+    endRound(g); if (g.combat !== c || g.screen !== "map") return;
+    resolveDeaths(g); if (g.combat !== c || g.screen !== "map") return;
   }
-  const px = c.px, py = c.py;
   const boss = c.enemies.find((e: Enemy) => e.boss && !e.dead && e.hp > 0);
   if (boss) { bossPhase(g, boss); bossSpecial(g, boss, dt); }
+  let fld: Int16Array | null = null;
   for (const e of c.enemies) {
     if (e.dead || e.hp <= 0) continue;
+    const ex = e.x ?? px, ey = e.y ?? py; const dx = px - ex, dy = py - ey; const d = Math.hypot(dx, dy) || 0.001;
+    const see = los(g, ex, ey, px, py);
+    const hx = e.hx ?? ex, hy = e.hy ?? ey, leash = e.boss ? BOSS_LEASH : LEASH;
+    const leashed = Math.hypot(ex - hx, ey - hy) >= leash - 0.5 && Math.hypot(px - hx, py - hy) > leash + 2;
+    const runAway = !see || d > 9 || leashed;
+    e.lost = runAway ? (e.lost ?? 0) + dt : 0;
+    if ((e.lost ?? 0) >= LOSE_T || (e.minion && !boss)) {
+      if (e.boss) { e.hp = e.max; c.phase = 1; }
+      toMapMon(g, e, e.boss ? 0 : 1.5, e.boss);
+      e.dead = true; e.away = true;
+      if (!e.minion) log(g, e.boss ? `${e.name} retreats to its lair and recovers.` : `${e.name} loses track of you.`);
+      continue;
+    }
     if (e.stun > 0) { e.stun = Math.max(0, e.stun - dt / 1.2); e.wind = 0; e.wk = ""; continue; }
     const P: [number, number, number, number] = e.boss ? (e.bk === "lord" ? [12, 17, 0.6, 1.5] : [10, 16, 0.7, 1.7]) : (RTB[e.b] ?? RTB.brute);
-    const spd = P[0], reach = P[1];
-    const ex = e.x ?? 50, ey = e.y ?? 35; const dx = px - ex, dy = py - ey; const d = Math.hypot(dx, dy) || 0.001;
+    const spd = 0.75 + P[0] * 0.085, reach = P[1] / U;
     if ((e.wind ?? 0) > 0) {
       const w = (e.wind ?? 0) - dt; e.wind = w;
-      if (w <= 0) { e.wind = 0; rtResolve(g, e, d, reach); if (g.hp <= 0) { die(g); return; } if (g.screen !== "combat") return; }
+      if (w <= 0) { e.wind = 0; rtResolve(g, e, see ? d : 99, reach); if (g.hp <= 0) { die(g); return; } if (g.combat !== c) return; }
       continue;
     }
     const at = (e.atkT ?? 0) - dt; e.atkT = at;
     const caster = e.b === "caster";
+    let tx = px, ty = py, mv = true;
+    if (Math.hypot(ex - hx, ey - hy) > leash) { tx = hx; ty = hy; }
+    else if (!see) { fld = fld ?? flowField(g); const st = flowStep(g, fld, ex, ey); if (st) { tx = st[0]; ty = st[1]; } else mv = false; }
+    else if (caster) { if (d < 26 / U) { tx = ex - dx; ty = ey - dy; } else if (d <= 44 / U) mv = false; }
+    else if (d <= reach * 0.7) mv = false;
     let mvx = 0, mvy = 0;
-    if (caster) { if (d > 44) { mvx = dx / d; mvy = dy / d; } else if (d < 26) { mvx = -dx / d; mvy = -dy / d; } }
-    else if (d > reach * 0.7) { mvx = dx / d; mvy = dy / d; }
+    if (mv) { const vx = tx - ex, vy = ty - ey, vl = Math.hypot(vx, vy) || 1; mvx = vx / vl; mvy = vy / vl; }
     for (const o of c.enemies) {
       if (o === e || o.dead || o.hp <= 0) continue;
       const ox = ex - (o.x ?? 0), oy = ey - (o.y ?? 0); const od = Math.hypot(ox, oy);
-      if (od < 10 && od > 0.01) { mvx += (ox / od) * 0.7; mvy += (oy / od) * 0.7; }
+      if (od < 0.95 && od > 0.01) { mvx += (ox / od) * 0.7; mvy += (oy / od) * 0.7; }
     }
-    e.x = clampN(ex + mvx * spd * dt, 5, AW - 5); e.y = clampN(ey + mvy * spd * dt, 7, AH - 5);
-    if (at <= 0 && d <= (caster ? 62 : reach + 3)) { e.wk = caster ? "cast" : "melee"; e.wm = P[2]; e.wind = P[2]; e.atkT = P[3] + Math.random() * 0.6; }
+    const q = { x: ex, y: ey };
+    if (mvx !== 0 || mvy !== 0) { const ml = Math.max(1, Math.hypot(mvx, mvy)); slideMove(g, q, mvx / ml * spd, mvy / ml * spd, dt, MR); }
+    const bx = q.x - px, by = q.y - py, bd = Math.hypot(bx, by), mn = PR + MR + (e.boss ? 0.3 : 0);
+    if (bd < mn && bd > 1e-4) { q.x = px + bx / bd * mn; q.y = py + by / bd * mn; pushOut(g, q, MR); }
+    e.x = q.x; e.y = q.y;
+    if (at <= 0 && see && d <= (caster ? 62 / U : reach + 3 / U)) { e.wk = caster ? "cast" : "melee"; e.wm = P[2] * WIND; e.wind = e.wm; e.atkT = P[3] + Math.random() * 0.6; }
   }
   const pr = c.proj ?? [];
   for (const p of pr) {
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
-    if (p.life > 0 && Math.hypot(p.x - px, p.y - py) < 4.5) {
+    if (solidT(g, Math.floor(p.x), Math.floor(p.y))) { p.life = 0; continue; }
+    if (p.life > 0 && Math.hypot(p.x - px, p.y - py) < 4.5 / U) {
       p.life = 0;
       const e = c.enemies.find((x: Enemy) => x.uid === p.from);
       if (e) damagePlayer(g, e, p.dmg, true, "blasts");
       if (g.hp <= 0) { die(g); return; }
     }
   }
-  c.proj = pr.filter((p: Proj) => p.life > 0 && p.x > -5 && p.x < AW + 5 && p.y > -5 && p.y < AH + 5);
+  c.proj = pr.filter((p: Proj) => p.life > 0);
   const tl = c.tele ?? [];
   for (const tz of tl) {
     tz.t -= dt;
@@ -1082,7 +1159,7 @@ function rtStep(g: Game, dt: number, mx: number, my: number, atk: boolean): void
     if (!e || e.dead || e.hp <= 0) { tz.t = -1; if (tz.kind === "cata") c.charging = false; continue; }
     if (tz.t > 0) continue;
     if (tz.kind === "cata") c.charging = false;
-    if (Math.hypot(px - tz.x, py - tz.y) <= tz.r + 2) {
+    if (Math.hypot(px - tz.x, py - tz.y) <= tz.r + 2 / U) {
       const verb = tz.kind === "acid" ? "splashes acid on" : tz.kind === "cata" ? "💥 OBLITERATES" : "engulfs in shadow flame";
       const dd = damagePlayer(g, e, tz.dmg, true, verb);
       if (dd > 0 && tz.kind === "flame") applyDot(g, Math.round(e.atk * 0.25), "burn");
@@ -1091,10 +1168,10 @@ function rtStep(g: Game, dt: number, mx: number, my: number, atk: boolean): void
     } else addFx(g, "dodged!", "good", "p");
   }
   c.tele = tl.filter((tz: Tele) => tz.t > 0);
-  if (g.screen === "combat") checkWin(g);
+  resolveDeaths(g);
 }
 // ----- free (sub-tile) map movement -----
-const PR = 0.3, MR = 0.3, MAP_SPD = 3.25, ARENA_SPD = 26;
+const PR = 0.3, MR = 0.3, MAP_SPD = 3.25;
 function mSpd(m: MapMon): number { const b = MON[m.t]?.b; return 0.75 + (b && RTB[b] ? RTB[b][0] : 13) * 0.085; }
 function solidT(g: Game, x: number, y: number): boolean { return x < 0 || y < 0 || x >= W || y >= H || g.map[y][x] === 0; }
 function pushOut(g: Game, p: { x: number; y: number }, r: number): void {
@@ -1173,6 +1250,7 @@ function touchTiles(g: Game, p: { x: number; y: number }, I: Inp): boolean {
     const d = Math.hypot(p.x - tx - 0.5, p.y - ty - 0.5);
     if (tile === 4) {
       if (d < 0.8) nearShop = true;
+      if (g.combat) { if (d < 0.5 && !I.shopL) { I.shopL = true; combatNote(g, "⚔️ In combat — the merchant won't trade until the fight is over."); } continue; }
       if (d < 0.5 && !I.shopL) { I.shopL = true; g.screen = "shop"; g.sel = -1; log(g, "💰 The merchant steps aside and grins: \"Take a look!\""); return true; }
       continue;
     }
@@ -1194,21 +1272,26 @@ function touchTiles(g: Game, p: { x: number; y: number }, I: Inp): boolean {
       for (const mm of g.mons) if (Math.abs(mm.x - tx) + Math.abs(mm.y - ty) <= 7) mm.awake = true;
       log(g, `🔮 A grave rune flares: -${dm} HP, and the dead stir nearby!`, "bad"); addFx(g, `-${dm}`, "bad", "p");
     }
-    if (tile === 2 && d < 0.42) { descend(g); return true; }
+    if (tile === 2 && d < 0.42) {
+      if (g.combat) { combatNote(g, "⚔️ In combat — shake off or defeat your foes before taking the stairs."); continue; }
+      descend(g); return true;
+    }
   }
   if (!nearShop) I.shopL = false;
   return false;
 }
 function mapMonsters(g: Game, dt: number, p: { x: number; y: number }): boolean {
   let ch = false, fld: Int16Array | null = null;
-  for (const m of g.mons) {
+  for (const m of [...g.mons]) {
     if (m.fx === undefined || m.fy === undefined || Math.floor(m.fx) !== m.x || Math.floor(m.fy) !== m.y) { m.fx = m.x + 0.5; m.fy = m.y + 0.5; }
     if (m.stun > 0) { m.stun = Math.max(0, m.stun - dt * 2); continue; }
     const d = Math.hypot(p.x - m.fx, p.y - m.fy);
-    if (d < PR + MR + 0.05) { startCombat(g, m); return true; }
-    if (m.boss) continue;
-    if (!m.awake) { if (d <= 4) m.awake = true; else continue; }
-    if (d > 14) continue;
+    if (m.hx === undefined || m.hy === undefined) { m.hx = m.fx; m.hy = m.fy; }
+    if (d < PR + MR + 0.05) { engage(g, m); ch = true; continue; }
+    if (m.boss) { if (d <= BOSS_AGGRO && los(g, m.fx, m.fy, p.x, p.y)) { engage(g, m); ch = true; } continue; }
+    if (!m.awake) { if (d <= WAKE) m.awake = true; else continue; }
+    if (d <= AGGRO && los(g, m.fx, m.fy, p.x, p.y)) { engage(g, m); ch = true; continue; }
+    if (d > 15) continue;
     let tx = p.x, ty = p.y;
     if (!los(g, m.fx, m.fy, p.x, p.y)) {
       fld = fld ?? flowField(g);
@@ -1511,6 +1594,19 @@ function drawMini(cv: HTMLCanvasElement, g: Game, big: boolean): void {
   dot(px, py, "#fff2c8", 0.55); c.beginPath(); c.arc(px * s, py * s, Math.max(1.5 * dpr, 0.55 * s), 0, 7); c.stroke();
   if (!big) { c.strokeStyle = "rgba(255,230,180,.35)"; c.lineWidth = 1; c.strokeRect((px - VT / 2) * s, (py - VT / 2) * s, VT * s, VT * s); }
 }
+// move combat sprites every frame without a React render (React refreshes HP bars etc. at ~15 Hz)
+function placeCombat(we: HTMLElement, c: Combat): void {
+  const put = (el: HTMLElement, x: number, y: number, sz: number): void => { el.style.left = `${((x - sz / 2) / W) * 100}%`; el.style.top = `${((y - sz / 2) / H) * 100}%`; };
+  const byUid = (v: string | undefined): Enemy | undefined => c.enemies.find((e: Enemy) => e.uid === Number(v));
+  we.querySelectorAll<HTMLElement>("[data-enemy]").forEach((el: HTMLElement) => { const e = byUid(el.dataset.enemy); if (e && !e.dead) put(el, e.x ?? 0, e.y ?? 0, e.boss ? 1.8 : 1.05); });
+  we.querySelectorAll<HTMLElement>("[data-wind]").forEach((el: HTMLElement) => {
+    const e = byUid(el.dataset.wind); if (!e || e.dead) return;
+    const sz = parseFloat(el.dataset.sz ?? "1"); put(el, e.x ?? 0, e.y ?? 0, sz);
+    const f = el.firstElementChild as HTMLElement | null; if (f) f.style.transform = `scale(${Math.max(0, Math.min(1, 1 - (e.wind ?? 0) / (e.wm || 1)))})`;
+  });
+  we.querySelectorAll<HTMLElement>("[data-proj]").forEach((el: HTMLElement) => { const q = (c.proj ?? []).find((x: Proj) => x.id === Number(el.dataset.proj)); if (q) put(el, q.x, q.y, 0.4); else el.style.display = "none"; });
+  we.querySelectorAll<HTMLElement>("[data-tid]").forEach((el: HTMLElement) => { const tz = (c.tele ?? []).find((x: Tele) => x.id === Number(el.dataset.tid)); const f = el.firstElementChild as HTMLElement | null; if (tz && f) f.style.transform = `scale(${Math.max(0, Math.min(1, 1 - tz.t / tz.max))})`; });
+}
 function worldTf(g: Game): string { const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5; return `translate(${(-(px - VT / 2) / W) * 100}%, ${(-(py - VT / 2) / H) * 100}%)`; }
 function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   if (g.screen !== "map") return false;
@@ -1518,9 +1614,16 @@ function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   if (g.wx === undefined || g.wy === undefined || Math.floor(g.wx) !== g.px || Math.floor(g.wy) !== g.py) { g.wx = g.px + 0.5; g.wy = g.py + 0.5; ch = true; }
   const p = { x: g.wx, y: g.wy };
   I.slowT = Math.max(0, I.slowT - dt);
-  const sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1);
+  for (const k of Object.keys(g.cds)) if (g.cds[k] > 0) g.cds[k] = Math.max(0, g.cds[k] - dt);
+  const cb = g.combat;
+  const sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1) * (cb ? 1 + Math.min(50, full(g).dodge) / 250 : 1);
   const mag = Math.hypot(mx, my);
   let tvx = 0, tvy = 0;
+  if (cb && (cb.dashT ?? 0) > 0) {
+    cb.dashT = Math.max(0, (cb.dashT ?? 0) - dt);
+    slideMove(g, p, (cb.dvx ?? 0) * DASH_SPD, (cb.dvy ?? 0) * DASH_SPD, dt, PR);
+    I.vx = (cb.dvx ?? 0) * sp; I.vy = (cb.dvy ?? 0) * sp; ch = true;
+  } else {
   if (mag > 0.12) { const k = (Math.min(1, mag) / mag) * sp; tvx = mx * k; tvy = my * k; I.idleT = 0; }
   else { I.idleT += dt; if (I.idleT < 0.05) { tvx = I.vx; tvy = I.vy; } }
   steerVel(I, tvx, tvy, dt);
@@ -1532,14 +1635,16 @@ function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
     if (mag > 0.12 && got < vm * dt * 0.6) laneAssist(g, p, I.vx, I.vy, vm * dt);
     ch = true;
   }
+  }
   g.wx = p.x; g.wy = p.y;
   const tx = Math.floor(p.x), ty = Math.floor(p.y);
   if (tx !== g.px || ty !== g.py) { g.px = tx; g.py = ty; g.turns++; reveal(g); }
   if (touchTiles(g, p, I)) return true;
   if (mapMonsters(g, dt, p)) ch = true;
   if (g.screen !== "map") return true;
+  if (g.combat) { I.regT = 0; return true; }
   I.regT += dt;
-  if (I.regT >= 1.5) { I.regT = 0; const f = full(g); if (g.hp < f.maxHp || g.mp < f.maxMp) { rest(g); ch = true; } }
+  if (I.regT >= REGEN_T) { I.regT = 0; const f = full(g); if (g.hp < f.maxHp || g.mp < f.maxMp) { rest(g); ch = true; } }
   return ch;
 }
 function navLayer(): HTMLElement {
@@ -1620,14 +1725,14 @@ function runAbility(g: Game, id: string, label: string): void {
   g.inAb = true;
   switch (id) {
     case "bash": if (t) { hitEnemy(g, t, 1.3, false, label); stunE(g, t, 1); } break;
-    case "cleave": { const ww = g.perks.includes("whirlwind"); for (const e of nearP(c, ww ? 34 : 26)) { hitEnemy(g, e, ww ? 1.2 : 0.8, false, label); if (ww) stunE(g, e, 1); } break; }
+    case "cleave": { const ww = g.perks.includes("whirlwind"); for (const e of nearP(c, (ww ? 34 : 26) / U)) { hitEnemy(g, e, ww ? 1.2 : 0.8, false, label); if (ww) stunE(g, e, 1); } break; }
     case "cry": b.rage = 4; healPlayer(g, Math.round(f.maxHp * 0.15), true); log(g, "📣 Battle Cry! +50% ATK for 3 turns.", "good"); break;
     case "fireball": {
       const ts = g.perks.includes("chain") ? alive(c) : t ? [t] : [];
       for (const e of ts) { hitEnemy(g, e, 2.2, false, label); if (e.hp > 0) { e.burnT = 3; e.burnD = Math.max(e.burnD, Math.round(f.atk * 0.3)); } }
       break;
     }
-    case "nova": { const m = g.perks.includes("chain") ? 1.8 : 1.2; for (const e of g.perks.includes("chain") ? alive(c) : nearP(c, 34)) { hitEnemy(g, e, m, false, label); stunE(g, e, 2); } break; }
+    case "nova": { const m = g.perks.includes("chain") ? 1.8 : 1.2; for (const e of g.perks.includes("chain") ? alive(c) : nearP(c, 34 / U)) { hitEnemy(g, e, m, false, label); stunE(g, e, 2); } break; }
     case "arcane": { b.shield += Math.round(f.maxMp * 0.4 + g.lvl * 4); log(g, `🔮 Arcane Shield absorbs the next ${b.shield} damage.`, "good"); break; }
     case "backstab": if (t) hitEnemy(g, t, 2.2, c.turn === 0 || t.stun > 0, label); break;
     case "poison": if (t) { hitEnemy(g, t, 1.0, false, label); if (t.hp > 0) { t.poisT = 4; t.poisD = Math.max(t.poisD, Math.round(f.atk * 0.45)); log(g, `${t.name} is badly poisoned.`); } } break;
@@ -1664,17 +1769,10 @@ function useAbility(g: Game, id: string): ActRes {
   }
   return "turn";
 }
-function escape(g: Game, monStun: boolean): void {
-  const c = g.combat; if (!c) return;
-  const m = g.mons.find((x: MapMon) => x.id === c.monId);
-  if (m && monStun) m.stun = 6;
-  if (!monStun) g.mons = g.mons.filter((x: MapMon) => x.id !== c.monId);
-  g.combat = null; g.buffs = freshBuffs(); g.cds = {}; g.screen = "map";
-}
 function liftCurses(g: Game): number { let n = 0; for (const k of GEAR) { const it = g.eq[k]; if (it && locked(it)) { it.freed = true; n++; } } return n; }
 function useConsumable(g: Game, inv: Inv): ActRes {
   const t = IT[inv.id]; const f = full(g); const c = g.combat;
-  const inCombat = !!c && g.screen === "combat";
+  const inCombat = !!c;
   const pw = t.pw ?? 0;
   switch (t.fx) {
     case "heal": { const h = healPlayer(g, Math.round(f.maxHp * pw / 100), inCombat); log(g, `${t.icon} ${t.name}: +${h} HP.`, "heal"); break; }
@@ -1684,7 +1782,7 @@ function useConsumable(g: Game, inv: Inv): ActRes {
     case "bomb": case "frost": {
       if (!c || !inCombat) { log(g, "Save that for combat."); return "none"; }
       const d = t.fx === "bomb" ? 15 + g.floor * 6 : 10 + g.floor * 4;
-      for (const e of alive(c)) {
+      for (const e of nearP(c, 5)) {
         e.hp -= d; addFx(g, `-${d}`, "loot", "e" + e.uid);
         if (t.fx === "bomb") { e.burnT = Math.max(e.burnT, 2); e.burnD = Math.max(e.burnD, 3 + g.floor * 2); } else stunE(g, e, 2);
       }
@@ -1693,10 +1791,10 @@ function useConsumable(g: Game, inv: Inv): ActRes {
     }
     case "smoke": {
       if (!c || !inCombat) { log(g, "Save that for combat."); return "none"; }
-      if (c.boss) { log(g, "The boss sees through the smoke!"); return "none"; }
+      if (alive(c).some((e: Enemy) => e.boss)) { log(g, "The boss sees through the smoke!"); return "none"; }
       g.inv = g.inv.filter((i: Inv) => i.uid !== inv.uid);
-      log(g, "💨 You vanish in a puff of smoke!", "good");
-      escape(g, true);
+      log(g, "💨 You vanish in a puff of smoke! Your foes stagger, blinded.", "good");
+      escapeAll(g, 6);
       return "end";
     }
     case "fury": case "iron": {
@@ -1757,24 +1855,33 @@ function doAction(g: Game, kind: string, arg: string): ActRes {
     return "turn";
   }
   if (kind === "defend") { g.buffs.defend = true; const m = Math.round(f.maxMp * 0.1); g.mp = Math.min(f.maxMp, g.mp + m); log(g, `🛡️ You brace yourself (+${m} MP).`); return "turn"; }
-  if (kind === "flee") {
-    if (c.boss) { log(g, "There is no escape from this foe!"); return "none"; }
-    if (Math.random() < 0.55 + f.dodge / 200) { log(g, "🏃 You escape!", "good"); escape(g, true); return "end"; }
-    log(g, "You fail to escape!", "bad"); return "turn";
-  }
   if (kind === "vanish") {
-    if (c.boss) { log(g, "The boss sees through your shadow."); return "none"; }
+    if (alive(c).some((e: Enemy) => e.boss)) { log(g, "The boss sees through your shadow."); return "none"; }
     if (g.usedShadow) { log(g, "Shadowmeld already used this floor."); return "none"; }
-    g.usedShadow = true; log(g, "🌫️ Shadowmeld! You slip past unseen.", "good"); escape(g, false); return "end";
+    g.usedShadow = true; log(g, "🌫️ Shadowmeld! You slip away unseen.", "good"); escapeAll(g, 8); return "end";
   }
   if (kind === "ability") return useAbility(g, arg);
   if (kind === "item") { const inv = g.inv.find((i: Inv) => i.uid === Number(arg)); if (!inv) return "none"; c.itemOpen = false; return useConsumable(g, inv); }
   return "none";
 }
 function combatAct(g: Game, kind: string, arg: string): void {
-  if (g.screen !== "combat" || !g.combat) return;
+  if (g.screen !== "map" || !g.combat) return;
+  syncPos(g);
   doAction(g, kind, arg);
-  if (g.screen === "combat") checkWin(g);
+  resolveDeaths(g);
+}
+// the quick-slot consumable: your chosen one if you still carry it, else the first healing potion
+function qsItem(g: Game): Inv | undefined {
+  const ok = (i: Inv): boolean => { const t = IT[i.id]; return t.slot === "consumable" && ["heal", "both", "mana", "cleanse", "bomb", "frost", "fury", "iron"].includes(t.fx ?? ""); };
+  if (g.qs) { const q = g.inv.find((i: Inv) => i.id === g.qs && ok(i)); if (q) return q; }
+  return g.inv.find((i: Inv) => { const t = IT[i.id]; return t.slot === "consumable" && (t.fx === "heal" || t.fx === "both"); });
+}
+function quickUse(g: Game): void {
+  const it = qsItem(g);
+  if (!it) { addFx(g, "no potion", "sys", "p"); log(g, "No potion in your bag."); return; }
+  syncPos(g);
+  useConsumable(g, it);
+  resolveDeaths(g);
 }
 
 function rest(g: Game): void {
@@ -1805,11 +1912,13 @@ function unequip(g: Game, slot: GearSlot): void {
 }
 
 const HELP: [string, string][] = [
-  ["🕹️ Controls (touch)", "Touch and drag anywhere on the LEFT half of the screen to spawn a floating joystick; hold it to keep moving (analog, 8 directions). Action buttons sit on the right: ⚔️ Attack (hold to keep swinging), your 3 abilities with cooldown rings, 💨 Dodge roll, 🎒 Item and 🏃 Flee. Tap the minimap (top-right of the dungeon view) for the full map, which pauses the game. Item pickups float above your hero. Menus, the bag and shops are normal taps. Works in portrait and landscape. You regenerate slowly while exploring."],
-  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving). Combat: Space or J = attack (hold), Enter = attack once, 1/2/3 = abilities, Shift or K = dodge roll, I = item menu, F = flee, Tab or Q/E = switch target. Map: movement is free and analog (you glide along walls), M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc on the map or in combat opens the exit prompt (the game pauses)."],
-  ["🎮 Gamepad", "Left stick or D-pad moves. Combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, LB/L1 switch target, View/Select item menu. Map: A trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options pauses (exit prompt)."],
-  ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant, 🔽 stairs take you down. Bosses guard the stairs on every 5th floor."],
-  ["⚔️ Combat", "Real-time. Enemies chase you and attack on their own timers. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep; bosses drop acid pools, shadow flame and the Echo Lord's CATACLYSM ring. Standing still gets you killed. Your attack auto-targets the nearest foe in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Abilities cost MP and have cooldowns. Burn, poison, buffs and pets tick every 1.5 s. The game pauses whenever a menu, shop or prompt is open, or the app is in the background."],
+  ["🕹️ Controls (touch)", "Touch and drag anywhere on the LEFT half of the screen to spawn a floating joystick; hold it to keep moving (analog, 8 directions). Out of combat the right side holds 🎒 Bag, 📖 Codex, ❓ Help, 🏠 and 💾. When a fight starts the same view swaps to combat controls: ⚔️ Attack (hold to keep swinging), your 3 abilities with cooldown rings, 💨 Dodge roll and a 🧪 potion quick-slot showing how many you carry. Tap an enemy to target it. Tap the minimap (top-right of the dungeon view) for the full map, which pauses the game. Item pickups float above your hero. Works in portrait and landscape."],
+  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving, you glide along walls). Exploring: M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. In combat: Space or J = attack (hold), Enter = attack once, 1/2/3 = abilities, Shift or K = dodge roll, R or 4 = quick-slot potion, Tab or Q/E = switch target. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc during play opens the exit prompt (the game pauses; confirming saves and exits) — even mid-fight."],
+  ["🎮 Gamepad", "Left stick or D-pad moves. Exploring: A/✕ trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. In combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, LB/L1 switch target, View/Select quick-slot potion. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options pauses (exit prompt), also mid-fight."],
+  ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant, 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You regenerate slowly while no monster is chasing you."],
+  ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. A Smoke Bomb or Shadowmeld breaks off a fight instantly (not against bosses)."],
+  ["🔒 Combat lockout", "While any monster is fighting you, the bag, codex, help, full map, save-code screen, title button, merchants and the stairs are locked (greyed out; pressing them shows “In combat”). You can still move, attack, use abilities, dodge, switch targets and drink from the 🧪 quick-slot (your first healing potion, or any combat consumable you mark with ☆ Quick-slot in the bag). The minimap stays visible. The exit prompt (Esc / Start / back) always works: it pauses, and confirming saves your fight and exits. About 1.5 s after the last foe falls or gives up you'll see “Combat over” and everything unlocks."],
+  ["☠️ Bosses", "The Broodmother (Floor 5) and the Echo Lord (Floor 10) wake when you step into their lair and fight you right there: acid pools, shadow flame and the Echo Lord's CATACLYSM ring land on the map, and spiderlings or Echo Shades crawl out around the boss. The stairs only appear once the boss is dead. Run too far and the boss returns to its lair and recovers fully — no chipping it down from range."],
   ["✨ Abilities", "Each class has 3 abilities that cost MP and have cooldowns. MP regenerates every turn. Warriors gain MP when hit; Mages restore MP with staff strikes; Ranger wolves attack on their own."],
   ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Drops roll random bonus stats: green lines are good, red lines are penalties. Some gear is class-only, and 3 sets (Ironclad, Shadowstalker, Arcanist) grant set bonuses."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
@@ -1817,7 +1926,7 @@ const HELP: [string, string][] = [
   ["💰 Merchant", "Buy potions, scrolls and gear, sell loot, identify items, and lift curses. Merchants appear on even floors."],
   ["📖 Story", "10 floors. The Broodmother mini-boss waits on Floor 5 and the Echo Lord on Floor 10. Beat him to win."],
   ["∞ Endless", "☠️ PERMADEATH: Endless autosaves constantly and your run save is deleted the moment you die (revives like Undying, Divine Resurrection or the Phoenix Amulet trigger first). Tokens, upgrades, best depth and codex are kept. Infinite scaling floors with a boss every 5 floors. After each boss pick an in-run upgrade (class capstones every 10th floor). Your best depth is saved."],
-  ["💾 Saving", "Your run autosaves after every move, fight and floor change; tap Continue on the title screen to resume. Tokens, upgrades, best depth and the codex are saved separately and survive death. Use 💾 Save Code to copy a backup code or paste one in on another device."],
+  ["💾 Saving", "Your run autosaves every couple of seconds — even mid-fight, with every enemy's position and HP — and on every floor change; tap Continue on the title screen to resume. Tokens, upgrades, best depth and the codex are saved separately and survive death. Use 💾 Save Code to copy a backup code or paste one in on another device."],
   ["🪙 Tokens", "Every 10 Endless floors cleared earns 1 token, saved between runs. Spend them in Endless Upgrades: each class has a 36-node tree whose top tier holds game-changing capstones. Upgrades apply in Endless only."],
 ];
 
@@ -2220,21 +2329,32 @@ function validRun(x: unknown): Game | null {
   g.usedUndying = g.usedUndying === true; g.usedShadow = g.usedShadow === true; g.usedPhoenix = g.usedPhoenix === true; g.usedRes = g.usedRes === true;
   if (typeof g.hp !== "number" || !(g.hp > 0)) return null;
   g.biome = g.biome === "warren" || g.biome === "crypt" ? g.biome : biomeOf(g.floor); g.bannerTs = 0;
-  g.fx = []; g.inAb = false; g.sel = num(g.sel) ? g.sel : -1; g.prev = (["map", "combat", "inventory", "shop"] as Screen[]).includes(g.prev) ? g.prev : "map"; g.hurtTs = 0;
+  g.fx = []; g.inAb = false; g.sel = num(g.sel) ? g.sel : -1; g.prev = (["map", "inventory", "shop"] as Screen[]).includes(g.prev) ? g.prev : "map"; g.hurtTs = 0;
   g.stains = Array.isArray(g.stains) ? g.stains.filter((v: unknown): v is number => typeof v === "number" && isFinite(v)) : [];
   g.rem = Array.isArray(g.rem) ? g.rem.filter((v: unknown): v is string => typeof v === "string" && /^\d+:[a-z]+$/.test(v)) : [];
   for (const n of g.stains) if (!g.rem.some((r: string) => r.startsWith(`${n}:`))) g.rem.push(`${n}:gen`);
   g.stains = [];
-  const okScreens: Screen[] = ["map", "combat", "inventory", "shop", "upgrade", "codex", "help"];
+  if (typeof g.qs !== "string" || !IT[g.qs]) delete g.qs;
+  const okScreens: Screen[] = ["map", "inventory", "shop", "upgrade", "codex", "help"];
   if (g.screen === "dead" || g.screen === "victory") return null;
   if (!okScreens.includes(g.screen)) g.screen = "map";
   if (g.screen === "upgrade" && g.offers.length === 0) g.screen = "map";
+  // in-world combat: positions/HP of engaged enemies are restored; old arena saves drop the encounter (the monster is still on the map)
+  if ((g.screen as string) === "combat") g.screen = "map";
   const c = g.combat;
-  if (g.screen === "combat") {
-    if (!isObj(c) || !Array.isArray(c.enemies) || !c.enemies.some((e: Enemy) => isObj(e) && !e.dead && num(e.hp) && e.hp > 0)) { g.combat = null; g.screen = "map"; }
-    else { c.itemOpen = c.itemOpen === true; if (!num(c.target)) c.target = 0; if (!num(c.turn)) c.turn = 0; if (!num(c.phase)) c.phase = 1; c.grace = 1.5; c.tele = Array.isArray(c.tele) ? c.tele : []; c.proj = Array.isArray(c.proj) ? c.proj : []; c.shots = []; }
-  } else if (g.prev !== "combat") g.combat = null;
-  if (g.prev === "combat" && (!isObj(g.combat) || !Array.isArray(g.combat.enemies))) { g.combat = null; g.prev = "map"; }
+  if (isObj(c) && c.v2 === true && Array.isArray(c.enemies)) {
+    c.enemies = c.enemies.filter((e: Enemy) => isObj(e) && !e.dead && num(e.hp) && e.hp > 0 && num(e.max) && num(e.x) && num(e.y) && num(e.atk) && !solidT(g, Math.floor(e.x ?? -1), Math.floor(e.y ?? -1)));
+    for (const e of c.enemies) { e.wind = 0; e.wk = ""; e.atkT = Math.max(num(e.atkT) ? (e.atkT ?? 0) : 0, 1); e.stun = num(e.stun) ? e.stun : 0; e.lost = 0; e.rt = true; if (!num(e.hx) || !num(e.hy)) { e.hx = e.x; e.hy = e.y; } }
+    if (c.enemies.length === 0) g.combat = null;
+    else {
+      c.itemOpen = false; c.charging = false; c.calm = 0; c.proj = []; c.tele = []; c.shots = []; c.dashT = 0; c.iT = 1; c.atkCd = 0; c.dashCd = 0;
+      if (!num(c.target) || c.target < 0 || c.target >= c.enemies.length) c.target = 0;
+      if (!num(c.turn)) c.turn = 0; if (!num(c.phase)) c.phase = 1; if (!num(c.tick)) c.tick = 0; if (!num(c.bossT)) c.bossT = 3;
+      c.boss = c.enemies.some((e: Enemy) => e.boss) || c.boss === true;
+      if (g.screen === "inventory" || g.screen === "codex" || g.screen === "help" || g.screen === "shop") g.screen = "map";
+    }
+  } else g.combat = null;
+  if (g.prev !== "map" && g.prev !== "inventory" && g.prev !== "shop") g.prev = "map";
   if (g.screen === "shop" && !nearMerchant(g) && g.shop.length === 0) g.screen = "map";
   return g;
 }
@@ -2666,8 +2786,10 @@ export default function DungeonOfEchoes() {
     </div>
   );
   const toastEl = toast ? <div key={toast} role="status" style={{ position: "fixed", left: "50%", bottom: 18, transform: "translateX(-50%)", zIndex: 60, maxWidth: "90vw", fontSize: 13, fontWeight: 700, padding: "8px 14px", borderRadius: 999, background: t.bg.elevated, color: t.text.primary, border: `1px solid ${t.border.default}`, boxShadow: "0 4px 14px rgba(0,0,0,.35)", pointerEvents: "none", animation: "doeFlash 2.6s ease-in forwards", fontFamily: t.font.family }}>{toast}</div> : null;
+  const lockNote = (): void => { setToast("⚔️ In combat — locked until the fight ends"); };
   const toggleMap = (): void => {
     const gg = G.current; const I = inp.current;
+    if (gg && gg.combat && !bigMap) { lockNote(); return; }
     HELD.clear(); I.kx = 0; I.ky = 0; I.vx = 0; I.vy = 0;
     if (!gg || gg.screen !== "map") { setBigMap(false); return; }
     setBigMap((b: boolean) => !b);
@@ -2691,14 +2813,14 @@ export default function DungeonOfEchoes() {
   const style = <div style={{ display: "contents" }}>{exitModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5%)}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}"}</style></div>;
   const back = (): void => { if (g) run((gg: Game) => { gg.screen = gg.prev; }); else setUi("title"); };
   // ---------- INPUT: keyboard, gamepad, real-time loop ----------
-  const isPlay = (): boolean => { const gg = G.current; return !!gg && !exitAsk && !sheet && !bigMap && (gg.screen === "map" || (gg.screen === "combat" && !!gg.combat && !gg.combat.itemOpen)); };
+  const isPlay = (): boolean => { const gg = G.current; return !!gg && !exitAsk && !sheet && !bigMap && gg.screen === "map"; };
   const openExit = (): void => { const gg = G.current; if (gg) LAST_SAVE = saveRun(gg); HELD.clear(); const I = inp.current; I.kx = 0; I.ky = 0; I.katk = false; I.atk = false; setExitAsk(true); };
   const cycleTarget = (d: number): void => run((x: Game) => { const c = x.combat; if (!c) return; const n = c.enemies.length; for (let k = 1; k <= n; k++) { const i = (((c.target + d * k) % n) + n) % n; const e = c.enemies[i]; if (e && !e.dead && e.hp > 0) { c.target = i; return; } } });
   const cycleTab = (d: number): void => {
     const gg = G.current; const n = CLASS_IDS.length;
     if (!gg && ui === "tree") { setTreeCls(CLASS_IDS[(CLASS_IDS.indexOf(treeCls) + d + n) % n]); return; }
     if (!gg && ui === "title") { setPickCls(CLASS_IDS[(CLASS_IDS.indexOf(pickCls) + d + n) % n]); return; }
-    if (gg && gg.screen === "combat") cycleTarget(d);
+    if (gg && gg.screen === "map" && gg.combat) cycleTarget(d);
   };
   const goBack = (): void => {
     if (bigMap) { setBigMap(false); return; }
@@ -2713,7 +2835,6 @@ export default function DungeonOfEchoes() {
       case "codex": case "help": back(); return;
       case "inventory": run((x: Game) => { if (x.sel !== -1) x.sel = -1; else x.screen = "map"; }); return;
       case "shop": run((x: Game) => { x.screen = "map"; }); return;
-      case "combat": if (gg.combat && gg.combat.itemOpen) { run((x: Game) => { if (x.combat) x.combat.itemOpen = false; }); return; } openExit(); return;
       case "map": openExit(); return;
       case "dead": case "victory": toTitle(); return;
       default: return;
@@ -2725,27 +2846,31 @@ export default function DungeonOfEchoes() {
     navMove(0, 1, true);
   };
   const abil = (i: number): void => {
-    const gg = G.current; if (!gg || gg.screen !== "combat") return;
+    const gg = G.current; if (!gg || gg.screen !== "map" || !gg.combat) return;
     const a = CLS[gg.cls].abs[i]; if (!a) return;
     if ((gg.cds[a.id] ?? 0) > 0 || gg.mp < abCost(gg, a)) { addFx(gg, (gg.cds[a.id] ?? 0) > 0 ? "cooldown" : "no MP", "sys", "p"); refresh(); return; }
     run((x: Game) => rtAbility(x, a.id));
   };
   const mvVec = (): [number, number] => { const I = inp.current; let x = I.jx + I.kx + I.gx, y = I.jy + I.ky + I.gy; const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; } return [x, y]; };
   const dodge = (): void => { const [x, y] = mvVec(); run((gg: Game) => rtDodge(gg, x, y)); };
-  const interact = (): void => run((gg: Game) => { if (gg.screen === "map" && nearMerchant(gg)) { gg.screen = "shop"; gg.sel = -1; inp.current.shopL = true; } });
-  const openBag = (): void => run((gg: Game) => {
-    if (gg.screen === "map") { gg.screen = "inventory"; gg.sel = -1; }
-    else if (gg.screen === "inventory") { gg.screen = "map"; gg.sel = -1; }
-    else if (gg.screen === "combat" && gg.combat) gg.combat.itemOpen = !gg.combat.itemOpen;
-  });
+  const inFight = (): boolean => { const gg = G.current; if (gg && gg.combat && gg.screen === "map") { lockNote(); return true; } return false; };
+  const interact = (): void => { if (inFight()) return; run((gg: Game) => { if (gg.screen === "map" && nearMerchant(gg)) { gg.screen = "shop"; gg.sel = -1; inp.current.shopL = true; } }); };
+  const openBag = (): void => {
+    if (inFight()) return;
+    run((gg: Game) => {
+      if (gg.screen === "map") { gg.screen = "inventory"; gg.sel = -1; }
+      else if (gg.screen === "inventory") { gg.screen = "map"; gg.sel = -1; }
+    });
+  };
+  const quick = (): void => run((gg: Game) => quickUse(gg));
   drawRef.current = (force: boolean): void => {
     const gg = G.current; if (!gg || gg.screen !== "map") return;
     const cv = mapCv.current; if (cv) drawView(cv, gg, force);
-    const we = worldEl.current; if (we) we.style.transform = worldTf(gg);
+    const we = worldEl.current; if (we) { we.style.transform = worldTf(gg); if (gg.combat) placeCombat(we, gg.combat); }
     const mc = miniCv.current; const now = performance.now();
     if (mc && (force || now - miniT.current > 120)) { miniT.current = now; drawMini(mc, gg, false); }
   };
-  const openPage = (s: Screen): void => run((gg: Game) => { if (gg.screen === "map") { gg.prev = "map"; gg.screen = s; } });
+  const openPage = (s: Screen): void => { if (inFight()) return; run((gg: Game) => { if (gg.screen === "map") { gg.prev = "map"; gg.screen = s; } }); };
   keyRef.current = (e: KeyboardEvent, down: boolean): void => {
     const tg = e.target as HTMLElement | null;
     const typing = !!tg && (tg.tagName === "TEXTAREA" || tg.tagName === "INPUT" || tg.isContentEditable === true);
@@ -2767,25 +2892,25 @@ export default function DungeonOfEchoes() {
       navMove(DIR[k][0], DIR[k][1], false); return;
     }
     if (k === "Escape" || (k === "Backspace" && !play)) { e.preventDefault(); goBack(); return; }
-    if (k === "m" && gg && gg.screen === "map" && !exitAsk && !sheet) { e.preventDefault(); toggleMap(); return; }
+    if (k === "m" && gg && gg.screen === "map" && !exitAsk && !sheet && (!gg.combat || bigMap)) { e.preventDefault(); toggleMap(); return; }
     if (!play) {
       if ((k === "Enter" || k === " ") && !onBtn) { e.preventDefault(); navOk(); return; }
       if (k === "q" || k === "[") { cycleTab(-1); return; }
       if (k === "e" || k === "]") { cycleTab(1); return; }
-      if ((k === "i" || k === "b") && gg && (gg.screen === "inventory" || gg.screen === "combat")) { e.preventDefault(); openBag(); return; }
+      if ((k === "i" || k === "b") && gg && gg.screen === "inventory") { e.preventDefault(); openBag(); return; }
       return;
     }
     if (!gg) return;
-    if (gg.screen === "combat") {
+    if (gg.combat) {
       if (k === " " || k === "j") { if (onBtn && k === " ") return; e.preventDefault(); I.katk = true; run((x: Game) => rtAttack(x)); return; }
       if (k === "Enter") { if (onBtn) return; e.preventDefault(); run((x: Game) => rtAttack(x)); return; }
       if (k === "1" || k === "2" || k === "3") { abil(Number(k) - 1); return; }
       if (k === "Shift" || k === "k") { dodge(); return; }
-      if (k === "i" || k === "b") { openBag(); return; }
-      if (k === "f") { run((x: Game) => rtFlee(x)); return; }
+      if (k === "r" || k === "4") { quick(); return; }
       if (k === "Tab") { e.preventDefault(); cycleTarget(e.shiftKey ? -1 : 1); return; }
       if (k === "q") { cycleTarget(-1); return; }
       if (k === "e") { cycleTarget(1); return; }
+      if (["i", "b", "c", "h", "?", "m"].includes(k)) { lockNote(); return; }
       return;
     }
     if ((k === "Enter" || k === " " || k === "e") && !onBtn) { e.preventDefault(); interact(); return; }
@@ -2816,19 +2941,20 @@ export default function DungeonOfEchoes() {
       if (dir !== P.dir) { P.dir = dir; P.rep = 0.4; const v = V[dir]; if (v) navMove(v[0], v[1], false); }
       else if (dir) { P.rep -= dt; if (P.rep <= 0) { P.rep = 0.15; const v = V[dir]; if (v) navMove(v[0], v[1], false); } }
     }
-    I.gatk = play && !!gg && gg.screen === "combat" && b(0);
+    I.gatk = play && !!gg && !!gg.combat && b(0);
     const prev = P.prev;
     const edge = (i: number): boolean => b(i) && !prev[i];
     P.prev = pad.buttons.map((x: GamepadButton) => x.pressed);
     if (play && gg) {
-      if (gg.screen === "combat") {
+      if (gg.combat) {
         if (edge(0)) run((x: Game) => rtAttack(x));
         if (edge(1)) dodge();
         if (edge(2)) abil(0);
         if (edge(3)) abil(1);
         if (edge(5)) abil(2);
         if (edge(4)) cycleTarget(1);
-        if (edge(8)) openBag();
+        if (edge(8)) quick();
+        if (edge(11)) lockNote();
       } else {
         if (edge(0)) interact();
         if (edge(3)) openBag();
@@ -2859,13 +2985,13 @@ export default function DungeonOfEchoes() {
     if (!gg || exitAsk || sheet || bigMap || document.hidden) return;
     const [mx, my] = mvVec();
     if (gg.screen === "map") {
-      const chg = rtMap(gg, dt, mx, my, I);
+      const was = !!gg.combat;
+      let chg = rtMap(gg, dt, mx, my, I);
+      if (gg.combat && (gg.screen as Screen) === "map") { combatStep(gg, dt, I.atk || I.katk || I.gatk); chg = true; }
+      if (!gg.combat) I.atk = false;
       drawRef.current(false);
-      if ((gg.screen as Screen) !== "map") { if ((gg.screen as Screen) === "combat") rtInit(gg); I.rT = 0; refresh(); }
-      else if (chg) { I.rT += dt; if (I.rT >= 0.03) { I.rT = 0; refresh(); } }
-    } else if (gg.screen === "combat" && gg.combat && !gg.combat.itemOpen) {
-      rtStep(gg, dt, mx, my, I.atk || I.katk || I.gatk);
-      I.rT += dt; if (I.rT >= 0.033 || gg.screen !== "combat") { I.rT = 0; refresh(); }
+      if ((gg.screen as Screen) !== "map" || was !== !!gg.combat) { I.rT = 0; refresh(); }
+      else if (chg) { I.rT += dt; if (I.rT >= (gg.combat ? 0.066 : 0.033)) { I.rT = 0; refresh(); } }
     } else return;
     I.saveT += dt;
     if (I.saveT >= 1.5 || (gg.screen as Screen) === "dead") { I.saveT = 0; LAST_SAVE = saveRun(gg); }
@@ -3072,16 +3198,17 @@ export default function DungeonOfEchoes() {
   }
 
   const f = full(g);
+  const homeBtn = (): void => { if (G.current && G.current.combat) { lockNote(); return; } goHome(); };
   const hud = (
     <div style={{ ...card, display: "flex", flexDirection: "column", gap: 6, position: "relative" }}>
-      {fxLayer(g, "p")}
+      {g.screen !== "map" && fxLayer(g, "p")}
       {g.hurtTs && Date.now() - g.hurtTs < 700 ? splat(g.hurtTs % 100000) : null}
       <div style={{ ...row, justifyContent: "space-between", fontSize: 13 }}>
         <span style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 42, height: 42, flex: "0 0 auto", borderRadius: 8, background: "radial-gradient(circle at 50% 40%, #3a2a1a, #0d0a10 80%)", border: "1px solid #5a3a2a", overflow: "hidden" }}>{spr(g.cls, 42)}</span>{CLS[g.cls].name} · Lv {g.lvl}</span>
         <span>{g.mode === "story" ? `🏰 Floor ${g.floor}/${STORY_END}` : `∞ Depth ${g.floor}`}</span>
         <span style={{ color: t.text.warning, fontWeight: 700 }}>💰 {g.gold}</span>
         <span style={{ fontSize: 11, color: LAST_SAVE ? t.text.success : t.text.warning }}>{LAST_SAVE ? "💾 Saved" : "⚠️ Session only"}</span>
-        <button onClick={goHome} aria-label="Title screen (copies your save code)" style={{ minWidth: 40, minHeight: 36, borderRadius: 10, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 16, cursor: "pointer" }}>🏠</button>
+        <button onClick={homeBtn} aria-disabled={!!g.combat} aria-label="Title screen (copies your save code)" style={{ opacity: g.combat ? 0.4 : 1, minWidth: 40, minHeight: 36, borderRadius: 10, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 16, cursor: "pointer" }}>🏠</button>
       </div>
       <div style={{ display: "none" }}>
       </div>
@@ -3095,14 +3222,14 @@ export default function DungeonOfEchoes() {
 
   const hudC = (
     <div style={{ ...card, padding: "4px 8px", display: "flex", alignItems: "center", gap: 8, position: "relative", flex: "0 0 auto" }}>
-      {fxLayer(g, "p")}
+      {g.screen !== "map" && fxLayer(g, "p")}
       <span style={{ width: 30, height: 30, flex: "0 0 auto", borderRadius: 6, background: "radial-gradient(circle at 50% 40%, #3a2a1a, #0d0a10 80%)", border: "1px solid #5a3a2a", overflow: "hidden" }}>{spr(g.cls, 30)}</span>
       <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>{CLS[g.cls].name} {g.lvl}</span>
       <div style={{ flex: "1 1 auto", minWidth: 0, display: "flex", gap: 8 }}>{bar(g.hp, f.maxHp, "#e5484d", "HP")}{bar(g.mp, f.maxMp, "#3e8ef7", "MP")}{bar(g.xp, need(g.lvl), "#f5a524", "XP")}</div>
       <span style={{ fontSize: 12, whiteSpace: "nowrap" }}>{g.mode === "story" ? `🏰 ${g.floor}/${STORY_END}` : `∞ ${g.floor}`}</span>
       <span style={{ fontSize: 12, color: t.text.warning, fontWeight: 700, whiteSpace: "nowrap" }}>💰 {g.gold}</span>
       <span style={{ fontSize: 11, color: LAST_SAVE ? t.text.success : t.text.warning, whiteSpace: "nowrap" }}>{LAST_SAVE ? "💾" : "⚠️"}</span>
-      <button onClick={goHome} aria-label="Title screen (copies your save code)" style={{ minWidth: 36, minHeight: 32, borderRadius: 8, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 15, cursor: "pointer" }}>🏠</button>
+      <button onClick={homeBtn} aria-disabled={!!g.combat} aria-label="Title screen (copies your save code)" style={{ opacity: g.combat ? 0.4 : 1, minWidth: 36, minHeight: 32, borderRadius: 8, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 15, cursor: "pointer" }}>🏠</button>
     </div>
   );
   const playLayout = (g0: Game, viewFn: () => ReactNode, aspect: number, actions: ReactNode, below: ReactNode) => {
@@ -3294,6 +3421,7 @@ export default function DungeonOfEchoes() {
               {selSlot && btn(locked(sel) ? "🔒 Cursed" : "Unequip", () => run((gg: Game) => { unequip(gg, selSlot); if (!gg.eq[selSlot]) gg.sel = -1; }), { grow: true, disabled: locked(sel) })}
               {selInv && IT[selInv.id].slot !== "consumable" && btn(selInv.ident ? "Equip" : "Equip (reveal)", () => run((gg: Game) => { equip(gg, selInv.uid); }), { tone: "primary", grow: true })}
               {selInv && IT[selInv.id].slot === "consumable" && btn("Use", () => run((gg: Game) => { const r = useConsumable(gg, selInv); if (r === "turn") gg.sel = -1; }), { tone: "primary", grow: true })}
+              {selInv && ["heal", "both", "mana", "cleanse", "bomb", "frost", "fury", "iron"].includes(IT[selInv.id].fx ?? "") && btn(g.qs === selInv.id ? "★ Quick-slot" : "☆ Quick-slot", () => run((gg: Game) => { gg.qs = gg.qs === selInv.id ? undefined : selInv.id; log(gg, gg.qs ? `${IT[selInv.id].icon} ${IT[selInv.id].name} set as your combat quick-slot (R / 4 / Select).` : "Quick-slot reset to your first healing potion."); }), { grow: true, key: "qs" })}
               {selInv && btn("Drop", () => run((gg: Game) => { gg.inv = gg.inv.filter((x: Inv) => x.uid !== selInv.uid); log(gg, `Dropped ${instName(selInv)}.`); gg.sel = -1; }), { tone: "danger", grow: true })}
             </div>
             {selInv && IT[selInv.id].slot !== "consumable" && (() => {
@@ -3319,124 +3447,6 @@ export default function DungeonOfEchoes() {
         </div></div>
       </div>
     );
-  }
-
-  // ---------- COMBAT ----------
-  if (g.screen === "combat" && g.combat) {
-    const c = g.combat;
-    const cons = g.inv.filter((i: Inv) => IT[i.id].slot === "consumable");
-    const b = g.buffs;
-    const chips: string[] = [];
-    if (b.rage > 0) chips.push(`📣 Rage ${b.rage}`);
-    if (b.fury > 0) chips.push(`📜 Fury ${b.fury}`);
-    if (b.holy > 0) chips.push(`🔆 Holy ${b.holy}`);
-    if (b.iron > 0) chips.push(`📃 Iron ${b.iron}`);
-    if (b.evade > 0) chips.push(`💨 Evade ×${b.evade}`);
-    if (b.shield > 0) chips.push(`🔮 Shield ${b.shield}`);
-    if (b.frenzy > 0) chips.push(`📯 Frenzy ${b.frenzy}`);
-    if (b.dotT > 0) chips.push(`☠️ DoT ${b.dotD}×${b.dotT}`);
-    if (f.curses.length > 0) chips.push(`☠️ Cursed ×${f.curses.length}`);
-    const boss = c.enemies.find((e: Enemy) => e.boss);
-    const cbio: Biome = g.biome ?? biomeOf(g.floor);
-    const now = Date.now();
-    const pc = (v: number, tot: number): string => `${(v / tot) * 100}%`;
-    const box = (x: number, y: number, s: number): CSSProperties => ({ position: "absolute", left: pc(x - s / 2, AW), top: pc(y - s / 2, AH), width: pc(s, AW), height: pc(s, AH) });
-    const cpx = c.px ?? 16, cpy = c.py ?? AH / 2;
-    const arena = (): ReactNode => (
-      <div style={{ position: "relative", width: "100%", aspectRatio: `${AW} / ${AH}`, overflow: "hidden", borderRadius: 12, border: `1px solid ${cbio === "warren" ? "#3c5a2a" : "#4a2f6a"}`, background: cbio === "warren" ? "radial-gradient(ellipse at 50% 55%, #2c3622 0%, #151a10 60%, #090b07 100%)" : "radial-gradient(ellipse at 50% 55%, #2c2238 0%, #17111f 60%, #08060c 100%)", touchAction: "none" }}>
-        <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(90deg, rgba(0,0,0,.35) 1px, transparent 1px), linear-gradient(0deg, rgba(0,0,0,.35) 1px, transparent 1px)", backgroundSize: "10% 14.2857%", opacity: 0.6, pointerEvents: "none" }} />
-        {g.hurtTs && now - g.hurtTs < 700 ? <div key={g.hurtTs} style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse at center, transparent 40%, rgba(190,0,0,.5) 100%)", animation: "doeFlash .55s ease-out forwards", zIndex: 6 }} /> : null}
-        <div style={{ position: "absolute", left: 6, top: 4, fontSize: 11, fontWeight: 700, color: "#e8dcc8", textShadow: "0 1px 2px #000", pointerEvents: "none", zIndex: 7 }}>{c.boss ? "☠️ Boss" : "⚔️ Fight"}{boss ? ` · Phase ${c.phase}/${boss.bk === "lord" ? 3 : 2}` : ""}</div>
-        {(c.tele ?? []).map((tl: Tele) => (
-          <div key={tl.id} style={{ ...box(tl.x, tl.y, tl.r * 2), borderRadius: "50%", border: `2px solid ${tl.kind === "acid" ? "#7dff4a" : tl.kind === "cata" ? "#c07bff" : "#ff5a2a"}`, background: "rgba(0,0,0,.15)", boxSizing: "border-box", pointerEvents: "none", zIndex: 1 }}>
-            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: tl.kind === "acid" ? "rgba(110,220,60,.4)" : tl.kind === "cata" ? "rgba(150,60,255,.45)" : "rgba(255,80,20,.42)", transform: `scale(${Math.max(0, Math.min(1, 1 - tl.t / tl.max))})` }} />
-          </div>
-        ))}
-        {c.enemies.map((e: Enemy) => {
-          if (e.dead || e.wk !== "melee" || (e.wind ?? 0) <= 0) return null;
-          const rr = (e.boss ? (e.bk === "lord" ? 17 : 16) : (RTB[e.b] ?? RTB.brute)[1]) + 5;
-          return (
-            <div key={"w" + e.uid} style={{ ...box(e.x ?? 0, e.y ?? 0, rr * 2), borderRadius: "50%", border: "2px solid rgba(255,40,40,.9)", boxSizing: "border-box", pointerEvents: "none", zIndex: 1 }}>
-              <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "rgba(220,0,0,.35)", transform: `scale(${Math.max(0, Math.min(1, 1 - (e.wind ?? 0) / (e.wm || 1)))})` }} />
-            </div>
-          );
-        })}
-        {c.enemies.map((e: Enemy, i: number) => {
-          const s = e.boss ? 24 : 13; const on = i === c.target && !e.dead;
-          return (
-            <div key={e.uid} data-noj="1" onPointerDown={() => { if (!e.dead) run((gg: Game) => { if (gg.combat) gg.combat.target = i; }); }} style={{ ...box(e.x ?? 0, e.y ?? 0, s), zIndex: e.dead ? 0 : 2, opacity: e.dead ? 0.75 : 1 }}>
-              {on && <div style={{ position: "absolute", inset: "-12%", borderRadius: "50%", border: "2px dashed #ffcc4d", pointerEvents: "none" }} />}
-              <div style={{ position: "absolute", inset: 0, filter: e.dead ? "grayscale(.3)" : e.stun > 0 ? "brightness(1.5) saturate(.4)" : e.boss ? "drop-shadow(0 0 4px rgba(190,0,0,.8))" : "drop-shadow(0 2px 2px rgba(0,0,0,.6))", animation: e.wk === "cast" && (e.wind ?? 0) > 0 ? "doePulse .4s infinite" : undefined }}>{e.dead ? remSvg(sprOf(e)) : spr(sprOf(e), "100%")}</div>
-              {!e.dead && <div style={{ position: "absolute", left: "5%", right: "5%", top: "-12%", height: 4, borderRadius: 2, background: "rgba(0,0,0,.6)", overflow: "hidden" }}><div style={{ width: `${(Math.max(0, e.hp) / e.max) * 100}%`, height: "100%", background: e.boss ? "#a855f7" : "#e5484d" }} /></div>}
-              {!e.dead && (e.stun > 0 || e.burnT > 0 || e.poisT > 0) && <div style={{ position: "absolute", left: 0, right: 0, bottom: "-26%", textAlign: "center", fontSize: 10, pointerEvents: "none" }}>{e.stun > 0 ? "😵" : ""}{e.burnT > 0 ? "🔥" : ""}{e.poisT > 0 ? "☠️" : ""}</div>}
-              {g.fx.filter((x: Fx) => x.at === "e" + e.uid && x.text.startsWith("-") && now - x.ts < 900).map((x: Fx) => splat(x.id))}
-              {arenaFx(g, "e" + e.uid)}
-            </div>
-          );
-        })}
-        {(c.proj ?? []).map((p: Proj) => <div key={p.id} style={{ ...box(p.x, p.y, 3.2), borderRadius: "50%", background: p.c, boxShadow: `0 0 8px ${p.c}`, zIndex: 3, pointerEvents: "none" }} />)}
-        <svg viewBox={`0 0 ${AW} ${AH}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", zIndex: 3 }}>
-          {(c.shots ?? []).filter((s: Shot) => now - s.ts < 160).map((s: Shot) => <line key={s.id} x1={s.x1} y1={s.y1} x2={s.x2} y2={s.y2} stroke={s.c} strokeWidth={0.9} strokeLinecap="round" opacity={0.9} />)}
-        </svg>
-        {g.cls === "ranger" && (g.perks.includes("packleader") ? ["wolf", "hawk"] : ["wolf"]).map((pk: string, k: number) => <div key={pk} style={{ ...box(cpx - 8 + k * 16, cpy + 8, 8), zIndex: 2, pointerEvents: "none", filter: g.buffs.frenzy > 0 ? "drop-shadow(0 0 3px rgba(220,30,30,.9))" : undefined }}>{spr(pk, "100%")}</div>)}
-        <div style={{ ...box(cpx, cpy, 12), zIndex: 4, pointerEvents: "none", opacity: (c.iT ?? 0) > 0 ? 0.55 : 1 }}>
-          <div style={{ position: "absolute", inset: "-12%", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,170,70,.35), transparent 70%)" }} />
-          <div style={{ position: "absolute", inset: 0 }}>{spr(g.cls, "100%")}</div>
-          {arenaFx(g, "p")}
-        </div>
-        {(c.grace ?? 0) > 0 && <div style={{ position: "absolute", left: 0, right: 0, top: "42%", textAlign: "center", fontWeight: 800, fontSize: 18, color: "#ffe6b0", textShadow: "0 2px 6px #000", pointerEvents: "none", zIndex: 7 }}>Get ready…</div>}
-        {c.charging && <div style={{ position: "absolute", left: 0, right: 0, top: 18, textAlign: "center", fontWeight: 800, fontSize: 12, color: "#ffb0ff", animation: "doePulse .8s infinite", pointerEvents: "none", zIndex: 7 }}>⚠️ CATACLYSM — leave the purple ring!</div>}
-      </div>
-    );
-    const ring = (fr: number): ReactNode => fr > 0 ? <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `conic-gradient(rgba(0,0,0,.72) ${Math.round(fr * 360)}deg, transparent 0deg)`, pointerEvents: "none" }} /> : null;
-    const roundBtn: CSSProperties = { position: "relative", width: 58, height: 58, borderRadius: "50%", border: "2px solid #c9a24a", background: "radial-gradient(circle at 40% 35%, #3a2a44, #140e1a)", color: "#fff", fontFamily: "inherit", fontSize: 22, cursor: "pointer", overflow: "hidden", touchAction: "manipulation", padding: 0, flex: "0 0 auto" };
-    const atkUp = (): void => { inp.current.atk = false; };
-    const actions = c.itemOpen ? <div style={{ ...small, textAlign: "right" }}>⏸ Paused — pick an item</div> : (
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-          {CLS[g.cls].abs.map((a: Ab, i: number) => {
-            const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const fr = cd > 0 ? Math.min(1, cd / cdSec(g, a)) : 0; const noMp = g.mp < cost;
-            return (
-              <button key={a.id} onClick={() => abil(i)} aria-label={`${a.name} (key ${i + 1})`} title={`${a.name}: ${a.desc}`} style={{ ...roundBtn, borderColor: cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: noMp && cd <= 0 ? 0.55 : 1 }}>
-                <span>{a.icon}</span>{ring(fr)}
-                <span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#ffe6b0", textShadow: "0 1px 2px #000" }}>{cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
-                <span style={{ position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" }}>{i + 1}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "flex-end" }}>
-          <button onClick={dodge} aria-label="Dodge roll" style={{ ...roundBtn, borderColor: (c.dashCd ?? 0) > 0 ? t.border.default : "#7ab8ff" }}><span>💨</span>{ring(Math.min(1, (c.dashCd ?? 0) / 2.2))}<span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#cfe6ff" }}>Dodge</span></button>
-          <button onPointerDown={() => { inp.current.atk = true; run((gg: Game) => rtAttack(gg)); }} onPointerUp={atkUp} onPointerCancel={atkUp} onPointerLeave={atkUp} onClick={() => run((gg: Game) => rtAttack(gg))} onContextMenu={(e: { preventDefault: () => void }) => e.preventDefault()} aria-label="Attack (hold)" style={{ ...roundBtn, width: 86, height: 86, fontSize: 34, border: "3px solid #e0b25a", background: "radial-gradient(circle at 40% 35%, #8a2a1a, #2a0a08)" }}>
-            <span>{g.cls === "mage" ? "🪄" : g.cls === "ranger" ? "🏹" : g.cls === "cleric" ? "🔨" : g.cls === "rogue" ? "🗡️" : "⚔️"}</span>{ring(Math.min(1, (c.atkCd ?? 0) / ARATE[g.cls]))}
-          </button>
-        </div>
-        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end", flexWrap: "wrap" }}>
-          {btn(`🎒 ${cons.length}`, () => run((gg: Game) => { if (gg.combat) gg.combat.itemOpen = true; }))}
-          {btn(c.boss ? "🚫 No escape" : "🏃 Flee", () => run((gg: Game) => rtFlee(gg)), { disabled: c.boss || (c.fleeCd ?? 0) > 0 })}
-          {g.perks.includes("shadowmeld") && btn(g.usedShadow ? "🌫️ used" : "🌫️ Meld", () => run((gg: Game) => combatAct(gg, "vanish", "")), { disabled: g.usedShadow || c.boss, key: "vanish" })}
-        </div>
-      </div>
-    );
-    const below = (
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        {c.itemOpen && (
-          <div style={{ ...card, display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ ...row, justifyContent: "space-between" }}><b>Use an item (paused)</b>{btn("Cancel", () => run((gg: Game) => { if (gg.combat) gg.combat.itemOpen = false; }))}</div>
-            {cons.length === 0 && <div style={small}>You have no consumables.</div>}
-            {cons.map((it: Inv) => (
-              <button key={it.uid} onClick={() => run((gg: Game) => combatAct(gg, "item", String(it.uid)))} style={{ textAlign: "left", background: t.fill.secondary, border: `1px solid ${t.border.default}`, borderRadius: 10, padding: 8, color: t.text.primary, fontFamily: "inherit", minHeight: 46, cursor: "pointer" }}>
-                <div style={{ fontSize: 14, color: RCOL[IT[it.id].r], fontWeight: 600 }}>{IT[it.id].icon} {IT[it.id].name}</div>
-                <div style={{ fontSize: 11, color: t.text.secondary }}>{IT[it.id].desc}</div>
-              </button>
-            ))}
-          </div>
-        )}
-        {chips.length > 0 && <div style={{ ...row, gap: 6 }}>{chips.map((s: string) => <span key={s} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 999, background: t.fill.secondary }}>{s}</span>)}</div>}
-        <div style={small}>Red rings are incoming hits — step out or dodge! Tap an enemy to target it. {CLS[g.cls].passive}</div>
-      </div>
-    );
-    return playLayout(g, arena, AW / AH, actions, below);
   }
 
   // ---------- MAP ----------
@@ -3468,8 +3478,52 @@ export default function DungeonOfEchoes() {
     const sty: CSSProperties | undefined = mm.boss ? (vis ? { filter: "drop-shadow(0 0 3px rgba(200,0,0,.8))" } : { filter: "brightness(0)", opacity: 0.55 }) : mm.stun > 0 ? { opacity: 0.6 } : { filter: "drop-shadow(0 2px 2px rgba(0,0,0,.8))" };
     objs.push(<div key={`m${mm.id}`} style={tPos(mfx - 0.5, mfy - 0.5)}>{spr(mm.boss ? (mm.t === "lord" ? "lord" : "brood") : mm.t, "100%", sty)}</div>);
   }
-  const tilePct = `${100 / VT}%`;
   const nowMs = Date.now();
+  const c = g.combat;
+  const wBox = (x: number, y: number, sz: number): CSSProperties => ({ position: "absolute", left: `${((x - sz / 2) / W) * 100}%`, top: `${((y - sz / 2) / H) * 100}%`, width: `${(sz / W) * 100}%`, height: `${(sz / H) * 100}%` });
+  const pfx = g.wx ?? g.px + 0.5, pfy = g.wy ?? g.py + 0.5;
+  const cBoss = c ? c.enemies.find((e: Enemy) => e.boss && !e.dead) : undefined;
+  if (c) {
+    const inView = (x: number, y: number): boolean => Math.abs(x - pfx) < VT / 2 + 2 && Math.abs(y - pfy) < VT / 2 + 2;
+    for (const tl of c.tele ?? []) objs.push(
+      <div key={`t${tl.id}`} data-tele={tl.kind} data-tid={tl.id} style={{ ...wBox(tl.x, tl.y, tl.r * 2), borderRadius: "50%", border: `2px solid ${tl.kind === "acid" ? "#7dff4a" : tl.kind === "cata" ? "#c07bff" : "#ff5a2a"}`, background: "rgba(0,0,0,.15)", boxSizing: "border-box", zIndex: 1 }}>
+        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: tl.kind === "acid" ? "rgba(110,220,60,.4)" : tl.kind === "cata" ? "rgba(150,60,255,.45)" : "rgba(255,80,20,.42)", transform: `scale(${Math.max(0, Math.min(1, 1 - tl.t / tl.max))})` }} />
+      </div>
+    );
+    c.enemies.forEach((e: Enemy, i: number) => {
+      const ex = e.x ?? 0, ey = e.y ?? 0;
+      if (e.away || !inView(ex, ey)) return;
+      const sz = e.boss ? 1.8 : 1.05;
+      if (e.dead) {
+        objs.push(<div key={`k${e.uid}`} style={{ ...wBox(ex, ey, sz), zIndex: 3 }}>{g.fx.filter((x: Fx) => x.at === "e" + e.uid && x.text.startsWith("-") && nowMs - x.ts < 900).map((x: Fx) => splat(x.id))}{arenaFx(g, "e" + e.uid)}</div>);
+        return;
+      }
+      if (e.wk === "melee" && (e.wind ?? 0) > 0) {
+        const rr = (e.boss ? (e.bk === "lord" ? 17 : 16) : (RTB[e.b] ?? RTB.brute)[1]) / U + 5 / U;
+        objs.push(
+          <div key={`w${e.uid}`} data-wind={e.uid} data-sz={rr * 2} style={{ ...wBox(ex, ey, rr * 2), borderRadius: "50%", border: "2px solid rgba(255,40,40,.9)", boxSizing: "border-box", zIndex: 1 }}>
+            <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "rgba(220,0,0,.35)", transform: `scale(${Math.max(0, Math.min(1, 1 - (e.wind ?? 0) / (e.wm || 1)))})` }} />
+          </div>
+        );
+      }
+      const on = i === c.target;
+      objs.push(
+        <div key={`e${e.uid}`} data-enemy={e.uid} data-noj="1" onPointerDown={() => run((gg: Game) => { const cc = gg.combat; if (!cc) return; const k = cc.enemies.findIndex((x: Enemy) => x.uid === e.uid && !x.dead); if (k >= 0) cc.target = k; })} style={{ ...wBox(ex, ey, sz), zIndex: 4, pointerEvents: "auto", cursor: "pointer" }}>
+          {on && <div style={{ position: "absolute", inset: "-12%", borderRadius: "50%", border: "2px dashed #ffcc4d", pointerEvents: "none" }} />}
+          <div style={{ position: "absolute", inset: 0, filter: e.stun > 0 ? "brightness(1.5) saturate(.4)" : e.boss ? "drop-shadow(0 0 4px rgba(190,0,0,.8))" : "drop-shadow(0 2px 2px rgba(0,0,0,.7))", animation: e.wk === "cast" && (e.wind ?? 0) > 0 ? "doePulse .4s infinite" : undefined }}>{spr(sprOf(e), "100%")}</div>
+          <div style={{ position: "absolute", left: "5%", right: "5%", top: "-14%", height: 4, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden" }}><div style={{ width: `${(Math.max(0, e.hp) / e.max) * 100}%`, height: "100%", background: e.boss ? "#a855f7" : "#e5484d" }} /></div>
+          {(e.stun > 0 || e.burnT > 0 || e.poisT > 0) && <div style={{ position: "absolute", left: 0, right: 0, bottom: "-30%", textAlign: "center", fontSize: 10, pointerEvents: "none" }}>{e.stun > 0 ? "😵" : ""}{e.burnT > 0 ? "🔥" : ""}{e.poisT > 0 ? "☠️" : ""}</div>}
+          {g.fx.filter((x: Fx) => x.at === "e" + e.uid && x.text.startsWith("-") && nowMs - x.ts < 900).map((x: Fx) => splat(x.id))}
+          {arenaFx(g, "e" + e.uid)}
+        </div>
+      );
+    });
+    for (const p of c.proj ?? []) objs.push(<div key={`p${p.id}`} data-proj={p.id} style={{ ...wBox(p.x, p.y, 0.4), borderRadius: "50%", background: p.c, boxShadow: `0 0 8px ${p.c}`, zIndex: 5 }} />);
+    const sh = (c.shots ?? []).filter((x: Shot) => nowMs - x.ts < 160);
+    if (sh.length > 0) objs.push(<svg key="shots" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 5 }}>{sh.map((x: Shot) => <line key={x.id} x1={x.x1} y1={x.y1} x2={x.x2} y2={x.y2} stroke={x.c} strokeWidth={0.11} strokeLinecap="round" opacity={0.9} />)}</svg>);
+  }
+  if (g.cls === "ranger") (g.perks.includes("packleader") ? ["wolf", "hawk"] : ["wolf"]).forEach((pk: string, k: number) => objs.push(<div key={`pet${pk}`} style={{ ...wBox(pfx - 0.55 + k * 1.1, pfy + 0.6, 0.62), zIndex: 3, filter: g.buffs.frenzy > 0 ? "drop-shadow(0 0 3px rgba(220,30,30,.9))" : "drop-shadow(0 2px 2px rgba(0,0,0,.7))" }}>{spr(pk, "100%")}</div>));
+  const tilePct = `${100 / VT}%`;
   const floats = g.fx.filter((x: Fx) => x.at === "m" && nowMs - x.ts < 1250);
   const onMerchant = nearMerchant(g);
   const mapView = (): ReactNode => (
@@ -3477,7 +3531,15 @@ export default function DungeonOfEchoes() {
         <canvas ref={mapCv} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(circle at 50% 50%, ${bio === "warren" ? "rgba(255,170,80,.13)" : "rgba(220,150,255,.11)"} 0, rgba(0,0,0,0) ${(2.6 / VT) * 100}%), radial-gradient(circle at 50% 50%, rgba(0,0,0,0) ${(1.3 / VT) * 100}%, rgba(0,0,0,.6) ${((R + 1.4) / VT) * 100}%)` }} />
         <div ref={worldEl} style={{ position: "absolute", left: 0, top: 0, width: `${(W / VT) * 100}%`, height: `${(H / VT) * 100}%`, transform: worldTf(g), pointerEvents: "none", willChange: "transform" }}>{objs}</div>
-        <div style={{ position: "absolute", left: "50%", top: "50%", width: tilePct, height: tilePct, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 3px rgba(0,0,0,.9))" }}>{spr(g.cls, "100%")}</div>
+        <div data-hero="1" style={{ position: "absolute", left: "50%", top: "50%", width: tilePct, height: tilePct, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 3px rgba(0,0,0,.9))", opacity: c && (c.iT ?? 0) > 0 ? 0.55 : 1, zIndex: 4 }}>
+          {spr(g.cls, "100%")}
+          <div style={{ position: "absolute", left: "50%", bottom: "100%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", pointerEvents: "none", whiteSpace: "nowrap", zIndex: 8 }}>
+            {g.fx.filter((x: Fx) => x.at === "p" && nowMs - x.ts < 1000).map((x: Fx) => <span key={x.id} style={{ animation: "doeFloat 1s ease-out forwards", fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000" }}>{x.text}</span>)}
+          </div>
+        </div>
+        {g.hurtTs && nowMs - g.hurtTs < 700 ? <div key={`h${g.hurtTs}`} style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse at center, transparent 40%, rgba(190,0,0,.5) 100%)", animation: "doeFlash .55s ease-out forwards", zIndex: 6 }} /> : null}
+        {c ? <div data-incombat="1" style={{ position: "absolute", left: 6, top: 6, padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#ffe0d0", background: "rgba(120,10,10,.72)", border: "1px solid rgba(255,90,70,.7)", textShadow: "0 1px 2px #000", pointerEvents: "none", zIndex: 7 }}>{alive(c).length === 0 ? "✅ Clear…" : cBoss ? `☠️ ${cBoss.name.replace(/^The /, "")} · Phase ${c.phase}/${cBoss.bk === "lord" ? 3 : 2}` : `⚔️ In combat · ${alive(c).length}`}</div> : null}
+        {c && c.charging ? <div style={{ position: "absolute", left: 0, right: 0, top: "30%", textAlign: "center", fontWeight: 800, fontSize: 12, color: "#ffb0ff", animation: "doePulse .8s infinite", textShadow: "0 1px 3px #000", pointerEvents: "none", zIndex: 7 }}>⚠️ CATACLYSM — leave the purple ring!</div> : null}
         <div style={{ position: "absolute", left: "50%", bottom: `${50 + 50 / VT}%`, transform: "translateX(-50%)", display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 1, pointerEvents: "none", zIndex: 6 }}>
           {floats.map((x: Fx) => <span key={x.id} data-float="1" style={{ fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000, 0 0 2px #000", whiteSpace: "nowrap", animation: `doeRise 1.2s ease-out ${-(nowMs - x.ts)}ms forwards` }}>{x.text}</span>)}
         </div>
@@ -3486,9 +3548,9 @@ export default function DungeonOfEchoes() {
             ? [0, 1, 2, 3, 4, 5, 6, 7].map((i: number) => <span key={i} style={{ position: "absolute", left: `${(i * 37 + 8) % 92}%`, top: `${60 + (i * 23) % 35}%`, width: 3 + (i % 3), height: 3 + (i % 3), borderRadius: "50%", background: i % 3 === 0 ? "rgba(230,230,240,.7)" : "rgba(160,255,90,.7)", opacity: 0, animation: `doeDrift ${5 + (i % 4)}s linear ${i * 0.7}s infinite` }} />)
             : [0, 1, 2].map((i: number) => <span key={i} style={{ position: "absolute", left: "-20%", width: "140%", top: `${10 + i * 30}%`, height: "30%", background: "radial-gradient(ellipse at center, rgba(150,70,220,.22), transparent 70%)", animation: `doeMist ${9 + i * 3}s ease-in-out ${i}s infinite alternate` }} />)}
         </div>
-        <button data-noj="1" data-minimap="1" aria-label="Open map (M)" title="Map (M)" onClick={toggleMap} style={{ position: "absolute", right: 6, top: 6, width: "27%", aspectRatio: "1", padding: 0, border: "1px solid rgba(255,230,180,.4)", borderRadius: 8, background: "transparent", overflow: "hidden", zIndex: 5, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.6)" }}>
+        <button data-noj="1" data-minimap="1" aria-disabled={!!c} aria-label={c ? "Map locked in combat" : "Open map (M)"} title={c ? "Locked in combat" : "Map (M)"} onClick={c ? lockNote : toggleMap} style={{ position: "absolute", right: 6, top: 6, width: "27%", aspectRatio: "1", padding: 0, border: `1px solid ${c ? "rgba(255,90,70,.55)" : "rgba(255,230,180,.4)"}`, borderRadius: 8, background: "transparent", overflow: "hidden", zIndex: 5, cursor: c ? "default" : "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.6)" }}>
           <canvas ref={miniCv} style={{ width: "100%", height: "100%", display: "block" }} />
-          <span style={{ position: "absolute", left: 3, bottom: 1, fontSize: 9, fontWeight: 800, color: "rgba(255,240,210,.85)", textShadow: "0 1px 2px #000" }}>M</span>
+          <span style={{ position: "absolute", left: 3, bottom: 1, fontSize: 9, fontWeight: 800, color: "rgba(255,240,210,.85)", textShadow: "0 1px 2px #000" }}>{c ? "🔒" : "M"}</span>
         </button>
         {g.bannerTs && Date.now() - g.bannerTs < 3500 ? (
           <div key={g.bannerTs} style={{ position: "absolute", left: "6%", right: "6%", top: "36%", textAlign: "center", padding: "10px 8px", borderRadius: 10, background: "rgba(8,6,12,.85)", border: `1px solid ${bio === "warren" ? "#6aa83a" : "#8a4ad0"}`, color: "#f0e8ff", animation: "doeBanner 3.2s ease-in-out forwards", pointerEvents: "none", zIndex: 3 }}>
@@ -3499,7 +3561,44 @@ export default function DungeonOfEchoes() {
         ) : null}
       </div>
   );
-  const mapActions = (
+  const lockStyle: CSSProperties = { opacity: 0.4, filter: "grayscale(1)" };
+  const lk = (label: string, aria: string): ReactNode => <button key={aria} onClick={lockNote} aria-disabled="true" aria-label={`${aria} (locked in combat)`} title="Locked in combat" style={{ ...lockStyle, flex: "1 1 0", minHeight: 38, borderRadius: 10, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 15, cursor: "not-allowed", padding: 0 }}>{label}</button>;
+  const ring = (fr: number): ReactNode => fr > 0 ? <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `conic-gradient(rgba(0,0,0,.72) ${Math.round(fr * 360)}deg, transparent 0deg)`, pointerEvents: "none" }} /> : null;
+  const roundBtn: CSSProperties = { position: "relative", width: 56, height: 56, borderRadius: "50%", border: "2px solid #c9a24a", background: "radial-gradient(circle at 40% 35%, #3a2a44, #140e1a)", color: "#fff", fontFamily: "inherit", fontSize: 22, cursor: "pointer", overflow: "hidden", touchAction: "manipulation", padding: 0, flex: "0 0 auto" };
+  const atkUp = (): void => { inp.current.atk = false; };
+  const qi = qsItem(g);
+  const qn = qi ? g.inv.filter((x: Inv) => x.id === qi.id).length : 0;
+  const combatActions = c ? (
+    <div data-combat-actions="1" style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
+      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+        {CLS[g.cls].abs.map((a: Ab, i: number) => {
+          const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const fr = cd > 0 ? Math.min(1, cd / cdSec(g, a)) : 0; const noMp = g.mp < cost;
+          return (
+            <button key={a.id} onClick={() => abil(i)} aria-label={`${a.name} (key ${i + 1})`} title={`${a.name}: ${a.desc}`} style={{ ...roundBtn, borderColor: cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: noMp && cd <= 0 ? 0.55 : 1 }}>
+              <span>{a.icon}</span>{ring(fr)}
+              <span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#ffe6b0", textShadow: "0 1px 2px #000" }}>{cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
+              <span style={{ position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" }}>{i + 1}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+        <button data-potion="1" onClick={quick} disabled={!qi} aria-label={qi ? `Quick-slot: ${IT[qi.id].name} ×${qn} (R)` : "No potion"} title={qi ? `${IT[qi.id].name} (R / 4 / Select)` : "No potion"} style={{ ...roundBtn, width: 50, height: 50, borderColor: qi ? "#e5484d" : t.border.default, opacity: qi ? 1 : 0.45, fontSize: 20 }}>
+          <span>{qi ? IT[qi.id].icon : "🧪"}</span>
+          <span style={{ position: "absolute", right: 4, bottom: 2, fontSize: 11, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px #000" }}>{qn}</span>
+        </button>
+        <button onClick={dodge} aria-label="Dodge roll" style={{ ...roundBtn, borderColor: (c.dashCd ?? 0) > 0 ? t.border.default : "#7ab8ff" }}><span>💨</span>{ring(Math.min(1, (c.dashCd ?? 0) / 2.2))}<span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#cfe6ff" }}>Dodge</span></button>
+        <button onPointerDown={() => { inp.current.atk = true; run((gg: Game) => rtAttack(gg)); }} onPointerUp={atkUp} onPointerCancel={atkUp} onPointerLeave={atkUp} onClick={() => run((gg: Game) => rtAttack(gg))} onContextMenu={(e: { preventDefault: () => void }) => e.preventDefault()} aria-label="Attack (hold)" style={{ ...roundBtn, width: 80, height: 80, fontSize: 32, border: "3px solid #e0b25a", background: "radial-gradient(circle at 40% 35%, #8a2a1a, #2a0a08)" }}>
+          <span>{g.cls === "mage" ? "🪄" : g.cls === "ranger" ? "🏹" : g.cls === "cleric" ? "🔨" : g.cls === "rogue" ? "🗡️" : "⚔️"}</span>{ring(Math.min(1, (c.atkCd ?? 0) / ARATE[g.cls]))}
+        </button>
+      </div>
+      {g.perks.includes("shadowmeld") && <div style={{ display: "flex", justifyContent: "flex-end" }}>{btn(g.usedShadow ? "🌫️ used" : "🌫️ Meld", () => run((gg: Game) => combatAct(gg, "vanish", "")), { disabled: g.usedShadow || !!cBoss, key: "vanish" })}</div>}
+      <div data-locked="1" style={{ display: "flex", gap: 6, width: "100%" }}>
+        {lk("🎒", "Bag")}{lk("📖", "Codex")}{lk("❓", "Help")}{lk("🏠", "Title")}{lk("💾", "Save code")}
+      </div>
+    </div>
+  ) : null;
+  const mapActions = c ? combatActions : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {onMerchant && btn("💰 Trade", interact, { tone: "accent", tall: true })}
           {btn(`🎒 Bag (${g.inv.length})`, () => run((gg: Game) => { gg.screen = "inventory"; gg.sel = -1; }), { tone: "primary", tall: true })}
@@ -3511,7 +3610,24 @@ export default function DungeonOfEchoes() {
           </div>
         </div>
   );
-  const legend = (
+  const b = g.buffs;
+  const chips: string[] = [];
+  if (c) {
+    if (b.rage > 0) chips.push(`📣 Rage ${b.rage}`);
+    if (b.fury > 0) chips.push(`📜 Fury ${b.fury}`);
+    if (b.holy > 0) chips.push(`🔆 Holy ${b.holy}`);
+    if (b.iron > 0) chips.push(`📃 Iron ${b.iron}`);
+    if (b.evade > 0) chips.push(`💨 Evade ×${b.evade}`);
+    if (b.shield > 0) chips.push(`🔮 Shield ${b.shield}`);
+    if (b.frenzy > 0) chips.push(`📯 Frenzy ${b.frenzy}`);
+  }
+  if (b.dotT > 0) chips.push(`☠️ DoT ${b.dotD}×${b.dotT}`);
+  const legend = c ? (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {chips.length > 0 && <div style={{ ...row, gap: 6 }}>{chips.map((x: string) => <span key={x} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 999, background: t.fill.secondary }}>{x}</span>)}</div>}
+      <div style={{ ...small, fontSize: 11 }}>⚔️ <b>In combat</b> — bag, map, codex, shops and stairs are locked. Red rings are incoming hits: step out or dodge. Tap an enemy to target it. Break line of sight for ~4 s to lose pursuers. {CLS[g.cls].passive}</div>
+    </div>
+  ) : (
           <div style={{ ...small, fontSize: 11 }}><b>{BIOME[bio].name}</b> · {bio === "warren" ? "🕸️ webs slow you and wake the warren" : "🔮 runes drain 8% HP and wake the dead"} · 🔽 stairs · 📦 chest · 💰 merchant (walk onto it){g.floor % 5 === 0 ? ` · ${bossKind(g.floor) === "lord" ? "Echo Lord" : "Broodmother"} guards the stairs` : ""}{g.mode === "endless" ? " · ☠️ permadeath" : ""}{g.perks.length ? ` · ${g.perks.length} capstone${g.perks.length > 1 ? "s" : ""}` : ""} · monsters roam in real time</div>
   );
   return playLayout(g, mapView, 1, mapActions, legend);
