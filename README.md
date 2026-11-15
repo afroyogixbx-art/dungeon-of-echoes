@@ -3,9 +3,13 @@
 A dark-fantasy, real-time dungeon crawler RPG that runs in the browser and installs to your phone's home screen.
 
 - **5 classes:** Warrior, Mage, Rogue, Cleric and Ranger (with wolf and hawk pets)
+- **Pets that fight:** companions move on the map, attack on their own (lunge/claw animation, the Imp shoots fire), take damage, get knocked out for 12 s and recover after combat. Rangers have a Wolf (+Hawk); anyone can get a charm pet: Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil, Bone Hound Totem
+- **Starting perk:** each new run opens with a pick of 3 random Common perks (rolled once, saved)
+- **Echo Vault:** after every 10th-floor boss, store one item across runs (separate localStorage key `dungeon-of-echoes-vault-v1`, survives death); offered at the start of the next run
 - **Story mode:** 10 floors, the Broodmother on floor 5 and the Echo Lord on floor 10
 - **Endless mode:** infinite floors, a boss every 5, permadeath, tokens and per-class upgrade trees
-- **Loot:** 80+ items, sets, legendaries, cursed and unidentified gear, plus an item codex
+- **Loot:** 120+ items, 8 sets (one 4-piece set per class with 2/3/4-piece bonuses), legendaries, cursed and unidentified gear, plus an item codex. Chance-based drops (monster 24%, elite 70% +25% second, chest 85% +12% second gear, boss 2 Epic+ gear + Identify + 50% extra); gold drops unchanged. Healing items are ~70% rarer in drops and chests (shop potions unchanged). Gear rolls random affixes (crit, lifesteal, thorns, elemental, HP/DEF…) scaled by floor and rarity
+- **Ranged enemies:** Goblin Archer (floor 2+), Acid Spitter (floor 3+), Skeleton Archer (floor 6+), Hex Cultist (floor 7+) keep their distance and telegraph every shot; ★ elites from floor 3
 - **In-world real-time combat:** fights happen right on the dungeon map (no arena screen): monsters aggro by sight and distance, chase you around corners, respect walls and give up if you break away; wind-up telegraphs, projectiles, boss AoE on the map and dodge rolls
 - **Combat lockout:** while anything is fighting you, the bag, codex, help, full map, save-code screen, merchants and stairs are locked; a 🧪 potion quick-slot stays available
 - **Limited merchant stock:** each gear piece sells once; common potions/scrolls have 3 in stock, uncommon 2, rarer 1. Empty slots show SOLD OUT. Stock is saved with the run (no restock on leave/reload); the next merchant floor rolls fresh wares. Endless token upgrades are unaffected. Regular wares top out at Rare; Epic/Legendary pieces only appear via at most 2 premium slots (never the same item twice), with a 1st-slot chance of 3% on floor 2, +3.5% per floor (10% on floor 4, 24% on floor 8, 50% cap from depth 16); a 2nd only if the 1st hit (same chance). Legendary share of premium rolls: 10% on floor 2 rising 3%/floor to 40%.

@@ -4,34 +4,37 @@ import type { ReactNode, CSSProperties, ChangeEvent, FocusEvent } from "./grok";
 type ClassId = "warrior" | "mage" | "rogue" | "cleric" | "ranger";
 type Slot = "weapon" | "armor" | "helmet" | "ring" | "amulet" | "consumable";
 type GearSlot = Exclude<Slot, "consumable">;
-type StatKey = "hp" | "mp" | "atk" | "def" | "crit" | "dodge" | "ls" | "fire" | "ice" | "holy" | "poison";
+type StatKey = "hp" | "mp" | "atk" | "def" | "crit" | "dodge" | "ls" | "fire" | "ice" | "holy" | "poison" | "th";
 type Stats = Partial<Record<StatKey, number>>;
-type Behav = "brute" | "swift" | "tank" | "caster" | "poisoner" | "drainer" | "boss";
-type Screen = "map" | "inventory" | "shop" | "upgrade" | "victory" | "dead" | "codex" | "help";
+type Behav = "brute" | "swift" | "tank" | "caster" | "poisoner" | "drainer" | "boss" | "archer" | "spitter" | "hexer";
+type Screen = "map" | "inventory" | "shop" | "upgrade" | "victory" | "dead" | "codex" | "help" | "vault";
 type Ui = "title" | "help" | "tree" | "codex" | "save";
 type Mode = "story" | "endless";
 type ActRes = "none" | "turn" | "end";
 
-interface ItemT { id: string; name: string; icon: string; slot: Slot; r: number; minF: number; price: number; st?: Stats; cls?: ClassId[]; sp?: string; desc?: string; fx?: string; pw?: number; set?: string; cursed?: boolean; curse?: string; }
-interface SetT { name: string; n: number; b2: Stats; bf: Stats; sp: string; desc: string; }
+interface ItemT { id: string; name: string; icon: string; slot: Slot; r: number; minF: number; price: number; st?: Stats; cls?: ClassId[]; sp?: string; desc?: string; fx?: string; pw?: number; set?: string; cursed?: boolean; curse?: string; pet?: string; }
+interface SetT { name: string; n: number; b2: Stats; bf: Stats; sp: string; desc: string; b3?: Stats; cls?: ClassId; }
 interface Ab { id: string; name: string; icon: string; mp: number; cd: number; desc: string; }
 interface Base { hp: number; mp: number; atk: number; def: number; crit: number; dodge: number; }
 interface ClassT { id: ClassId; name: string; icon: string; tag: string; base: Base; grow: { hp: number; mp: number; atk: number; def: number; crit: number }; abs: Ab[]; passive: string; start: string[]; }
-interface Perk { id: string; name: string; icon: string; desc: string; tier: number; st?: Stats; gold?: number; }
-interface MonT { id: string; name: string; icon: string; hp: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; undead?: boolean; lo: number; hi: number; bio?: Biome; }
+interface Perk { id: string; name: string; icon: string; desc: string; tier: number; st?: Stats; gold?: number; rar?: string; }
+interface MonT { id: string; name: string; icon: string; hp: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; undead?: boolean; lo: number; hi: number; bio?: Biome; ff?: number; w?: number; }
 interface Room { x: number; y: number; w: number; h: number; }
-interface MapMon { id: number; x: number; y: number; t: string; boss: boolean; awake: boolean; stun: number; fx?: number; fy?: number; hp?: number; max?: number; hx?: number; hy?: number; }
-interface Enemy { uid: number; spr?: string; name: string; icon: string; hp: number; max: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; bk: string; undead: boolean; boss: boolean; stun: number; burnT: number; burnD: number; poisT: number; poisD: number; dead: boolean; x?: number; y?: number; atkT?: number; wind?: number; wm?: number; wk?: string; rt?: boolean; mid?: number; hx?: number; hy?: number; lost?: number; minion?: boolean; mt?: string; away?: boolean; dt0?: number; }
-interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number; boss: boolean; phase: number; charging: boolean; itemOpen: boolean; px?: number; py?: number; proj?: Proj[]; tele?: Tele[]; shots?: Shot[]; atkCd?: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; iT?: number; tick?: number; grace?: number; bossT?: number; fleeCd?: number; v2?: boolean; calm?: number; upg?: boolean; }
-interface Proj { id: number; x: number; y: number; vx: number; vy: number; dmg: number; from: number; life: number; c: string; }
+interface MapMon { id: number; x: number; y: number; t: string; boss: boolean; awake: boolean; stun: number; fx?: number; fy?: number; hp?: number; max?: number; hx?: number; hy?: number; el?: boolean; }
+interface Enemy { uid: number; spr?: string; name: string; icon: string; hp: number; max: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; bk: string; undead: boolean; boss: boolean; stun: number; burnT: number; burnD: number; poisT: number; poisD: number; dead: boolean; x?: number; y?: number; atkT?: number; wind?: number; wm?: number; wk?: string; rt?: boolean; mid?: number; hx?: number; hy?: number; lost?: number; minion?: boolean; mt?: string; away?: boolean; dt0?: number; elite?: boolean; tpk?: string; ax?: number; ay?: number; }
+interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number; boss: boolean; phase: number; charging: boolean; itemOpen: boolean; px?: number; py?: number; proj?: Proj[]; tele?: Tele[]; shots?: Shot[]; atkCd?: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; iT?: number; tick?: number; grace?: number; bossT?: number; fleeCd?: number; v2?: boolean; calm?: number; upg?: boolean; vault?: boolean; }
+interface Proj { id: number; x: number; y: number; vx: number; vy: number; dmg: number; from: number; life: number; c: string; k?: string; }
 interface Tele { id: number; x: number; y: number; r: number; t: number; max: number; dmg: number; from: number; kind: string; }
 interface Shot { id: number; x1: number; y1: number; x2: number; y2: number; ts: number; c: string; }
 interface Inp { jx: number; jy: number; kx: number; ky: number; gx: number; gy: number; atk: boolean; katk: boolean; gatk: boolean; stepT: number; monT: number; regT: number; alt: boolean; saveT: number; rT: number; slowT: number; shopL: boolean; vx: number; vy: number; idleT: number; }
-interface Buffs { rage: number; holy: number; evade: number; shield: number; frenzy: number; fury: number; iron: number; defend: boolean; dotT: number; dotD: number; }
+interface Buffs { rage: number; holy: number; evade: number; shield: number; frenzy: number; fury: number; iron: number; defend: boolean; dotT: number; dotD: number; hex?: number; }
+// companions that fight on the map
+interface Pet { k: string; hp: number; max: number; x: number; y: number; ko: number; cd: number; aT?: number; tx?: number; ty?: number; }
+interface PetT { name: string; icon: string; hpF: number; mult: number; spd: number; reach: number; rate: number; desc: string; }
 interface Inv { uid: number; id: string; ident: boolean; bon: Stats; freed: boolean; }
 interface LogL { t: string; c: string; ts?: number; }
 interface Fx { id: number; text: string; c: string; at: string; ts: number; }
-interface Full { maxHp: number; maxMp: number; atk: number; def: number; crit: number; dodge: number; ls: number; fire: number; ice: number; holy: number; poison: number; sp: string[]; curses: string[]; }
+interface Full { maxHp: number; maxMp: number; atk: number; def: number; crit: number; dodge: number; ls: number; fire: number; ice: number; holy: number; poison: number; th: number; sp: string[]; curses: string[]; }
 interface Meta { tokens: number; best: number; owned: Record<string, string[]>; disc: string[]; }
 interface TNode { id: string; tier: number; name: string; icon: string; desc: string; cost: number; req: string; st?: Stats; cap?: string; }
 interface Game {
@@ -41,6 +44,7 @@ interface Game {
   cds: Record<string, number>; buffs: Buffs; perks: string[]; bonus: Stats; goldMult: number; inAb: boolean;
   usedUndying: boolean; usedShadow: boolean; usedPhoenix: boolean; shop: Inv[]; stock?: number[];
   offers: Perk[]; kills: number; sel: number; fx: Fx[]; turns: number; tokensEarned: number; stains?: number[]; rem?: string[]; hurtTs?: number; usedRes?: boolean; biome?: Biome; bannerTs?: number; qs?: string;
+  pets?: Pet[]; cpet?: string; startPick?: boolean; vaultOffer?: boolean; vaultThen?: Screen; vaultSel?: number;
 }
 
 const W = 32, H = 32, R = 4, MAXINV = 24, STORY_END = 10;
@@ -49,7 +53,7 @@ const RCOL = ["#9aa0a6", "#22a55b", "#3b82f6", "#a855f7", "#f59e0b"];
 const GEAR: GearSlot[] = ["weapon", "armor", "helmet", "ring", "amulet"];
 const SLOT_ICON: Record<GearSlot, string> = { weapon: "⚔️", armor: "🛡️", helmet: "⛑️", ring: "💍", amulet: "📿" };
 const SLOT_NAME: Record<Slot, string> = { weapon: "Weapon", armor: "Armor", helmet: "Helmet", ring: "Ring", amulet: "Amulet", consumable: "Consumable" };
-const STAT_LABEL: Record<StatKey, string> = { hp: "HP", mp: "MP", atk: "ATK", def: "DEF", crit: "Crit%", dodge: "Dodge%", ls: "Lifesteal%", fire: "Fire", ice: "Ice", holy: "Holy", poison: "Poison" };
+const STAT_LABEL: Record<StatKey, string> = { hp: "HP", mp: "MP", atk: "ATK", def: "DEF", crit: "Crit%", dodge: "Dodge%", ls: "Lifesteal%", fire: "Fire", ice: "Ice", holy: "Holy", poison: "Poison", th: "Thorns%" };
 const HIDE = [0.1, 0.2, 0.4, 0.6, 0.85];
 const IDFEE = [10, 25, 60, 120, 250];
 
@@ -128,6 +132,37 @@ const ITEMS: ItemT[] = [
   I("x_leech", "Ring of the Leech King", "💍", "ring", 3, 2, 350, { hp: 80, def: 8 }, { cursed: true, curse: "c_halfheal", desc: "Curse: all healing halved." }),
   I("x_void", "Voidheart Amulet", "🖤", "amulet", 4, 3, 500, { mp: 80, fire: 10, ice: 10 }, { cursed: true, curse: "c_nomana", desc: "Curse: no MP regeneration." }),
   I("x_greed", "Gambler's Mail", "🎰", "armor", 3, 2, 350, { def: 25, dodge: 10, atk: -8 }, { cursed: true, curse: "c_greed", desc: "Curse: gold gains halved." }),
+  // ---- v8: more gear (affix-friendly) ----
+  I("w_rapier", "Duelist's Rapier", "🤺", "weapon", 1, 1, 60, { atk: 6, crit: 6, dodge: 2 }),
+  I("w_spear", "Hunter's Spear", "🔱", "weapon", 1, 1, 60, { atk: 7, crit: 3 }, { cls: ["warrior", "ranger", "rogue"] }),
+  I("w_reaper", "Gravereaper Scythe", "⚰️", "weapon", 3, 3, 330, { atk: 17, ls: 6 }, { cls: ["warrior", "rogue"] }),
+  I("a_brig", "Spiked Brigandine", "🦔", "armor", 2, 2, 150, { def: 9, hp: 20, th: 10 }),
+  I("h_visor", "Ember Visor", "🥽", "helmet", 2, 2, 140, { def: 4, fire: 4, crit: 3 }),
+  I("r_briar", "Briar Band", "🌿", "ring", 1, 1, 55, { th: 8, def: 2 }),
+  I("r_bloodst", "Bloodstone Ring", "🔴", "ring", 2, 2, 140, { ls: 4, hp: 20 }),
+  I("m_storm", "Storm Talisman", "🌩️", "amulet", 3, 3, 300, { atk: 6, ice: 6, crit: 6 }),
+  I("m_pack", "Collar of the Pack", "🐾", "amulet", 2, 2, 130, { atk: 3, hp: 15 }, { sp: "petBoost", desc: "Your pets deal +30% damage and have +30% HP." }),
+  // ---- v8: class sets (4 pieces, 2/3/4-piece bonuses) ----
+  I("s_war_h", "Warlord's Greathelm", "🪖", "helmet", 2, 2, 160, { def: 6, hp: 25 }, { set: "warlord", cls: ["warrior"] }),
+  I("s_war_a", "Warlord's Bulwark", "🛡️", "armor", 3, 3, 320, { def: 15, hp: 40 }, { set: "warlord", cls: ["warrior"] }),
+  I("s_war_r", "Warlord's Seal", "💍", "ring", 2, 2, 150, { atk: 4, th: 6 }, { set: "warlord", cls: ["warrior"] }),
+  I("s_war_m", "Warlord's Torc", "📿", "amulet", 3, 3, 300, { hp: 40, atk: 4 }, { set: "warlord", cls: ["warrior"] }),
+  I("s_sto_w", "Stormcaller's Conduit", "⚡", "weapon", 3, 3, 320, { atk: 13, mp: 25, ice: 4 }, { set: "storm", cls: ["mage"] }),
+  I("s_sto_h", "Stormcaller's Hood", "🎓", "helmet", 2, 2, 150, { mp: 25, crit: 4 }, { set: "storm", cls: ["mage"] }),
+  I("s_sto_a", "Stormcaller's Robes", "👘", "armor", 2, 2, 160, { def: 6, mp: 30 }, { set: "storm", cls: ["mage"] }),
+  I("s_sto_m", "Stormcaller's Focus", "🔮", "amulet", 3, 3, 300, { mp: 30, fire: 5, ice: 5 }, { set: "storm", cls: ["mage"] }),
+  I("s_nig_w", "Nightblade Kris", "🗡️", "weapon", 3, 3, 320, { atk: 13, crit: 10 }, { set: "night", cls: ["rogue"] }),
+  I("s_nig_h", "Nightblade Mask", "🎭", "helmet", 2, 2, 150, { dodge: 5, crit: 5 }, { set: "night", cls: ["rogue"] }),
+  I("s_nig_a", "Nightblade Garb", "🥷", "armor", 2, 2, 160, { def: 6, dodge: 6 }, { set: "night", cls: ["rogue"] }),
+  I("s_nig_r", "Nightblade Loop", "💍", "ring", 3, 3, 300, { crit: 8, poison: 4 }, { set: "night", cls: ["rogue"] }),
+  I("s_dawn_h", "Lightbringer's Mitre", "👑", "helmet", 2, 2, 150, { def: 4, holy: 4, mp: 15 }, { set: "dawn", cls: ["cleric"] }),
+  I("s_dawn_a", "Lightbringer's Vestments", "🥼", "armor", 3, 3, 320, { def: 12, hp: 35, holy: 3 }, { set: "dawn", cls: ["cleric"] }),
+  I("s_dawn_r", "Lightbringer's Ring", "💍", "ring", 2, 2, 150, { holy: 4, hp: 20 }, { set: "dawn", cls: ["cleric"] }),
+  I("s_dawn_m", "Lightbringer's Censer", "🏮", "amulet", 3, 3, 300, { mp: 30, holy: 6 }, { set: "dawn", cls: ["cleric"] }),
+  I("s_bst_w", "Beastmaster's Recurve", "🏹", "weapon", 3, 3, 320, { atk: 14, crit: 8 }, { set: "beast", cls: ["ranger"] }),
+  I("s_bst_h", "Beastmaster's Cowl", "🐺", "helmet", 2, 2, 150, { def: 4, crit: 5 }, { set: "beast", cls: ["ranger"] }),
+  I("s_bst_a", "Beastmaster's Hide", "🦺", "armor", 2, 2, 160, { def: 8, dodge: 4 }, { set: "beast", cls: ["ranger"] }),
+  I("s_bst_m", "Beastmaster's Fang Necklace", "🦷", "amulet", 3, 3, 300, { atk: 5, hp: 30 }, { set: "beast", cls: ["ranger"] }),
   I("c_hp1", "Minor Healing Potion", "🧪", "consumable", 0, 1, 15, undefined, { fx: "heal", pw: 35, desc: "Restore 35% HP." }),
   I("c_hp2", "Healing Potion", "🍷", "consumable", 1, 1, 35, undefined, { fx: "heal", pw: 60, desc: "Restore 60% HP." }),
   I("c_hp3", "Greater Healing Draught", "💖", "consumable", 2, 2, 80, undefined, { fx: "heal", pw: 100, desc: "Fully restore HP." }),
@@ -147,6 +182,12 @@ const ITEMS: ItemT[] = [
   I("c_might", "Elixir of Might", "🍺", "consumable", 3, 2, 200, undefined, { fx: "eatk", desc: "Permanently +3 ATK." }),
   I("c_life", "Elixir of Vitality", "🍯", "consumable", 3, 2, 200, undefined, { fx: "ehp", desc: "Permanently +25 max HP." }),
   I("c_tome", "Tome of Insight", "📕", "consumable", 3, 3, 250, undefined, { fx: "tome", desc: "Instantly gain a level." }),
+  I("c_storm", "Bottled Storm", "🌪️", "consumable", 1, 1, 45, undefined, { fx: "storm", desc: "Combat: lightning strikes the 3 nearest foes and stuns them." }),
+  I("c_treat", "Pet Treat", "🦴", "consumable", 0, 1, 15, undefined, { fx: "treat", desc: "Revive and fully heal your pets." }),
+  I("c_pet_wolf", "Wolf Pup Whistle", "🐺", "consumable", 1, 1, 70, undefined, { fx: "pet", pet: "wolf", desc: "Gain a Wolf companion that fights beside you (replaces your current charm pet)." }),
+  I("c_pet_owl", "Spirit Owl Feather", "🦉", "consumable", 1, 1, 70, undefined, { fx: "pet", pet: "owl", desc: "Gain a Spirit Owl: quick strikes that can stun." }),
+  I("c_pet_imp", "Imp Sigil", "😈", "consumable", 2, 2, 120, undefined, { fx: "pet", pet: "imp", desc: "Gain a Fire Imp: hurls fire bolts from range and sets foes ablaze." }),
+  I("c_pet_hound", "Bone Hound Totem", "🐕", "consumable", 2, 3, 130, undefined, { fx: "pet", pet: "hound", desc: "Gain a Bone Hound: a sturdy guardian that draws enemy attacks." }),
 ];
 const IT: Record<string, ItemT> = {};
 for (const it of ITEMS) IT[it.id] = it;
@@ -154,6 +195,18 @@ const SETS: Record<string, SetT> = {
   iron: { name: "Ironclad", n: 3, b2: { def: 10 }, bf: { hp: 60 }, sp: "thorns15", desc: "2 pc: +10 DEF · 3 pc: +60 HP and reflect 15% damage" },
   shadow: { name: "Shadowstalker", n: 3, b2: { dodge: 8 }, bf: { crit: 12 }, sp: "critHeal", desc: "2 pc: +8% dodge · 3 pc: +12% crit, crits heal 5% HP" },
   arc: { name: "Arcanist's Regalia", n: 4, b2: { mp: 40 }, bf: { atk: 6 }, sp: "arcanist", desc: "2 pc: +40 MP · 4 pc: +6 ATK, abilities cost 25% less and deal +20% damage" },
+  warlord: { name: "Warlord's Panoply", cls: "warrior", n: 4, b2: { def: 8 }, b3: { th: 15, hp: 40 }, bf: { atk: 10 }, sp: "thorns", desc: "2 pc: +8 DEF · 3 pc: +15% thorns, +40 HP · 4 pc: +10 ATK and reflect another 25% of damage taken" },
+  storm: { name: "Stormcaller's Regalia", cls: "mage", n: 4, b2: { mp: 30 }, b3: { fire: 6, ice: 6 }, bf: { atk: 6 }, sp: "chainShock", desc: "2 pc: +30 MP · 3 pc: +6 fire, +6 ice · 4 pc: +6 ATK and every attack arcs lightning to all other foes (35%)" },
+  night: { name: "Nightblade's Shroud", cls: "rogue", n: 4, b2: { crit: 6 }, b3: { dodge: 6, poison: 5 }, bf: { atk: 6 }, sp: "critPoison", desc: "2 pc: +6% crit · 3 pc: +6% dodge, +5 poison · 4 pc: +6 ATK and crits inflict heavy poison" },
+  dawn: { name: "Lightbringer's Vestiture", cls: "cleric", n: 4, b2: { holy: 5 }, b3: { hp: 40, def: 5 }, bf: { mp: 30 }, sp: "regen", desc: "2 pc: +5 holy · 3 pc: +40 HP, +5 DEF · 4 pc: +30 MP and regenerate 4% HP every combat tick" },
+  beast: { name: "Beastmaster's Garb", cls: "ranger", n: 4, b2: { crit: 5 }, b3: { atk: 5, dodge: 5 }, bf: { hp: 30 }, sp: "petx2", desc: "2 pc: +5% crit · 3 pc: +5 ATK, +5% dodge · 4 pc: +30 HP and pet damage doubled" },
+};
+const PETS: Record<string, PetT> = {
+  wolf: { name: "Wolf", icon: "🐺", hpF: 0.5, mult: 0.45, spd: 4.4, reach: 0.95, rate: 1.5, desc: "bites hard" },
+  hawk: { name: "Hawk", icon: "🦅", hpF: 0.32, mult: 0.4, spd: 5.2, reach: 1.05, rate: 1.4, desc: "swift talons" },
+  owl: { name: "Spirit Owl", icon: "🦉", hpF: 0.3, mult: 0.32, spd: 5, reach: 1.0, rate: 1.3, desc: "strikes can stun" },
+  imp: { name: "Fire Imp", icon: "😈", hpF: 0.32, mult: 0.36, spd: 4, reach: 3.4, rate: 1.9, desc: "fire bolts from range, burns" },
+  hound: { name: "Bone Hound", icon: "🐕", hpF: 0.8, mult: 0.38, spd: 4.2, reach: 0.95, rate: 1.6, desc: "sturdy, draws attacks" },
 };
 
 const CLS: Record<ClassId, ClassT> = {
@@ -165,7 +218,7 @@ const CLS: Record<ClassId, ClassT> = {
     abs: [{ id: "backstab", name: "Backstab", icon: "🗡️", mp: 8, cd: 2, desc: "220% damage; guaranteed crit on turn 1 or vs stunned." }, { id: "poison", name: "Poison Blade", icon: "🧪", mp: 8, cd: 3, desc: "100% damage + strong poison 4 turns." }, { id: "evade", name: "Evade", icon: "💨", mp: 6, cd: 4, desc: "Automatically dodge the next 2 attacks." }] },
   cleric: { id: "cleric", name: "Cleric", icon: "😇", tag: "Holy healer, undead slayer", base: { hp: 100, mp: 60, atk: 9, def: 5, crit: 5, dodge: 5 }, grow: { hp: 11, mp: 7, atk: 1.7, def: 1.2, crit: 0 }, passive: "Holy power: Smite deals 250% to undead; outlasts anything.", start: ["w_staff", "a_robe"],
     abs: [{ id: "heal", name: "Heal", icon: "✨", mp: 10, cd: 2, desc: "Restore 35% HP and cleanse poison/burn." }, { id: "smite", name: "Smite", icon: "⚡", mp: 10, cd: 0, desc: "180% holy damage (250% vs undead)." }, { id: "holy", name: "Holy Shield", icon: "🔆", mp: 12, cd: 5, desc: "Halve all damage taken for 3 turns." }] },
-  ranger: { id: "ranger", name: "Ranger", icon: "🏹", tag: "Archer with a wolf companion", base: { hp: 90, mp: 40, atk: 10, def: 4, crit: 15, dodge: 10 }, grow: { hp: 10, mp: 5, atk: 2, def: 1, crit: 0.3 }, passive: "Wolf companion bites every turn for 45% ATK.", start: ["w_bow", "a_tunic"],
+  ranger: { id: "ranger", name: "Ranger", icon: "🏹", tag: "Archer with a wolf companion", base: { hp: 90, mp: 40, atk: 10, def: 4, crit: 15, dodge: 10 }, grow: { hp: 10, mp: 5, atk: 2, def: 1, crit: 0.3 }, passive: "Wolf companion runs at foes and bites for 45% ATK every 1.5 s.", start: ["w_bow", "a_tunic"],
     abs: [{ id: "multi", name: "Multi-Shot", icon: "🏹", mp: 10, cd: 2, desc: "4 arrows at random foes, 70% each." }, { id: "trap", name: "Snare Trap", icon: "⛓️", mp: 8, cd: 4, desc: "Stun target 2 turns + bleed." }, { id: "frenzy", name: "Call of the Wild", icon: "📯", mp: 10, cd: 5, desc: "150% shot; pets deal triple for 3 turns." }] },
 };
 const CLASS_IDS: ClassId[] = ["warrior", "mage", "rogue", "cleric", "ranger"];
@@ -206,6 +259,14 @@ const UPG1: Perk[] = [
   { id: "keen", name: "Keen Eye", icon: "🎯", tier: 1, desc: "+4% crit", st: { crit: 4 } },
   { id: "swift", name: "Swiftness", icon: "💨", tier: 1, desc: "+3% dodge", st: { dodge: 3 } },
 ];
+// v8: Common-rarity perk pool = the six stat perks above + these special commons (starter pick and Endless Tier I offers)
+const UPG1X: Perk[] = [
+  { id: "beastbond", name: "Beast Bond", icon: "🐾", tier: 1, desc: "Gain a Wolf companion if you have no charm pet; all your pets deal +25% damage and have +25% HP." },
+  { id: "scavenger", name: "Scavenger", icon: "🔎", tier: 1, desc: "Monsters and chests are 20% more likely to drop an item (gold unchanged)." },
+  { id: "herbalist", name: "Herbalist", icon: "🌿", tier: 1, desc: "Healing items restore 25% more." },
+  { id: "fleet", name: "Fleet-Footed", icon: "🪽", tier: 1, desc: "Dodge roll cooldown 25% shorter." },
+];
+const COMMON_PERKS: Perk[] = [...UPG1, ...UPG1X].map((p: Perk) => ({ ...p, rar: "Common" }));
 const UPG2: Perk[] = [
   { id: "titan", name: "Titan's Blood", icon: "🏔️", tier: 2, desc: "+60 max HP, +4 DEF", st: { hp: 60, def: 4 } },
   { id: "berserk", name: "Berserker", icon: "🔥", tier: 2, desc: "+6 ATK, +5% crit", st: { atk: 6, crit: 5 } },
@@ -400,6 +461,11 @@ const MONS: MonT[] = [
   { id: "lich", name: "Lich", icon: "🦴", hp: 56, atk: 18, def: 6, dodge: 5, xp: 44, gold: 24, b: "caster", undead: true, lo: 5, hi: 999 },
   { id: "wyvern", name: "Wyvern", icon: "🐉", hp: 60, atk: 15, def: 7, dodge: 15, xp: 42, gold: 22, b: "swift", lo: 5, hi: 999 },
   { id: "shade", name: "Echo Shade", icon: "", hp: 34, atk: 12, def: 2, dodge: 20, xp: 22, gold: 11, b: "drainer", undead: true, lo: 3, hi: 999, bio: "crypt" },
+  // ranged attackers, introduced gradually (ff = first floor they can appear on)
+  { id: "garcher", name: "Goblin Archer", icon: "🏹", hp: 18, atk: 7, def: 1, dodge: 10, xp: 10, gold: 6, b: "archer", lo: 1, hi: 3, ff: 2, w: 2 },
+  { id: "spitter", name: "Acid Spitter", icon: "🐸", hp: 26, atk: 8, def: 2, dodge: 5, xp: 14, gold: 7, b: "spitter", lo: 2, hi: 4, ff: 3, w: 2 },
+  { id: "sarcher", name: "Skeleton Archer", icon: "💀", hp: 30, atk: 11, def: 3, dodge: 5, xp: 20, gold: 11, b: "archer", undead: true, lo: 3, hi: 999, ff: 6, w: 2 },
+  { id: "hexer", name: "Hex Cultist", icon: "🧙", hp: 34, atk: 12, def: 3, dodge: 8, xp: 24, gold: 13, b: "hexer", lo: 4, hi: 999, ff: 7, w: 2 },
 ];
 const MON: Record<string, MonT> = {};
 for (const m of MONS) MON[m.id] = m;
@@ -444,7 +510,9 @@ function priceOf(inv: Inv): number { return Math.round(IT[inv.id].price * (1 + 0
 function sellOf(inv: Inv): number { return inv.ident ? Math.max(1, Math.floor(priceOf(inv) * 0.4)) : 12; }
 function idFee(inv: Inv, f: number): number { return Math.round(IDFEE[IT[inv.id].r] * (1 + 0.1 * f)); }
 function locked(inv: Inv): boolean { return !!IT[inv.id].cursed && !inv.freed; }
-const UNIT: Record<StatKey, number> = { hp: 5, mp: 4, atk: 1, def: 1, crit: 1.2, dodge: 0.8, ls: 0.6, fire: 1, ice: 1, holy: 1, poison: 1 };
+// random affix base values (per unit of floor/rarity scaling); "th" = thorns % reflected
+const UNIT: Record<StatKey, number> = { hp: 5, mp: 4, atk: 1, def: 1, crit: 1.2, dodge: 0.8, ls: 0.6, fire: 1, ice: 1, holy: 1, poison: 1, th: 1.2 };
+function affixRange(k: StatKey, f: number, r: number): [number, number] { const b = UNIT[k] * (1 + tierOf(f) * 0.5) * (1 + r * 0.3); return [Math.max(1, Math.round(b * 0.6)), Math.max(1, Math.round(b * 1.4))]; }
 const NEGOK: StatKey[] = ["hp", "mp", "atk", "def", "crit", "dodge"];
 function rollBonus(it: ItemT, f: number): Stats {
   const out: Stats = {};
@@ -484,6 +552,30 @@ function rollPremium(f: number, cls: ClassId, taken: string[]): string | null {
   }
   return null;
 }
+// ---- the Echo Vault: one item stored across runs (separate key, survives death/permadeath) ----
+const VAULT_KEY = "dungeon-of-echoes-vault-v1";
+interface VaultT { item: Inv; floor: number; cls: ClassId; mode: Mode; ts: number; }
+function vaultGet(): VaultT | null {
+  try { const s = kvGet(VAULT_KEY); if (!s) return null; const o = JSON.parse(s) as unknown; if (isObj(o) && okInv(o.item)) return { item: normInv(o.item as Inv), floor: Number(o.floor) || 0, cls: CLASS_IDS.includes(o.cls as ClassId) ? (o.cls as ClassId) : "warrior", mode: o.mode === "endless" ? "endless" : "story", ts: Number(o.ts) || 0 }; } catch (e) { void e; }
+  return null;
+}
+function vaultSet(v: VaultT | null): void { try { kvSet(VAULT_KEY, v ? JSON.stringify(v) : null); } catch (e) { void e; } }
+function vaultDeposit(g: Game, uid: number): boolean {
+  let inv = g.inv.find((i: Inv) => i.uid === uid);
+  if (inv) g.inv = g.inv.filter((i: Inv) => i.uid !== uid);
+  else { const k = GEAR.find((s: GearSlot) => g.eq[s]?.uid === uid); if (!k) return false; inv = g.eq[k]; if (!inv || locked(inv)) return false; delete g.eq[k]; clamp(g); syncPets(g); }
+  vaultSet({ item: { ...inv, bon: { ...inv.bon } }, floor: g.floor, cls: g.cls, mode: g.mode, ts: Date.now() });
+  log(g, `🏦 ${instName(inv)} is sealed in the Echo Vault for a future run.`, "good");
+  return true;
+}
+function vaultLeave(g: Game): void { g.vaultSel = undefined; g.screen = g.vaultThen === "victory" || (g.vaultThen === "upgrade" && g.offers.length > 0) ? g.vaultThen : "map"; g.vaultThen = undefined; }
+function vaultTake(g: Game): void {
+  const v = vaultGet(); g.vaultOffer = false; if (!v) return;
+  const inv: Inv = { ...v.item, bon: { ...v.item.bon }, uid: UID++ };
+  g.inv.push(inv); if (inv.ident) discover(inv.id);
+  vaultSet(null);
+  log(g, `🏦 You bring ${instName(inv)} out of the Echo Vault.`, "good");
+}
 function addItem(g: Game, inv: Inv): void {
   if (g.inv.length >= MAXINV) { const p = sellOf(inv); g.gold += p; gain(g, `Bag full: sold ${instName(inv)} +${p} gold`, GOLDC); return; }
   if (inv.ident) discover(inv.id);
@@ -499,7 +591,7 @@ function identify(g: Game, inv: Inv): void {
 function addStats(f: Full, s?: Stats): void {
   if (!s) return;
   f.maxHp += s.hp ?? 0; f.maxMp += s.mp ?? 0; f.atk += s.atk ?? 0; f.def += s.def ?? 0; f.crit += s.crit ?? 0; f.dodge += s.dodge ?? 0;
-  f.ls += s.ls ?? 0; f.fire += s.fire ?? 0; f.ice += s.ice ?? 0; f.holy += s.holy ?? 0; f.poison += s.poison ?? 0;
+  f.ls += s.ls ?? 0; f.fire += s.fire ?? 0; f.ice += s.ice ?? 0; f.holy += s.holy ?? 0; f.poison += s.poison ?? 0; f.th += s.th ?? 0;
 }
 function addBonus(g: Game, s: Stats): void { for (const k of Object.keys(s) as StatKey[]) g.bonus[k] = (g.bonus[k] ?? 0) + (s[k] ?? 0); }
 function setCounts(g: Game): Record<string, number> {
@@ -509,19 +601,19 @@ function setCounts(g: Game): Record<string, number> {
 }
 function full(g: Game): Full {
   const c = CLS[g.cls]; const l = g.lvl - 1;
-  const f: Full = { maxHp: c.base.hp + c.grow.hp * l, maxMp: c.base.mp + c.grow.mp * l, atk: c.base.atk + c.grow.atk * l, def: c.base.def + c.grow.def * l, crit: c.base.crit + c.grow.crit * l, dodge: c.base.dodge, ls: 0, fire: 0, ice: 0, holy: 0, poison: 0, sp: [], curses: [] };
+  const f: Full = { maxHp: c.base.hp + c.grow.hp * l, maxMp: c.base.mp + c.grow.mp * l, atk: c.base.atk + c.grow.atk * l, def: c.base.def + c.grow.def * l, crit: c.base.crit + c.grow.crit * l, dodge: c.base.dodge, ls: 0, fire: 0, ice: 0, holy: 0, poison: 0, th: 0, sp: [], curses: [] };
   addStats(f, g.bonus);
   for (const k of GEAR) {
     const it = g.eq[k];
     if (it) { const tt = IT[it.id]; addStats(f, tt.st); addStats(f, it.bon); if (tt.sp) f.sp.push(tt.sp); if (tt.curse) f.curses.push(tt.curse); }
   }
   const sc = setCounts(g);
-  for (const sid of Object.keys(sc)) { const S = SETS[sid]; if (sc[sid] >= 2) addStats(f, S.b2); if (sc[sid] >= S.n) { addStats(f, S.bf); f.sp.push(S.sp); } }
+  for (const sid of Object.keys(sc)) { const S = SETS[sid]; if (sc[sid] >= 2) addStats(f, S.b2); if (S.b3 && sc[sid] >= 3) addStats(f, S.b3); if (sc[sid] >= S.n) { addStats(f, S.bf); f.sp.push(S.sp); } }
   if (g.perks.includes("eagleeye")) f.crit += 20;
   if (g.perks.includes("deathmark")) f.crit += 10;
   if (f.curses.includes("c_frail")) f.maxHp *= 0.7;
   f.maxHp = Math.max(10, Math.round(f.maxHp)); f.maxMp = Math.max(0, Math.round(f.maxMp)); f.atk = Math.max(1, Math.round(f.atk)); f.def = Math.max(0, Math.round(f.def));
-  f.crit = Math.max(0, Math.min(75, Math.round(f.crit))); f.dodge = Math.max(0, Math.min(50, Math.round(f.dodge))); f.ls = Math.max(0, Math.min(40, f.ls));
+  f.crit = Math.max(0, Math.min(75, Math.round(f.crit))); f.dodge = Math.max(0, Math.min(50, Math.round(f.dodge))); f.ls = Math.max(0, Math.min(40, f.ls)); f.th = Math.max(0, Math.min(60, f.th));
   return f;
 }
 function clamp(g: Game): void { const f = full(g); g.hp = Math.min(g.hp, f.maxHp); g.mp = Math.min(g.mp, f.maxMp); }
@@ -535,17 +627,52 @@ function rollRarity(t: number, minR: number): number {
   for (let i = 0; i < 5; i++) { r -= w[i]; if (r <= 0) return i; }
   return 4;
 }
+// per-item drop weight inside a rarity: healing is scarce, utility normal, gear normal
+function dropW(it: ItemT): number {
+  if (it.fx === "heal" || it.fx === "both") return 0.45;
+  if (it.fx === "cleanse") return 0.6;
+  if (it.fx === "mana" || it.fx === "treat") return 0.8;
+  if (it.fx === "pet" || it.fx === "eatk" || it.fx === "ehp") return 0.5;
+  if (it.fx === "tome") return 0.4;
+  if (it.set) return 0.8;
+  if (it.cursed) return 0.7;
+  return 1;
+}
+function wpick(c: ItemT[], cls: ClassId): ItemT {
+  const w = c.map((i: ItemT) => dropW(i) * (i.cls && !i.cls.includes(cls) ? 0.4 : 1));
+  let r = Math.random() * w.reduce((a: number, b: number) => a + b, 0);
+  for (let i = 0; i < c.length; i++) { r -= w[i]; if (r <= 0) return c[i]; }
+  return c[c.length - 1];
+}
+// ---- chance-based loot table (gold is rolled separately and is unchanged) ----
+const LOOT: Record<string, { p: number; minR: number; p2: number }> = {
+  mob: { p: 0.24, minR: 0, p2: 0 },      // ordinary monster: 24% one item
+  elite: { p: 0.7, minR: 1, p2: 0.25 },   // elite: 70% one item (Uncommon+), 25% a second
+  chest: { p: 0.85, minR: 0, p2: 0.12 },  // chest: 85% one item (Uncommon+ from floor 5), 12% a second piece of gear
+  boss: { p: 1, minR: 3, p2: 0.5 },       // boss: 2 Epic+ gear + Identify scroll, 50% an extra Rare+ item
+};
+function lootRoll(g: Game, src: string): Inv[] {
+  const L = LOOT[src]; const out: Inv[] = [];
+  const sc = g.perks.includes("scavenger") ? 1.2 : 1;
+  const f = g.floor;
+  if (src === "boss") {
+    for (let k = 0; k < 2; k++) out.push(makeInst(rollItem(f, 3, g.cls, "gear"), f, true));
+    out.push(makeInst("c_ident", f, false));
+    if (Math.random() < L.p2) out.push(makeInst(rollItem(f, 2, g.cls, "any"), f, true));
+    return out;
+  }
+  const minR = src === "chest" ? (f >= 5 ? 1 : 0) : L.minR;
+  if (Math.random() < Math.min(0.95, L.p * sc)) out.push(makeInst(rollItem(f, minR, g.cls, "any"), f, true));
+  if (L.p2 > 0 && Math.random() < L.p2 * sc) out.push(makeInst(rollItem(f, 0, g.cls, src === "chest" ? "gear" : "any"), f, true));
+  return out;
+}
 function rollItem(f: number, minR: number, cls: ClassId, kind: "any" | "gear" | "cons", maxR = 4): string {
   const t = tierOf(f);
-  const want = kind === "any" ? (Math.random() < 0.45 ? "cons" : "gear") : kind;
+  const want = kind === "any" ? (Math.random() < 0.4 ? "cons" : "gear") : kind;
   for (let r = Math.min(maxR, rollRarity(t, minR)); r >= 0; r--) {
     const c = ITEMS.filter((i: ItemT) => i.r === r && i.minF <= t && (want === "cons") === (i.slot === "consumable"));
     if (c.length === 0) continue;
-    let it = pick(c);
-    if (it.cls && !it.cls.includes(cls) && Math.random() < 0.6) it = pick(c);
-    // difficulty: healing potions drop ~15% less often (rerolled into gear)
-    if (kind === "any" && (it.fx === "heal" || it.fx === "both") && Math.random() < POTION_CUT) return rollItem(f, minR, cls, "gear");
-    return it.id;
+    return wpick(c, cls).id;
   }
   return "c_hp1";
 }
@@ -555,6 +682,8 @@ function poolFor(f: number, b?: Biome): MonT[] {
   const out: MonT[] = [];
   for (const m of MONS) {
     if (m.bio && m.bio !== bb) continue;
+    if (m.ff && f < m.ff) continue;
+    if (m.w) { if (T >= m.lo && T <= m.hi) for (let k = 0; k < m.w; k++) out.push(m); continue; }
     const fav = FAV[bb].includes(m.id);
     if (fav && T >= m.lo - 1) { for (let k = 0; k < 4; k++) out.push(m); }
     else if (T >= m.lo && T <= m.hi) out.push(m);
@@ -666,7 +795,7 @@ function genFloor(g: Game): void {
   }
   const pool = poolFor(g.floor, g.biome);
   const nm = Math.min(18, 6 + tierOf(g.floor) + Math.floor(Math.max(0, g.floor - 2) / 3));
-  for (let k = 0; k < nm; k++) { const s = spot(1, rooms.length); if (s) g.mons.push({ id: UID++, x: s.x, y: s.y, t: pick(pool).id, boss: false, awake: false, stun: 0 }); }
+  for (let k = 0; k < nm; k++) { const s = spot(1, rooms.length); if (s) g.mons.push({ id: UID++, x: s.x, y: s.y, t: pick(pool).id, boss: false, awake: false, stun: 0, el: g.floor >= 3 && Math.random() < ELITE_P }); }
   g.usedUndying = false; g.usedShadow = false; g.usedPhoenix = false; g.usedRes = false;
 }
 function reveal(g: Game): void {
@@ -692,6 +821,9 @@ function newGame(cls: ClassId, mode: Mode): Game {
   }
   genFloor(g); reveal(g);
   const f = full(g); g.hp = f.maxHp; g.mp = f.maxMp;
+  syncPets(g, true);
+  // one-time starting perk (3 random Common perks, rolled once and saved with the run) + optional vaulted item
+  g.offers = shuffle(COMMON_PERKS).slice(0, 3); g.startPick = true; g.vaultOffer = !!vaultGet(); g.screen = "upgrade";
   log(g, mode === "story" ? `You enter the Dungeon of Echoes as a ${c.name}. Reach Floor ${STORY_END} and slay the Echo Lord.` : `∞ Endless run as a ${c.name}. ${g.perks.length ? `${g.perks.length} capstone(s) active. ` : ""}How deep can you go?`, "good");
   return g;
 }
@@ -705,6 +837,8 @@ function descend(g: Game): void {
     saveMeta();
   }
   genFloor(g); reveal(g);
+  for (const p of g.pets ?? []) { p.x = (g.wx ?? g.px + 0.5); p.y = (g.wy ?? g.py + 0.5) + 0.01; }
+  syncPets(g);
   log(g, `${BIOME[biomeOf(g.floor)].name}: you descend to ${g.mode === "story" ? "Floor" : "Depth"} ${g.floor}${g.floor % 5 === 0 ? ` — ${bossKind(g.floor) === "lord" ? "the Echo Lord" : "the Broodmother"} lurks here!` : ""}.`, "good");
   g.screen = "map";
 }
@@ -713,17 +847,20 @@ function makeOffers(g: Game): Perk[] {
   const out: Perk[] = [];
   if (g.floor % 10 === 0) out.push(...caps.slice(0, 3));
   else if (caps.length > 0 && Math.random() < 0.2) out.push(caps[0]);
-  const t2 = shuffle(UPG2), t1 = shuffle(UPG1);
+  const t2 = shuffle(UPG2), t1 = shuffle(COMMON_PERKS);
   if (out.length < 3) out.push(t2[0]);
   let i = 0;
-  while (out.length < 3) { out.push(t1[i]); i++; }
+  while (out.length < 3 && i < t1.length) { if (!g.perks.includes(t1[i].id)) out.push(t1[i]); i++; }
   return out;
 }
 function applyPerk(g: Game, p: Perk): void {
-  if (p.tier === 3) g.perks.push(p.id);
+  if (p.tier === 3 || (!p.st && !p.gold)) g.perks.push(p.id);
+  if (g.startPick) { g.startPick = false; g.vaultOffer = false; g.offers = []; }
+  if (p.id === "beastbond" && !g.cpet && g.cls !== "ranger") g.cpet = "wolf";
+  syncPets(g, true);
   if (p.st) { addBonus(g, p.st); if (p.st.hp) g.hp += p.st.hp; if (p.st.mp) g.mp += p.st.mp; }
   if (p.gold) g.goldMult += p.gold;
-  log(g, `${p.icon} Upgrade gained: ${p.name}.`, "good");
+  log(g, `${p.icon} ${p.rar === "Common" && g.turns === 0 ? "Starting perk" : "Upgrade gained"}: ${p.name}.`, "good");
   g.screen = "map";
 }
 
@@ -733,7 +870,7 @@ function gainXp(g: Game, n: number): void {
     g.xp -= need(g.lvl); g.lvl++;
     const f = full(g);
     g.hp = Math.min(f.maxHp, g.hp + Math.round(f.maxHp * 0.3)); g.mp = Math.min(f.maxMp, g.mp + Math.round(f.maxMp * 0.3));
-    log(g, `⭐ Level up! You are now level ${g.lvl}.`, "good");
+    log(g, `⭐ Level up! You are now level ${g.lvl}.`, "good"); syncPets(g);
     addFx(g, `LEVEL ${g.lvl}!`, "good", "p");
   }
 }
@@ -775,7 +912,7 @@ function hitEnemy(g: Game, e: Enemy, mult: number, forceCrit: boolean, label: st
   if (e.hp <= 0) return 0;
   const f = full(g); const b = g.buffs;
   if (!forceCrit && Math.random() * 100 < e.dodge) { log(g, `${label}: ${e.name} dodges!`); addFx(g, "miss", "sys", "e" + e.uid); return 0; }
-  const atk = f.atk * (b.rage > 0 || b.fury > 0 ? 1.5 : 1);
+  const atk = f.atk * (b.rage > 0 || b.fury > 0 ? 1.5 : 1) * ((b.hex ?? 0) > 0 ? 0.75 : 1);
   const crit = forceCrit || Math.random() * 100 < f.crit;
   const def = crit && g.perks.includes("eagleeye") ? 0 : e.def;
   let d = atk * mult * (0.9 + Math.random() * 0.2) * 60 / (60 + def);
@@ -819,7 +956,7 @@ function damagePlayer(g: Game, e: Enemy, raw: number, magic: boolean, verb: stri
   log(g, `${e.name} ${verb} you for ${d}.`, "bad");
   addFx(g, `-${d}`, "bad", "p");
   if (d > 0) g.hurtTs = Date.now();
-  const th = (f.sp.includes("thorns") ? 0.25 : 0) + (f.sp.includes("thorns15") ? 0.15 : 0) + (g.perks.includes("juggernaut") ? 0.35 : 0);
+  const th = f.th / 100 + (f.sp.includes("thorns") ? 0.25 : 0) + (f.sp.includes("thorns15") ? 0.15 : 0) + (g.perks.includes("juggernaut") ? 0.35 : 0);
   if (th > 0 && e.hp > 0) { const r = Math.max(1, Math.round(total * th)); e.hp -= r; log(g, `Thorns reflect ${r} to ${e.name}.`, "dmg"); }
   if (g.cls === "warrior") g.mp = Math.min(f.maxMp, g.mp + 2);
   lethal(g);
@@ -837,9 +974,7 @@ function resolveDeaths(g: Game): void {
     const ex = clampN(Math.floor(e.x ?? g.px + 0.5), 0, W - 1), ey = clampN(Math.floor(e.y ?? g.py + 0.5), 0, H - 1);
     (g.rem = g.rem ?? []).push(`${ey * W + ex}:${sprOf(e)}`);
     if ((g.rem ?? []).length > 120) g.rem.shift();
-    const drops: Inv[] = [];
-    if (e.boss) { for (let k = 0; k < 2; k++) drops.push(makeInst(rollItem(g.floor, 3, g.cls, "gear"), g.floor, true)); drops.push(makeInst("c_ident", g.floor, false)); }
-    else if (Math.random() < 0.3) drops.push(makeInst(rollItem(g.floor, 0, g.cls, "any"), g.floor, true));
+    const drops: Inv[] = e.minion ? (Math.random() < 0.1 ? lootRoll(g, "mob") : []) : lootRoll(g, e.boss ? "boss" : e.elite ? "elite" : "mob");
     for (const d of drops) { gain(g, `+ ${instName(d)}`, rarCol(d)); addItem(g, d); }
     if (e.boss) bossDown(g, e);
   }
@@ -853,16 +988,18 @@ function bossDown(g: Game, b: Enemy): void {
   c.tele = []; c.proj = []; c.charging = false;
   g.map[g.sy][g.sx] = 2;
   log(g, "The stairs 🔽 appear where the boss fell.", "good");
-  if (g.mode === "story" && g.floor >= STORY_END) { g.combat = null; g.screen = "victory"; return; }
+  if (g.mode === "story" && g.floor >= STORY_END) { g.combat = null; g.buffs = freshBuffs(); revivePets(g); if (g.floor % 10 === 0) { g.vaultThen = "victory"; g.screen = "vault"; } else g.screen = "victory"; return; }
   if (g.mode === "endless") { g.offers = makeOffers(g); c.upg = true; }
+  if (g.floor % 10 === 0) c.vault = true;
   if (g.floor === 5 && g.mode === "story") log(g, "The Broodmother is dead. Deeper halls await…", "good");
   void b;
 }
 function endCombat(g: Game): void {
   const c = g.combat; if (!c) return;
-  g.combat = null; g.buffs = freshBuffs();
+  g.combat = null; g.buffs = freshBuffs(); revivePets(g);
   log(g, "✅ Combat over — menus unlocked.", "good");
-  if (c.upg && g.mode === "endless" && g.offers.length > 0) g.screen = "upgrade";
+  if (c.vault) { g.vaultThen = c.upg && g.offers.length > 0 ? "upgrade" : "map"; g.screen = "vault"; }
+  else if (c.upg && g.mode === "endless" && g.offers.length > 0) g.screen = "upgrade";
 }
 function newCombat(): Combat {
   return { enemies: [], target: 0, monId: -1, turn: 0, boss: false, phase: 1, charging: false, itemOpen: false, proj: [], tele: [], shots: [], grace: 0, bossT: 3, tick: 0, v2: true, calm: 0 };
@@ -881,6 +1018,8 @@ function engage(g: Game, m: MapMon): void {
   const c = g.combat;
   const e = m.boss ? makeBoss(g.floor) : makeEnemy(MON[m.t], g.floor);
   rtScale(e);
+  // elites: tougher, better loot odds, same gold
+  if (m.el && !m.boss) { e.elite = true; e.name = `Elite ${e.name}`; e.max = Math.round(e.max * 1.5); e.hp = e.max; e.atk = Math.round(e.atk * 1.15); e.xp = Math.round(e.xp * 1.5); }
   if (typeof m.hp === "number" && typeof m.max === "number" && isFinite(m.hp) && m.max > 0) { e.max = m.max; e.hp = Math.max(1, Math.min(m.max, m.hp)); }
   e.x = m.fx ?? m.x + 0.5; e.y = m.fy ?? m.y + 0.5;
   e.mid = m.id; e.hx = m.hx ?? e.x; e.hy = m.hy ?? e.y; e.mt = m.boss ? e.bk : m.t; e.lost = 0;
@@ -900,12 +1039,12 @@ function toMapMon(g: Game, e: Enemy, stun: number, home: boolean): void {
   if (home && e.hx !== undefined && e.hy !== undefined) { x = e.hx; y = e.hy; }
   const q = { x, y }; pushOut(g, q, MR);
   if (solidT(g, Math.floor(q.x), Math.floor(q.y))) { q.x = (e.hx ?? x); q.y = (e.hy ?? y); }
-  g.mons.push({ id: e.mid ?? UID++, x: Math.floor(q.x), y: Math.floor(q.y), fx: q.x, fy: q.y, t: e.boss ? e.bk : (e.mt ?? e.spr ?? "rat"), boss: e.boss, awake: e.boss, stun, hp: e.hp, max: e.max, hx: e.hx, hy: e.hy });
+  g.mons.push({ id: e.mid ?? UID++, x: Math.floor(q.x), y: Math.floor(q.y), fx: q.x, fy: q.y, t: e.boss ? e.bk : (e.mt ?? e.spr ?? "rat"), boss: e.boss, awake: e.boss, stun, hp: e.hp, max: e.max, hx: e.hx, hy: e.hy, el: e.elite === true });
 }
 function escapeAll(g: Game, stun: number): void {
   const c = g.combat; if (!c) return;
   for (const e of c.enemies) if (!e.dead) { toMapMon(g, e, stun, false); e.dead = true; e.away = true; }
-  g.combat = null; g.buffs = freshBuffs();
+  g.combat = null; g.buffs = freshBuffs(); revivePets(g);
   log(g, "✅ Combat over — menus unlocked.", "good");
 }
 
@@ -974,14 +1113,16 @@ const WAKE = 4.5;        // sleeping monsters notice you (was 4)
 const AGGRO = 5.5;       // awake monsters with line of sight join the fight
 const BOSS_AGGRO = 5;    // bosses wake when you step into their lair (LOS)
 const REGEN_T = 1.8;     // seconds per passive regen tick out of combat (was 1.5)
-const POTION_CUT = 0.15; // healing-potion drops rerolled into gear 15% of the time
+const ELITE_P = 0.08;      // share of monsters spawned as elites from floor 3
 const LEASH = 11, BOSS_LEASH = 7, LOSE_T = 4, CALM_T = 1.5, DASH_SPD = 13.75;
 const HELD = new Set<string>();
 let NAV_T = 0;
 let NOTE_T = 0;
 function combatNote(g: Game, t: string): void { const n = Date.now(); if (n - NOTE_T < 2500) return; NOTE_T = n; log(g, t, "bad"); }
 // speed, reach, wind-up (s), cooldown (s) — speed/reach in old arena units (÷U for tiles)
-const RTB: Record<string, [number, number, number, number]> = { brute: [13, 11, 0.75, 1.9], swift: [21, 9, 0.4, 1.25], tank: [9, 12, 0.85, 2.3], caster: [11, 50, 0.7, 2.3], poisoner: [17, 9, 0.5, 1.6], drainer: [14, 10, 0.6, 1.7] };
+const RTB: Record<string, [number, number, number, number]> = { brute: [13, 11, 0.75, 1.9], swift: [21, 9, 0.4, 1.25], tank: [9, 12, 0.85, 2.3], caster: [11, 50, 0.7, 2.3], poisoner: [17, 9, 0.5, 1.6], drainer: [14, 10, 0.6, 1.7], archer: [12, 52, 0.8, 2.4], spitter: [9, 48, 0.95, 3.2], hexer: [10, 52, 0.85, 3.0] };
+// ranged foes keep a distance band [min, max] in tiles and fire from up to `fire` tiles
+const RANGED: Record<string, { min: number; max: number; fire: number }> = { caster: { min: 26 / U, max: 44 / U, fire: 62 / U }, archer: { min: 3.5, max: 6, fire: 6.5 }, spitter: { min: 3, max: 5.5, fire: 6 }, hexer: { min: 3.25, max: 5.5, fire: 6.5 } };
 const ARATE: Record<ClassId, number> = { warrior: 0.62, mage: 0.6, rogue: 0.42, cleric: 0.6, ranger: 0.5 };
 const ARNG: Record<ClassId, number> = { warrior: 17, mage: 62, rogue: 15, cleric: 18, ranger: 72 };
 const ABR: Record<string, number> = { bash: 20, backstab: 19, poison: 19, smite: 62, fireball: 72, trap: 72, frenzy: 72, multi: 90 };
@@ -1034,15 +1175,28 @@ function rtDodge(g: Game, mx: number, my: number): void {
   let vx = mx, vy = my;
   if (Math.hypot(vx, vy) < 0.2) { const i = nearestIdx(c, 999); const e = i >= 0 ? c.enemies[i] : undefined; vx = e ? (c.px ?? 0) - (e.x ?? 0) : -1; vy = e ? (c.py ?? 0) - (e.y ?? 0) : 0; }
   const m = Math.hypot(vx, vy) || 1;
-  c.dvx = vx / m; c.dvy = vy / m; c.dashT = 0.2; c.iT = 0.4; c.dashCd = g.cls === "rogue" ? 1.6 : 2.2;
+  c.dvx = vx / m; c.dvy = vy / m; c.dashT = 0.2; c.iT = 0.4; c.dashCd = (g.cls === "rogue" ? 1.6 : 2.2) * (g.perks.includes("fleet") ? 0.75 : 1);
 }
 function rtResolve(g: Game, e: Enemy, d: number, reach: number): void {
   const c = g.combat; if (!c) return;
   const kind = e.wk; e.wk = "";
+  const pet = e.tpk ? (g.pets ?? [])[Number(e.tpk)] : undefined; e.tpk = "";
+  const ex0 = e.x ?? 0, ey0 = e.y ?? 0;
+  if (kind === "arrow" || kind === "hex" || kind === "spit") {
+    const ax = e.ax ?? c.px ?? 0, ay = e.ay ?? c.py ?? 0;
+    if (kind === "spit") { (c.tele ?? (c.tele = [])).push({ id: UID++, x: ax, y: ay, r: 1.1, t: 1.0 * WIND, max: 1.0 * WIND, dmg: e.atk * 1.1, from: e.uid, kind: "spit" }); return; }
+    const dx = ax - ex0, dy = ay - ey0, m = Math.hypot(dx, dy) || 1, sp = kind === "arrow" ? 8 : 4.5;
+    (c.proj ?? (c.proj = [])).push({ id: UID++, x: ex0, y: ey0, vx: dx / m * sp, vy: dy / m * sp, dmg: e.atk * (kind === "arrow" ? 1 : 0.8), from: e.uid, life: 2.2, c: kind === "arrow" ? "#f2e6c0" : "#c04cff", k: kind });
+    return;
+  }
+  if (pet && kind === "melee") {
+    if (pet.ko > 0 || Math.hypot(pet.x - ex0, pet.y - ey0) > reach + 5 / U) { addFx(g, "whiff", "sys", "e" + e.uid); return; }
+    hurtPet(g, pet, e.atk * (e.b === "brute" ? 1.15 : e.b === "swift" ? 1.2 : 1)); return;
+  }
   if (kind === "cast") {
     const hurt = alive(c).filter((x: Enemy) => x !== e && x.hp / x.max < 0.6);
     if (hurt.length > 0 && Math.random() < 0.35) { const h = hurt[0]; const amt = Math.round(h.max * 0.25); h.hp = Math.min(h.max, h.hp + amt); log(g, `${e.name} heals ${h.name} for ${amt}.`, "bad"); addFx(g, `+${amt}`, "heal", "e" + h.uid); return; }
-    const dx = (c.px ?? 0) - (e.x ?? 0), dy = (c.py ?? 0) - (e.y ?? 0); const m = Math.hypot(dx, dy) || 1;
+    const dx = (pet ? pet.x : c.px ?? 0) - (e.x ?? 0), dy = (pet ? pet.y : c.py ?? 0) - (e.y ?? 0); const m = Math.hypot(dx, dy) || 1;
     (c.proj ?? (c.proj = [])).push({ id: UID++, x: e.x ?? 0, y: e.y ?? 0, vx: (dx / m) * 48 / U, vy: (dy / m) * 48 / U, dmg: e.atk * 1.1, from: e.uid, life: 2.5, c: e.undead ? "#b48cff" : "#ff7a3a" });
     return;
   }
@@ -1097,6 +1251,7 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
   syncPos(g);
   const px = c.px ?? 0, py = c.py ?? 0;
   c.dashCd = Math.max(0, (c.dashCd ?? 0) - dt); c.iT = Math.max(0, (c.iT ?? 0) - dt); c.atkCd = Math.max(0, (c.atkCd ?? 0) - dt);
+  g.buffs.hex = Math.max(0, (g.buffs.hex ?? 0) - dt);
   const now = Date.now();
   if (c.enemies.some((e: Enemy) => e.dead && (e.away || now - (e.dt0 ?? 0) > 900))) {
     const tu = c.enemies[c.target]?.uid;
@@ -1112,10 +1267,10 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
   }
   c.calm = 0;
   if (atk) { rtAttack(g); if (g.combat !== c || g.screen !== "map") return; }
+  petStep(g, dt);
   c.tick = (c.tick ?? 0) + dt;
   if (c.tick >= 1.5) {
     c.tick -= 1.5;
-    petPhase(g); resolveDeaths(g); if (g.combat !== c || g.screen !== "map") return;
     endRound(g); if (g.combat !== c || g.screen !== "map") return;
     resolveDeaths(g); if (g.combat !== c || g.screen !== "map") return;
   }
@@ -1146,12 +1301,15 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
       continue;
     }
     const at = (e.atkT ?? 0) - dt; e.atkT = at;
-    const caster = e.b === "caster";
-    let tx = px, ty = py, mv = true;
+    const RG = e.boss ? undefined : RANGED[e.b];
+    // pets draw aggro: a foe goes for a nearby pet it can see when the pet is closer than you (Bone Hounds are extra tempting)
+    let ax = px, ay = py, ad = d, asee = see, pti = -1;
+    if (!e.boss) { let best = d; (g.pets ?? []).forEach((p: Pet, i: number) => { if (p.ko > 0) return; const pd = Math.hypot(p.x - ex, p.y - ey); const eff = pd + (p.k === "hound" ? -1.2 : 0.4); if (pd < 4 && eff < best && los(g, ex, ey, p.x, p.y)) { best = eff; ax = p.x; ay = p.y; ad = pd; asee = true; pti = i; } }); }
+    let tx = ax, ty = ay, mv = true;
     if (Math.hypot(ex - hx, ey - hy) > leash) { tx = hx; ty = hy; }
-    else if (!see) { fld = fld ?? flowField(g); const st = flowStep(g, fld, ex, ey); if (st) { tx = st[0]; ty = st[1]; } else mv = false; }
-    else if (caster) { if (d < 26 / U) { tx = ex - dx; ty = ey - dy; } else if (d <= 44 / U) mv = false; }
-    else if (d <= reach * 0.7) mv = false;
+    else if (!see && pti < 0) { fld = fld ?? flowField(g); const st = flowStep(g, fld, ex, ey); if (st) { tx = st[0]; ty = st[1]; } else mv = false; }
+    else if (RG) { if (ad < RG.min) { tx = ex - (ax - ex); ty = ey - (ay - ey); } else if (ad <= RG.max) mv = false; }
+    else if (ad <= reach * 0.7) mv = false;
     let mvx = 0, mvy = 0;
     if (mv) { const vx = tx - ex, vy = ty - ey, vl = Math.hypot(vx, vy) || 1; mvx = vx / vl; mvy = vy / vl; }
     for (const o of c.enemies) {
@@ -1164,7 +1322,11 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
     const bx = q.x - px, by = q.y - py, bd = Math.hypot(bx, by), mn = PR + MR + (e.boss ? 0.3 : 0);
     if (bd < mn && bd > 1e-4) { q.x = px + bx / bd * mn; q.y = py + by / bd * mn; pushOut(g, q, MR); }
     e.x = q.x; e.y = q.y;
-    if (at <= 0 && see && d <= (caster ? 62 / U : reach + 3 / U)) { e.wk = caster ? "cast" : "melee"; e.wm = P[2] * WIND; e.wind = e.wm; e.atkT = P[3] + Math.random() * 0.6; }
+    if (at <= 0 && asee && ad <= (RG ? RG.fire : reach + 3 / U)) {
+      e.wk = e.b === "caster" ? "cast" : e.b === "archer" ? "arrow" : e.b === "spitter" ? "spit" : e.b === "hexer" ? "hex" : "melee";
+      e.tpk = pti >= 0 ? String(pti) : ""; e.ax = ax; e.ay = ay; // aim locks when the wind-up starts: move to dodge
+      e.wm = P[2] * WIND; e.wind = e.wm; e.atkT = P[3] + Math.random() * 0.6;
+    }
   }
   const pr = c.proj ?? [];
   for (const p of pr) {
@@ -1173,8 +1335,13 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
     if (p.life > 0 && Math.hypot(p.x - px, p.y - py) < 4.5 / U) {
       p.life = 0;
       const e = c.enemies.find((x: Enemy) => x.uid === p.from);
-      if (e) damagePlayer(g, e, p.dmg, true, "blasts");
+      if (e) {
+        const dd = damagePlayer(g, e, p.dmg, p.k !== "arrow", p.k === "arrow" ? "shoots" : p.k === "hex" ? "hexes" : "blasts");
+        if (dd > 0 && p.k === "hex") { g.buffs.hex = 4; log(g, "🌀 Hexed! Your damage is reduced by 25% for 4 s.", "bad"); addFx(g, "HEXED", "bad", "p"); }
+      }
       if (g.hp <= 0) { die(g); return; }
+    } else if (p.life > 0) {
+      for (const pt of g.pets ?? []) if (pt.ko <= 0 && Math.hypot(p.x - pt.x, p.y - pt.y) < 0.4) { p.life = 0; hurtPet(g, pt, p.dmg); break; }
     }
   }
   c.proj = pr.filter((p: Proj) => p.life > 0);
@@ -1185,11 +1352,12 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
     if (!e || e.dead || e.hp <= 0) { tz.t = -1; if (tz.kind === "cata") c.charging = false; continue; }
     if (tz.t > 0) continue;
     if (tz.kind === "cata") c.charging = false;
+    for (const pt of g.pets ?? []) if (pt.ko <= 0 && Math.hypot(pt.x - tz.x, pt.y - tz.y) <= tz.r) hurtPet(g, pt, tz.dmg * (tz.kind === "spit" ? 1 : 0.5));
     if (Math.hypot(px - tz.x, py - tz.y) <= tz.r + 2 / U) {
-      const verb = tz.kind === "acid" ? "splashes acid on" : tz.kind === "cata" ? "💥 OBLITERATES" : "engulfs in shadow flame";
+      const verb = tz.kind === "spit" ? "spatters acid on" : tz.kind === "acid" ? "splashes acid on" : tz.kind === "cata" ? "💥 OBLITERATES" : "engulfs in shadow flame";
       const dd = damagePlayer(g, e, tz.dmg, true, verb);
       if (dd > 0 && tz.kind === "flame") applyDot(g, Math.round(e.atk * 0.25), "burn");
-      if (dd > 0 && tz.kind === "acid") applyDot(g, Math.round(e.atk * 0.2), "poison");
+      if (dd > 0 && (tz.kind === "acid" || tz.kind === "spit")) applyDot(g, Math.round(e.atk * 0.2), "poison");
       if (g.hp <= 0) { die(g); return; }
     } else addFx(g, "dodged!", "good", "p");
   }
@@ -1283,8 +1451,9 @@ function touchTiles(g: Game, p: { x: number; y: number }, I: Inp): boolean {
     if (tile === 3 && d < 0.65) {
       g.map[ty][tx] = 1;
       const gold = goldGain(g, (10 + tierOf(g.floor) * 8) * (0.7 + Math.random() * 0.6));
-      const inv = makeInst(rollItem(g.floor, g.floor >= 5 ? 1 : 0, g.cls, "any"), g.floor, true); addItem(g, inv);
-      gain(g, `+${gold} gold`, GOLDC); gain(g, `+ ${instName(inv)}`, rarCol(inv));
+      const got = lootRoll(g, "chest");
+      gain(g, `+${gold} gold`, GOLDC);
+      for (const inv of got) { addItem(g, inv); gain(g, `+ ${instName(inv)}`, rarCol(inv)); }
     }
     if (tile === 5 && d < 0.55) {
       g.map[ty][tx] = 1; I.slowT = 2;
@@ -1633,6 +1802,12 @@ function placeCombat(we: HTMLElement, c: Combat): void {
   we.querySelectorAll<HTMLElement>("[data-proj]").forEach((el: HTMLElement) => { const q = (c.proj ?? []).find((x: Proj) => x.id === Number(el.dataset.proj)); if (q) put(el, q.x, q.y, 0.4); else el.style.display = "none"; });
   we.querySelectorAll<HTMLElement>("[data-tid]").forEach((el: HTMLElement) => { const tz = (c.tele ?? []).find((x: Tele) => x.id === Number(el.dataset.tid)); const f = el.firstElementChild as HTMLElement | null; if (tz && f) f.style.transform = `scale(${Math.max(0, Math.min(1, 1 - tz.t / tz.max))})`; });
 }
+function placePets(we: HTMLElement, g: Game): void {
+  const ps = g.pets ?? [];
+  we.querySelectorAll<HTMLElement>("[data-pet]").forEach((el: HTMLElement) => { const p = ps[Number(el.dataset.pet)]; if (!p) return; const sz = parseFloat(el.dataset.sz ?? "0.62"); el.style.left = `${((p.x - sz / 2) / W) * 100}%`; el.style.top = `${((p.y - sz / 2) / H) * 100}%`; });
+}
+function petSz(k: string): number { return k === "hound" ? 0.74 : k === "wolf" ? 0.66 : 0.58; }
+function petSpr(k: string): string { return k === "imp" ? "pimp" : k === "owl" ? "powl" : k === "hound" ? "phound" : k; }
 function worldTf(g: Game): string { const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5; return `translate(${(-(px - VT / 2) / W) * 100}%, ${(-(py - VT / 2) / H) * 100}%)`; }
 function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   if (g.screen !== "map") return false;
@@ -1669,8 +1844,9 @@ function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   if (mapMonsters(g, dt, p)) ch = true;
   if (g.screen !== "map") return true;
   if (g.combat) { I.regT = 0; return true; }
+  if ((g.pets ?? []).length) { petsFollow(g, dt); ch = true; }
   I.regT += dt;
-  if (I.regT >= REGEN_T) { I.regT = 0; const f = full(g); if (g.hp < f.maxHp || g.mp < f.maxMp) { rest(g); ch = true; } }
+  if (I.regT >= REGEN_T) { I.regT = 0; const f = full(g); for (const pt of g.pets ?? []) if (pt.ko <= 0) pt.hp = Math.min(pt.max, pt.hp + Math.max(1, Math.round(pt.max * 0.08))); if (g.hp < f.maxHp || g.mp < f.maxMp) { rest(g); ch = true; } }
   return ch;
 }
 function navLayer(): HTMLElement {
@@ -1700,18 +1876,74 @@ function navMove(dx: number, dy: number, first: boolean): void {
   }
   if (best) { best.focus({ preventScroll: true }); try { best.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch (e) { void e; } }
 }
-function petPhase(g: Game): void {
-  const c = g.combat; if (!c || g.cls !== "ranger") return;
-  const f = full(g);
-  const pets: [string, number][] = [["Your wolf", 0.45]];
-  if (g.perks.includes("packleader")) pets.push(["Your hawk", 0.4]);
-  for (const [name, m] of pets) {
-    const t = tgt(c); if (!t) return;
-    const mult = m * (g.buffs.frenzy > 0 ? 3 : 1) * (f.sp.includes("petx2") ? 2 : 1);
-    const d = Math.max(1, Math.round(f.atk * mult * 60 / (60 + t.def)));
-    t.hp -= d;
-    log(g, `${name} hits ${t.name} for ${d}.`, "dmg");
-    addFx(g, `-${d}`, "dmg", "e" + t.uid);
+// ---------- PETS: real companions on the map ----------
+const PET_KO = 12; // seconds a knocked-out pet stays down mid-fight (revives at 40%); all KO'd pets revive at 50% when combat ends
+function petRoster(g: Game): string[] { const r: string[] = []; if (g.cls === "ranger") { r.push("wolf"); if (g.perks.includes("packleader")) r.push("hawk"); } if (g.cpet && PETS[g.cpet]) r.push(g.cpet); return r; }
+function petBoost(g: Game, f: Full): number { return (g.perks.includes("beastbond") ? 1.25 : 1) * (f.sp.includes("petBoost") ? 1.3 : 1); }
+function syncPets(g: Game, heal = false): void {
+  const ros = petRoster(g); const f = full(g); const cur = g.pets ?? []; const out: Pet[] = [];
+  const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
+  ros.forEach((k: string, i: number) => {
+    const max = Math.max(8, Math.round(f.maxHp * PETS[k].hpF * petBoost(g, f)));
+    const old = cur.find((p: Pet) => p.k === k && !out.includes(p));
+    if (old) { if (old.max !== max) { old.hp = Math.min(max, Math.round(old.hp * max / Math.max(1, old.max))); old.max = max; } if (heal && old.ko <= 0) old.hp = old.max; out.push(old); return; }
+    const q = { x: px - 0.5 + i * 0.5, y: py + 0.55 }; if (!g.map.length) { q.x = px; q.y = py; } else { pushOut(g, q, 0.25); if (solidT(g, Math.floor(q.x), Math.floor(q.y))) { q.x = px; q.y = py; } }
+    out.push({ k, hp: max, max, x: q.x, y: q.y, ko: 0, cd: 0.6 });
+  });
+  g.pets = out;
+}
+function revivePets(g: Game): void { for (const p of g.pets ?? []) if (p.ko > 0 || p.hp <= 0) { p.ko = 0; p.hp = Math.max(1, Math.round(p.max * 0.5)); log(g, `${PETS[p.k].icon} Your ${PETS[p.k].name} recovers.`, "good"); } }
+// out of combat: pets trail behind the hero
+function petsFollow(g: Game, dt: number): void {
+  const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
+  (g.pets ?? []).forEach((p: Pet, i: number) => {
+    const a = 2.2 + i * 1.3, sx = px + Math.cos(a) * 0.85, sy = py + Math.sin(a) * 0.85;
+    const d = Math.hypot(sx - p.x, sy - p.y);
+    if (Math.hypot(px - p.x, py - p.y) > 7 || !isFinite(p.x) || !isFinite(p.y)) { p.x = px; p.y = py; return; }
+    if (d < 0.15) return;
+    const T = PETS[p.k]; const v = Math.min(T.spd, d * 5); const q = { x: p.x, y: p.y };
+    slideMove(g, q, (sx - p.x) / d * v, (sy - p.y) / d * v, dt, 0.25); p.x = q.x; p.y = q.y;
+  });
+}
+function hurtPet(g: Game, p: Pet, raw: number): number {
+  if (p.ko > 0 || p.hp <= 0) return 0;
+  const f = full(g); const d = Math.max(1, Math.round(raw * (0.9 + Math.random() * 0.2) * 60 / (60 + f.def * 0.5)));
+  p.hp -= d; const i = (g.pets ?? []).indexOf(p); addFx(g, `-${d}`, "bad", "pt" + i);
+  if (p.hp <= 0) { p.hp = 0; p.ko = PET_KO; log(g, `💫 Your ${PETS[p.k].name} is knocked out!`, "bad"); }
+  return d;
+}
+function petAttack(g: Game, p: Pet, e: Enemy, f: Full): void {
+  const c = g.combat; if (!c) return;
+  const T = PETS[p.k]; p.cd = T.rate; p.aT = Date.now(); p.tx = e.x; p.ty = e.y;
+  const mult = T.mult * (g.buffs.frenzy > 0 ? 3 : 1) * (f.sp.includes("petx2") ? 2 : 1) * petBoost(g, f);
+  const d = Math.max(1, Math.round(f.atk * mult * (0.9 + Math.random() * 0.2) * 60 / (60 + e.def)));
+  e.hp -= d; addFx(g, `-${d}`, "dmg", "e" + e.uid);
+  log(g, `${T.icon} Your ${T.name} ${p.k === "imp" ? "scorches" : "hits"} ${e.name} for ${d}.`, "dmg");
+  if (p.k === "imp") { const s = c.shots ?? (c.shots = []); s.push({ id: UID++, x1: p.x, y1: p.y, x2: e.x ?? 0, y2: e.y ?? 0, ts: Date.now(), c: "#ff8a3a" }); if (s.length > 8) s.shift(); if (e.hp > 0) { e.burnT = Math.max(e.burnT, 2); e.burnD = Math.max(e.burnD, Math.round(f.atk * 0.15)); } }
+  if (p.k === "owl" && e.hp > 0 && Math.random() < 0.15) stunE(g, e, 1);
+}
+// in combat: each pet picks a foe (yours if close, else the nearest it can see), closes in and attacks on its own timer
+function petStep(g: Game, dt: number): void {
+  const c = g.combat; if (!c) return;
+  const pets = g.pets ?? []; if (pets.length === 0) return;
+  const f = full(g); const px = c.px ?? 0, py = c.py ?? 0;
+  for (const p of pets) {
+    if (p.ko > 0) { p.ko -= dt; if (p.ko <= 0) { p.ko = 0; p.hp = Math.round(p.max * 0.4); log(g, `${PETS[p.k].icon} Your ${PETS[p.k].name} gets back up!`, "good"); } continue; }
+    const T = PETS[p.k]; p.cd = Math.max(0, p.cd - dt);
+    const dist = (x: Enemy): number => Math.hypot((x.x ?? 0) - p.x, (x.y ?? 0) - p.y);
+    let e: Enemy | undefined = c.enemies[c.target];
+    if (!e || e.dead || e.hp <= 0 || dist(e) > 8) {
+      e = undefined; let bd = 8;
+      for (const x of c.enemies) { if (x.dead || x.hp <= 0) continue; const d = dist(x); if (d < bd && los(g, p.x, p.y, x.x ?? 0, x.y ?? 0)) { bd = d; e = x; } }
+    }
+    let tx = px, ty = py, stop = false;
+    if (e) {
+      const d = dist(e), see = los(g, p.x, p.y, e.x ?? 0, e.y ?? 0);
+      if (see && d <= T.reach + 0.35) { stop = d <= T.reach; if (p.cd <= 0) petAttack(g, p, e, f); }
+      if (see) { tx = e.x ?? px; ty = e.y ?? py; }
+    } else if (Math.hypot(px - p.x, py - p.y) < 1.1) stop = true;
+    if (!stop) { const vx = tx - p.x, vy = ty - p.y, vl = Math.hypot(vx, vy) || 1; if (vl > 0.05) { const q = { x: p.x, y: p.y }; slideMove(g, q, vx / vl * T.spd, vy / vl * T.spd, dt, 0.25); p.x = q.x; p.y = q.y; } }
+    if (Math.hypot(px - p.x, py - p.y) > 10) { p.x = px; p.y = py; }
   }
 }
 function endRound(g: Game): void {
@@ -1801,9 +2033,9 @@ function useConsumable(g: Game, inv: Inv): ActRes {
   const inCombat = !!c;
   const pw = t.pw ?? 0;
   switch (t.fx) {
-    case "heal": { const h = healPlayer(g, Math.round(f.maxHp * pw / 100), inCombat); log(g, `${t.icon} ${t.name}: +${h} HP.`, "heal"); break; }
+    case "heal": { const h = healPlayer(g, Math.round(f.maxHp * pw / 100 * (g.perks.includes("herbalist") ? 1.25 : 1)), inCombat); log(g, `${t.icon} ${t.name}: +${h} HP.`, "heal"); break; }
     case "mana": { const before = g.mp; g.mp = Math.min(f.maxMp, g.mp + Math.round(f.maxMp * pw / 100)); log(g, `${t.icon} +${g.mp - before} MP.`, "heal"); break; }
-    case "both": healPlayer(g, Math.round(f.maxHp * pw / 100), inCombat); g.mp = Math.min(f.maxMp, g.mp + Math.round(f.maxMp * pw / 100)); log(g, `${t.icon} You feel rejuvenated.`, "heal"); break;
+    case "both": healPlayer(g, Math.round(f.maxHp * pw / 100 * (g.perks.includes("herbalist") ? 1.25 : 1)), inCombat); g.mp = Math.min(f.maxMp, g.mp + Math.round(f.maxMp * pw / 100)); log(g, `${t.icon} You feel rejuvenated.`, "heal"); break;
     case "cleanse": g.buffs.dotT = 0; healPlayer(g, Math.round(f.maxHp * pw / 100), inCombat); log(g, `${t.icon} Cleansed.`, "heal"); break;
     case "bomb": case "frost": {
       if (!c || !inCombat) { log(g, "Save that for combat."); return "none"; }
@@ -1859,6 +2091,29 @@ function useConsumable(g: Game, inv: Inv): ActRes {
       log(g, `🕯️ The curse breaks! ${n} item(s) can now be removed.`, "good");
       break;
     }
+    case "storm": {
+      if (!c) { log(g, "Save that for combat."); return "none"; }
+      const ts = alive(c).filter((e: Enemy) => eDist(c, e) <= 5).sort((a: Enemy, b: Enemy) => eDist(c, a) - eDist(c, b)).slice(0, 3);
+      if (ts.length === 0) { log(g, "No foes close enough."); return "none"; }
+      const d = 12 + g.floor * 6;
+      for (const e of ts) { e.hp -= d; addFx(g, `-${d}`, "loot", "e" + e.uid); stunE(g, e, 1); const s = c.shots ?? (c.shots = []); s.push({ id: UID++, x1: c.px ?? 0, y1: c.py ?? 0, x2: e.x ?? 0, y2: e.y ?? 0, ts: Date.now(), c: "#9fd8ff" }); }
+      log(g, `🌪️ Lightning strikes ${ts.length} foe(s) for ${d}!`, "dmg");
+      break;
+    }
+    case "treat": {
+      const ps = g.pets ?? [];
+      if (ps.length === 0) { log(g, "You have no pet to feed."); return "none"; }
+      for (const p of ps) { p.ko = 0; p.hp = p.max; }
+      log(g, "🦴 Your pets wolf down the treat — fully healed!", "good");
+      break;
+    }
+    case "pet": {
+      const k = t.pet ?? "wolf";
+      if (g.cpet === k) { log(g, `You already have a ${PETS[k].name}.`); return "none"; }
+      g.cpet = k; syncPets(g, true);
+      log(g, `${PETS[k].icon} A ${PETS[k].name} joins you! It will fight at your side.`, "good");
+      break;
+    }
     case "eatk": addBonus(g, { atk: 3 }); log(g, "🍺 You feel mighty: +3 ATK permanently.", "good"); break;
     case "ehp": addBonus(g, { hp: 25 }); g.hp += 25; log(g, "🍯 +25 max HP permanently.", "good"); break;
     case "tome": gainXp(g, Math.max(1, need(g.lvl) - g.xp)); break;
@@ -1898,7 +2153,7 @@ function combatAct(g: Game, kind: string, arg: string): void {
 }
 // the quick-slot consumable: your chosen one if you still carry it, else the first healing potion
 function qsItem(g: Game): Inv | undefined {
-  const ok = (i: Inv): boolean => { const t = IT[i.id]; return t.slot === "consumable" && ["heal", "both", "mana", "cleanse", "bomb", "frost", "fury", "iron"].includes(t.fx ?? ""); };
+  const ok = (i: Inv): boolean => { const t = IT[i.id]; return t.slot === "consumable" && ["heal", "both", "mana", "cleanse", "bomb", "frost", "fury", "iron", "storm", "treat"].includes(t.fx ?? ""); };
   if (g.qs) { const q = g.inv.find((i: Inv) => i.id === g.qs && ok(i)); if (q) return q; }
   return g.inv.find((i: Inv) => { const t = IT[i.id]; return t.slot === "consumable" && (t.fx === "heal" || t.fx === "both"); });
 }
@@ -1925,7 +2180,7 @@ function equip(g: Game, uid: number): void {
   if (t.cls && !t.cls.includes(g.cls)) { log(g, `Only ${t.cls.map((c: ClassId) => CLS[c].name).join("/")} can use ${t.name}.`, "bad"); return; }
   g.inv = g.inv.filter((i: Inv) => i.uid !== uid);
   if (old) g.inv.push(old);
-  g.eq[slot] = inv; clamp(g);
+  g.eq[slot] = inv; clamp(g); syncPets(g);
   log(g, `Equipped ${t.icon} ${instName(inv)}.`, "good");
   if (locked(inv)) log(g, `☠️ It's cursed! ${t.name} binds to you. ${t.desc ?? ""}`, "bad");
 }
@@ -1933,7 +2188,7 @@ function unequip(g: Game, slot: GearSlot): void {
   const it = g.eq[slot]; if (!it) return;
   if (locked(it)) { log(g, "☠️ It's cursed and won't come off. Use a Remove Curse scroll or a merchant.", "bad"); return; }
   if (g.inv.length >= MAXINV) { log(g, "Your bag is full."); return; }
-  delete g.eq[slot]; g.inv.push(it); clamp(g);
+  delete g.eq[slot]; g.inv.push(it); clamp(g); syncPets(g);
   log(g, `Unequipped ${instName(it)}.`);
 }
 
@@ -1942,11 +2197,14 @@ const HELP: [string, string][] = [
   ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving, you glide along walls). Exploring: M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. In combat: Space or J = attack (hold), Enter = attack once, 1/2/3 = abilities, Shift or K = dodge roll, R or 4 = quick-slot potion, Tab or Q/E = switch target. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc during play opens the exit prompt (the game pauses; confirming saves and exits) — even mid-fight."],
   ["🎮 Gamepad", "Left stick or D-pad moves. Exploring: A/✕ trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. In combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, LB/L1 switch target, View/Select quick-slot potion. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options pauses (exit prompt), also mid-fight."],
   ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant (stock is limited: each piece of gear sells once, potions and scrolls 1–3 each, then the slot shows SOLD OUT; leaving or reloading doesn't restock — the next merchant floor has fresh wares; Epic/Legendary wares are rare early, more common deeper, at most 2 per shop), 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You regenerate slowly while no monster is chasing you."],
-  ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. A Smoke Bomb or Shadowmeld breaks off a fight instantly (not against bosses)."],
+  ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Ranged foes keep their distance: 🏹 archers show a red aim line before loosing a fast arrow, 🐸 Acid Spitters mark a green ring where their acid glob will land, and 🧙 Hex Cultists send a slow purple bolt that hexes you (−25% damage for 4 s). Their aim locks when the wind-up starts, so step aside. ★ Elite monsters (gold glow) are tougher and drop better loot. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. A Smoke Bomb or Shadowmeld breaks off a fight instantly (not against bosses)."],
   ["🔒 Combat lockout", "While any monster is fighting you, the bag, codex, help, full map, save-code screen, title button, merchants and the stairs are locked (greyed out; pressing them shows “In combat”). You can still move, attack, use abilities, dodge, switch targets and drink from the 🧪 quick-slot (your first healing potion, or any combat consumable you mark with ☆ Quick-slot in the bag). The minimap stays visible. The exit prompt (Esc / Start / back) always works: it pauses, and confirming saves your fight and exits. About 1.5 s after the last foe falls or gives up you'll see “Combat over” and everything unlocks."],
   ["☠️ Bosses", "The Broodmother (Floor 5) and the Echo Lord (Floor 10) wake when you step into their lair and fight you right there: acid pools, shadow flame and the Echo Lord's CATACLYSM ring land on the map, and spiderlings or Echo Shades crawl out around the boss. The stairs only appear once the boss is dead. Run too far and the boss returns to its lair and recovers fully — no chipping it down from range."],
+  ["🐾 Pets", "Rangers start with a Wolf (plus a Hawk with Pack Leader). Anyone can gain a charm pet from a Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil or Bone Hound Totem (one charm pet at a time). Pets run at enemies on the map and attack on their own (lunge + claw marks; the Imp throws fire bolts). Enemies attack pets that get closer than you — Bone Hounds draw extra attention. A pet at 0 HP is knocked out 💫 for 12 s, then gets back up at 40%; every knocked-out pet recovers at 50% when the fight ends. Pets heal slowly while exploring; a Pet Treat fully heals and revives them."],
+  ["✨ Starting perk", "Every new run (Story and Endless) opens with a choice of 3 random Common perks. The roll is saved, so reloading won't change it."],
+  ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
   ["✨ Abilities", "Each class has 3 abilities that cost MP and have cooldowns. MP regenerates every turn. Warriors gain MP when hit; Mages restore MP with staff strikes; Ranger wolves attack on their own."],
-  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Drops roll random bonus stats: green lines are good, red lines are penalties. Some gear is class-only, and 3 sets (Ironclad, Shadowstalker, Arcanist) grant set bonuses."],
+  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 4, elites about 3 in 4, chests most of the time and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls random affixes (✦ lines: crit, lifesteal, thorns, fire/ice/holy/poison, HP, DEF…), larger on deeper floors and rarer items; hover/long-press an affix to see its range. Some gear is class-only. Sets: Ironclad, Shadowstalker, Arcanist, plus one 4-piece set per class — Warlord's Panoply (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud (Rogue), Lightbringer's Vestiture (Cleric) and Beastmaster's Garb (Ranger) — with 2/3/4-piece bonuses shown on the item and in the bag."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
   ["💰 Merchant", "Buy potions, scrolls and gear, sell loot, identify items, and lift curses. Merchants appear on even floors."],
@@ -2203,6 +2461,35 @@ const SPR: Record<string, () => ReactNode> = {
     <rect x="46" y="47" width="12" height="2.6" fill="#3a2a10" /><rect x="51" y="49.6" width="2" height="7" fill="#2a1a0a" /><circle cx="52" cy="57.5" r="1.5" fill="#b84aff" /><circle cx="52" cy="52" r="3" fill="#3a3d48" />
     <circle cx="16" cy="38" r="5" fill="#7a2aff" opacity={0.3} /><circle cx="16" cy="38" r="2.2" fill="#d8a8ff" />
     <circle cx="8" cy="14" r="2" fill="#b84aff" opacity={0.6} /><circle cx="5" cy="24" r="1.4" fill="#b84aff" opacity={0.45} /><circle cx="60" cy="40" r="1.6" fill="#b84aff" opacity={0.45} /></g>),
+  garcher: () => (<g>{SPR.goblin()}<rect x="40" y="10" width="14" height="16" fill="transparent" /><path d="M42 14 L54 12 L54 24 L44 25 Z" fill="#3a2a1a" opacity={0.9} /><g><path d="M10 14 Q-2 32 10 50" stroke="#6a4a2a" strokeWidth="2.6" fill="none" strokeLinecap="round" /><path d="M10 14 L10 50" stroke="#ddd" strokeWidth="0.6" /><path d="M10 32 L28 30" stroke="#c9b48a" strokeWidth="1.2" /><path d="M28 30 L24 28 L25 32 Z" fill="#aab" /></g><rect x="36" y="26" width="6" height="12" rx="2" fill="#5a3a1a" /><path d="M37 26 L37 20 M39 26 L39 19 M41 26 L41 20" stroke="#c9b48a" strokeWidth="0.8" /></g>),
+  sarcher: () => (<g>{SPR.skel()}<rect x="40" y="10" width="14" height="34" fill="#07060a" opacity={0} /><g><path d="M10 14 Q-2 32 10 50" stroke="#6a4a2a" strokeWidth="2.6" fill="none" strokeLinecap="round" /><path d="M10 14 L10 50" stroke="#ddd" strokeWidth="0.6" /><path d="M10 32 L28 30" stroke="#c9b48a" strokeWidth="1.2" /><path d="M28 30 L24 28 L25 32 Z" fill="#aab" /></g><path d="M14 26 L22 30" stroke="#ff3a2a" strokeWidth="0.8" opacity={0.6} /></g>),
+  spitter: () => (<g>{shd(18)}
+    <ellipse cx="32" cy="40" rx="18" ry="13" fill="#3e6a22" /><ellipse cx="32" cy="44" rx="12" ry="7" fill="#9acb5a" opacity={0.55} />
+    <path d="M14 46 L6 56 L16 52 Z M50 46 L58 56 L48 52 Z" fill="#2e5418" />
+    <circle cx="23" cy="28" r="6" fill="#3e6a22" /><circle cx="41" cy="28" r="6" fill="#3e6a22" />{eye(23, 27, "#e8ff3a", 1.6)}{eye(41, 27, "#e8ff3a", 1.6)}
+    <path d="M22 38 Q32 44 42 38" stroke="#1a2e0c" strokeWidth="1.6" fill="none" /><circle cx="32" cy="47" r="3.2" fill="#b6ff3a" opacity={0.85} /><circle cx="36" cy="52" r="1.6" fill="#b6ff3a" opacity={0.7} />
+    <circle cx="20" cy="40" r="1.6" fill="#2a4a14" /><circle cx="44" cy="42" r="2" fill="#2a4a14" /><circle cx="30" cy="34" r="1.3" fill="#2a4a14" /></g>),
+  hexer: () => (<g>{shd(15)}
+    <path d="M20 56 L24 26 Q32 18 40 26 L44 56 Z" fill="#2a1638" /><path d="M24 56 L27 34 L37 34 L40 56 Z" fill="#3c1f52" />
+    <path d="M22 28 Q32 4 42 28 Q37 24 32 24 Q27 24 22 28 Z" fill="#1c0e26" /><ellipse cx="32" cy="27" rx="6" ry="5" fill="#0a050e" />{eye(29.5, 27, "#d06bff", 1.1)}{eye(34.5, 27, "#d06bff", 1.1)}
+    <path d="M44 34 L52 30" stroke="#2a1638" strokeWidth="3" strokeLinecap="round" /><circle cx="54" cy="28" r="6" fill="#c04cff" opacity={0.25} /><circle cx="54" cy="28" r="3" fill="#e0a0ff" />
+    <path d="M28 40 L36 40 M32 36 L32 46" stroke="#c04cff" strokeWidth="1.2" opacity={0.8} /></g>),
+  pimp: () => (<g>{shd(11)}
+    <path d="M22 50 Q20 34 32 32 Q44 34 42 50 Z" fill="#a8241a" /><circle cx="32" cy="26" r="9" fill="#c8301f" />
+    <path d="M24 20 L20 10 L28 18 Z M40 20 L44 10 L36 18 Z" fill="#4a1008" />{eye(28.5, 26, "#ffe03a", 1.2)}{eye(35.5, 26, "#ffe03a", 1.2)}<path d="M28 31 Q32 33 36 31" stroke="#3a0804" strokeWidth="1" fill="none" />
+    <path d="M18 36 Q8 30 12 22 Q16 30 22 32 Z M46 36 Q56 30 52 22 Q48 30 42 32 Z" fill="#6a140c" />
+    <path d="M42 48 Q52 52 50 44" stroke="#a8241a" strokeWidth="2" fill="none" /><circle cx="46" cy="38" r="4" fill="#ff9a3a" opacity={0.7} /><circle cx="46" cy="38" r="2" fill="#fff0a0" /></g>),
+  powl: () => (<g>{shd(12)}
+    <ellipse cx="32" cy="38" rx="12" ry="15" fill="#bfe8ff" opacity={0.85} /><ellipse cx="32" cy="42" rx="7" ry="9" fill="#eaf8ff" />
+    <path d="M20 32 Q10 38 14 50 Q20 44 22 40 Z M44 32 Q54 38 50 50 Q44 44 42 40 Z" fill="#8fc8f0" />
+    <path d="M22 24 L24 18 L28 23 Z M42 24 L40 18 L36 23 Z" fill="#8fc8f0" /><circle cx="27" cy="29" r="4.2" fill="#fff" /><circle cx="37" cy="29" r="4.2" fill="#fff" />
+    <circle cx="27" cy="29" r="2.2" fill="#1a3a6a" /><circle cx="37" cy="29" r="2.2" fill="#1a3a6a" /><path d="M31 32 L32 35 L33 32 Z" fill="#e0b03a" />
+    <circle cx="32" cy="36" r="18" fill="#9fd8ff" opacity={0.12} /></g>),
+  phound: () => (<g>{shd(20)}
+    <path d="M14 30 Q20 22 34 24 Q46 22 52 28 Q58 26 62 20 Q60 30 54 34 L54 48 L50 48 L49 38 Q40 40 30 39 L28 48 L24 48 L23 38 Q18 36 14 30 Z" fill={BONE} />
+    <path d="M24 28 Q32 26 46 28 M26 32 Q34 30 46 32" stroke={BONED} strokeWidth="1.4" fill="none" />
+    <path d="M4 30 L10 25 L14 18 L16 24 L22 22 Q24 32 18 36 L8 35 Z" fill="#e6dcc0" /><path d="M14 18 L16 11 L18 22 Z" fill={BONED} />
+    {eye(13, 27, "#7cf0ff", 1.1)}<path d="M4 31 L9 33 L8 35 L4 33 Z" fill={BLK} /><circle cx="13" cy="27" r="4" fill="#7cf0ff" opacity={0.18} /></g>),
   stairs: () => (<g><rect x="6" y="6" width="52" height="52" rx="4" fill="#0a0806" /><rect x="9" y="10" width="46" height="9" fill="#5a5048" /><rect x="13" y="21" width="38" height="9" fill="#463e38" /><rect x="17" y="32" width="30" height="9" fill="#322c28" /><rect x="21" y="43" width="22" height="9" fill="#201c1a" /><circle cx="32" cy="50" r="10" fill="#b84aff" opacity={0.22} /></g>),
   chest: () => (<g>{shd(22)}<rect x="10" y="26" width="44" height="28" rx="2" fill="#4a2e18" stroke="#2a1a0c" strokeWidth="1.5" /><path d="M10 26 Q32 10 54 26 Z" fill="#5a3a1e" stroke="#2a1a0c" strokeWidth="1.5" /><rect x="10" y="30" width="44" height="3" fill="#6a6e78" /><rect x="18" y="19" width="3" height="35" fill="#6a6e78" /><rect x="43" y="19" width="3" height="35" fill="#6a6e78" /><rect x="29" y="30" width="6" height="8" rx="1" fill="#c9a23a" />{blot(40, 42, 2)}</g>),
   merchant: () => (<g><ellipse cx="32" cy="58" rx="20" ry="4" fill="rgba(0,0,0,.45)" /><ellipse cx="16" cy="55" rx="9" ry="3.2" fill="#8a6010" /><ellipse cx="16" cy="52.5" rx="7" ry="2.6" fill="#e0b03a" stroke="#8a6010" strokeWidth="0.8" /><ellipse cx="19" cy="49.5" rx="5" ry="2" fill="#f0c84a" stroke="#8a6010" strokeWidth="0.8" /><path d="M20 57 L24 30 Q32 22 40 30 L44 57 Z" fill="#3a2a4a" stroke="#1a1020" strokeWidth="1.2" /><path d="M24 40 L40 40 L41 46 L23 46 Z" fill="#6a4a2a" /><circle cx="32" cy="43" r="1.6" fill="#e0b03a" /><path d="M22 31 Q32 8 42 31 Q37 27 32 27 Q27 27 22 31 Z" fill="#4a3460" stroke="#1a1020" strokeWidth="1.2" /><ellipse cx="32" cy="29" rx="6.5" ry="5" fill="#120a16" /><circle cx="29.6" cy="29" r="1.1" fill="#ffd77a" /><circle cx="34.4" cy="29" r="1.1" fill="#ffd77a" /><path d="M41 38 L49 36" stroke="#2a1a10" strokeWidth="2" strokeLinecap="round" /><line x1="49" y1="36" x2="49" y2="40" stroke="#2a1a10" strokeWidth="1" /><circle cx="49" cy="45" r="7" fill="rgba(255,190,90,.35)" /><rect x="46" y="40" width="6" height="8" rx="1.5" fill="#ffd77a" stroke="#6a4a10" strokeWidth="1" /><rect x="47.5" y="41.5" width="3" height="5" rx="1" fill="#fff4c0" /></g>),
@@ -2368,7 +2655,14 @@ function validRun(x: unknown): Game | null {
   for (const n of g.stains) if (!g.rem.some((r: string) => r.startsWith(`${n}:`))) g.rem.push(`${n}:gen`);
   g.stains = [];
   if (typeof g.qs !== "string" || !IT[g.qs]) delete g.qs;
-  const okScreens: Screen[] = ["map", "inventory", "shop", "upgrade", "codex", "help"];
+  if (typeof g.cpet !== "string" || !PETS[g.cpet]) delete g.cpet;
+  g.pets = Array.isArray(g.pets) ? g.pets.filter((p: Pet) => isObj(p) && !!PETS[p.k] && [p.hp, p.max, p.x, p.y].every(num)).map((p: Pet) => ({ k: p.k, hp: Math.max(0, p.hp), max: p.max, x: p.x, y: p.y, ko: num(p.ko) ? Math.max(0, p.ko) : 0, cd: 0.6 })) : [];
+  for (const p of g.pets) if (solidT(g, Math.floor(p.x), Math.floor(p.y)) || Math.hypot(p.x - (g.wx ?? 0), p.y - (g.wy ?? 0)) > 8) { p.x = g.wx ?? g.px + 0.5; p.y = g.wy ?? g.py + 0.5; }
+  syncPets(g);
+  g.startPick = g.startPick === true && g.offers.length > 0; g.vaultOffer = g.vaultOffer === true && g.startPick;
+  g.vaultThen = g.vaultThen === "victory" || g.vaultThen === "upgrade" || g.vaultThen === "map" ? g.vaultThen : undefined; g.vaultSel = undefined;
+  if (g.screen === "vault" && !g.vaultThen) g.vaultThen = "map";
+  const okScreens: Screen[] = ["map", "inventory", "shop", "upgrade", "codex", "help", "vault"];
   if (g.screen === "dead" || g.screen === "victory") return null;
   if (!okScreens.includes(g.screen)) g.screen = "map";
   if (g.screen === "upgrade" && g.offers.length === 0) g.screen = "map";
@@ -2681,13 +2975,27 @@ export default function DungeonOfEchoes() {
     if (keys.length === 0) return null;
     return <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = ss[k] ?? 0; return <span key={k} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600 }}>{v >= 0 ? "+" : ""}{v} {STAT_LABEL[k]}</span>; })}</div>;
   };
+  const affixChips = (b: Stats, r: number, f: number): ReactNode => {
+    const keys = Object.keys(b) as StatKey[]; if (keys.length === 0) return null;
+    return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = b[k] ?? 0; const [lo, hi] = affixRange(k, f, r); return <span key={k} title={`Random affix: ${STAT_LABEL[k]} rolls about ${lo}–${hi} for a ${RAR[r]} item on floor ${f} (scales with floor and rarity)`} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>✦ {v >= 0 ? "+" : ""}{v} {STAT_LABEL[k]}</span>; })}</div>;
+  };
+  const setLines = (sid: string, n: number): ReactNode => {
+    const S = SETS[sid]; const parts = S.desc.split(" · ");
+    return (
+      <div data-set={sid} style={{ fontSize: 12, display: "flex", flexDirection: "column", gap: 1, padding: "4px 6px", borderRadius: 6, background: "rgba(120,90,255,.10)", border: "1px solid rgba(150,120,255,.35)" }}>
+        <div style={{ color: t.text.accent, fontWeight: 700 }}>🧩 {S.name}{S.cls ? ` · ${CLS[S.cls].name} set` : ""}{n >= 0 ? ` (${n}/${S.n} worn)` : ` (${S.n} pieces)`}</div>
+        {parts.map((p: string, i: number) => { const need = Number(p.trim().split(" ")[0]) || 0; const on = n >= need && need > 0; return <div key={i} style={{ color: on ? t.text.success : t.text.secondary }}>{on ? "✓ " : "○ "}{p}</div>; })}
+        <div style={{ color: t.text.tertiary, fontSize: 11 }}>Pieces: {ITEMS.filter((x: ItemT) => x.set === sid).map((x: ItemT) => x.name).join(", ")}</div>
+      </div>
+    );
+  };
   const clsLabel = (it: ItemT): string => it.cls ? `${it.cls.map((c: ClassId) => CLS[c].name).join("/")} only` : "All classes";
   const tplDetail = (it: ItemT): ReactNode => (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
       <div style={{ fontSize: 15, color: RCOL[it.r], fontWeight: 600 }}>{it.icon} {it.name}</div>
       <div style={small}>{RAR[it.r]} {SLOT_NAME[it.slot]} · {clsLabel(it)}{it.cursed ? " · " : ""}{it.cursed && <span style={{ color: t.text.danger, fontWeight: 700 }}>Cursed</span>}</div>
       {statChips(it.st)}
-      {it.set && <div style={{ fontSize: 12, color: t.text.accent }}>Set: {SETS[it.set].name} — {SETS[it.set].desc}</div>}
+      {it.set && setLines(it.set, -1)}
       {it.desc && <div style={{ fontSize: 13, color: it.cursed ? t.text.danger : it.r === 4 ? RCOL[4] : t.text.primary }}>{it.sp ? "★ " : ""}{it.desc}</div>}
     </div>
   );
@@ -2713,9 +3021,9 @@ export default function DungeonOfEchoes() {
         <div style={{ fontSize: 15, color: RCOL[it.r], fontWeight: 600 }}>{it.icon} {instName(inv)}</div>
         <div style={small}>{RAR[it.r]} {SLOT_NAME[it.slot]} · {clsLabel(it)}{it.cursed ? " · " : ""}{it.cursed && <span style={{ color: t.text.danger, fontWeight: 700 }}>{inv.freed ? "Cursed (lifted)" : "Cursed"}</span>}</div>
         {statChips(it.st)}
-        {Object.keys(inv.bon).length > 0 && <div style={{ fontSize: 11, color: t.text.tertiary }}>Rolled bonuses:</div>}
-        {statChips(inv.bon)}
-        {it.set && <div style={{ fontSize: 12, color: t.text.accent }}>Set: {SETS[it.set].name} ({sc}/{SETS[it.set].n} worn) — {SETS[it.set].desc}</div>}
+        {Object.keys(inv.bon).length > 0 && <div style={{ fontSize: 11, color: t.text.tertiary }}>Random affixes (rolled on this drop):</div>}
+        {affixChips(inv.bon, it.r, g.floor)}
+        {it.set && setLines(it.set, sc)}
         {it.desc && <div style={{ fontSize: 13, color: it.cursed ? t.text.danger : it.r === 4 ? RCOL[4] : t.text.primary }}>{it.sp ? "★ " : ""}{it.desc}</div>}
         {it.cls && !it.cls.includes(g.cls) && <div style={{ fontSize: 12, color: t.text.danger }}>Your class can't equip this (sell it).</div>}
       </div>
@@ -2899,7 +3207,7 @@ export default function DungeonOfEchoes() {
   drawRef.current = (force: boolean): void => {
     const gg = G.current; if (!gg || gg.screen !== "map") return;
     const cv = mapCv.current; if (cv) drawView(cv, gg, force);
-    const we = worldEl.current; if (we) { we.style.transform = worldTf(gg); if (gg.combat) placeCombat(we, gg.combat); }
+    const we = worldEl.current; if (we) { we.style.transform = worldTf(gg); if (gg.combat) placeCombat(we, gg.combat); placePets(we, gg); }
     const mc = miniCv.current; const now = performance.now();
     if (mc && (force || now - miniT.current > 120)) { miniT.current = now; drawMini(mc, gg, false); }
   };
@@ -3333,16 +3641,57 @@ export default function DungeonOfEchoes() {
   }
 
   // ---------- UPGRADE ----------
+  // ---------- VAULT (after every 10th-floor boss) ----------
+  if (g.screen === "vault") {
+    const v = vaultGet();
+    const items: Inv[] = [...GEAR.map((k: GearSlot) => g.eq[k]).filter((x: Inv | undefined): x is Inv => !!x && !locked(x)), ...g.inv];
+    const pend = g.vaultSel !== undefined ? items.find((i: Inv) => i.uid === g.vaultSel) : undefined;
+    const doDeposit = (uid: number): void => run((gg: Game) => { if (vaultDeposit(gg, uid)) vaultLeave(gg); });
+    return (
+      <div style={root}>{style}
+        {hud}
+        <div data-screen="vault" style={{ fontSize: 20, fontWeight: 800 }}>🏦 The Echo Vault</div>
+        <div style={small}>You may seal ONE item here. It leaves this run, keeps its rolled bonuses, and survives death and permadeath. At the start of your next run you can choose to bring it along. Optional — you can skip.</div>
+        <div style={{ ...card, display: "flex", flexDirection: "column", gap: 6, border: `2px solid ${v ? RCOL[3] : t.border.default}` }}>
+          <div style={{ fontWeight: 700, fontSize: 13 }}>Currently stored</div>
+          {v ? instDetail(v.item, g) : <div style={small}>The vault is empty.</div>}
+        </div>
+        {pend && v && (
+          <div data-vaultconfirm="1" style={{ ...card, display: "flex", flexDirection: "column", gap: 8, border: `2px solid ${t.text.danger}` }}>
+            <div style={{ fontWeight: 800 }}>Replace {instName(v.item)} with {instName(pend)}?</div>
+            <div style={small}>The item currently in the vault will be lost for good.</div>
+            <div style={row}>{btn("Replace", () => doDeposit(pend.uid), { tone: "danger", grow: true })}{btn("Cancel", () => run((gg: Game) => { gg.vaultSel = undefined; }), { grow: true })}</div>
+          </div>
+        )}
+        <div style={row}><div style={{ ...head, flex: "1 1 auto" }}>DEPOSIT ONE ITEM</div>{btn("Continue without depositing", () => run((gg: Game) => vaultLeave(gg)), { tone: "primary" })}</div>
+        {items.map((inv: Inv) => (
+          <div key={inv.uid} data-vitem={inv.uid} style={{ ...card, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <div style={{ flex: "1 1 180px", minWidth: 0 }}>{GEAR.some((k: GearSlot) => g.eq[k]?.uid === inv.uid) && <div style={{ fontSize: 11, color: t.text.accent }}>EQUIPPED</div>}{instDetail(inv, g)}</div>
+            {btn("🏦 Deposit", () => { if (v) run((gg: Game) => { gg.vaultSel = inv.uid; }); else doDeposit(inv.uid); }, { tone: "accent" })}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   if (g.screen === "upgrade") {
     const tierName = (n: number): string => n === 3 ? "CAPSTONE" : n === 2 ? "Tier II" : "Tier I";
     return (
       <div style={root}>{style}
         {hud}
-        <div style={{ fontSize: 20, fontWeight: 800 }}>∞ Boss slain — choose an upgrade</div>
-        <div style={small}>{g.floor % 10 === 0 ? "Capstone reward: these perks change how your class plays." : "Capstone choices appear after every 10th-floor boss."}</div>
+        <div data-screen={g.startPick ? "starter" : "upgrade"} style={{ fontSize: 20, fontWeight: 800 }}>{g.startPick ? "✨ Choose your starting perk" : "∞ Boss slain — choose an upgrade"}</div>
+        <div style={small}>{g.startPick ? `Pick one of these 3 Common perks for this ${g.mode === "story" ? "Story" : "Endless"} run. The choice is rolled once — reloading won't reroll it.` : g.floor % 10 === 0 ? "Capstone reward: these perks change how your class plays." : "Capstone choices appear after every 10th-floor boss."}</div>
+        {g.startPick && g.vaultOffer && (() => { const v = vaultGet(); if (!v) return null; return (
+          <div data-vaultoffer="1" style={{ ...card, display: "flex", flexDirection: "column", gap: 8, border: `2px solid ${RCOL[3]}` }}>
+            <div style={{ fontWeight: 800 }}>🏦 Bring vaulted item?</div>
+            <div style={small}>Stored from a {CLS[v.cls].name} run ({v.mode === "story" ? "Floor" : "Depth"} {v.floor}). Taking it empties the vault; leaving it keeps it safe for a later run.</div>
+            {instDetail(v.item, g)}
+            <div style={row}>{btn("🎒 Bring it", () => run((gg: Game) => vaultTake(gg)), { tone: "primary", grow: true })}{btn("Leave it vaulted", () => run((gg: Game) => { gg.vaultOffer = false; }), { grow: true })}</div>
+          </div>
+        ); })()}
         {g.offers.map((p: Perk) => (
           <button key={p.id} onClick={() => run((gg: Game) => applyPerk(gg, p))} style={{ ...card, textAlign: "left", cursor: "pointer", color: t.text.primary, fontFamily: "inherit", border: `2px solid ${p.tier === 3 ? RCOL[4] : p.tier === 2 ? RCOL[3] : t.border.default}` }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: p.tier === 3 ? RCOL[4] : p.tier === 2 ? RCOL[3] : t.text.secondary }}>{tierName(p.tier)}</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: p.tier === 3 ? RCOL[4] : p.tier === 2 ? RCOL[3] : t.text.secondary }}>{p.rar === "Common" ? "Common" : tierName(p.tier)}</div>
             <div style={{ fontSize: 17, fontWeight: 700 }}>{p.icon} {p.name}</div>
             <div style={{ fontSize: 13 }}>{p.desc}</div>
           </button>
@@ -3437,10 +3786,17 @@ export default function DungeonOfEchoes() {
         </div>
         {g.perks.length > 0 && (
           <div style={{ ...card, display: "flex", flexDirection: "column", gap: 3 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: RCOL[4] }}>CAPSTONES</div>
-            {g.perks.map((pid: string) => { const p = CAPS[g.cls].find((x: Perk) => x.id === pid); return p ? <div key={pid} style={{ fontSize: 13 }}>{p.icon} <b>{p.name}</b> — {p.desc}</div> : null; })}
+            <div style={{ fontWeight: 700, fontSize: 13, color: RCOL[4] }}>PERKS</div>
+            {g.perks.map((pid: string) => { const p = CAPS[g.cls].find((x: Perk) => x.id === pid) ?? COMMON_PERKS.find((x: Perk) => x.id === pid); return p ? <div key={pid} style={{ fontSize: 13 }}>{p.icon} <b>{p.name}</b> — {p.desc}</div> : null; })}
           </div>
         )}
+        {(g.pets ?? []).length > 0 && (
+          <div data-petpanel="1" style={{ ...card, display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ fontWeight: 700, fontSize: 13 }}>🐾 COMPANIONS</div>
+            {(g.pets ?? []).map((p: Pet, i: number) => <div key={i} style={{ fontSize: 13, display: "flex", gap: 8, alignItems: "center" }}><span style={{ width: 24, height: 24, display: "inline-block" }}>{spr(petSpr(p.k), "100%")}</span><b>{PETS[p.k].name}</b><span style={{ color: p.ko > 0 ? t.text.danger : t.text.success }}>{p.ko > 0 ? "💫 knocked out" : `${Math.max(0, Math.round(p.hp))}/${p.max} HP`}</span><span style={{ color: t.text.secondary }}>· {PETS[p.k].desc}</span></div>)}
+          </div>
+        )}
+        {Object.keys(sc).filter((s: string) => sc[s] >= 1 && SETS[s]).map((s: string) => <div key={s}>{setLines(s, sc[s])}</div>)}
         <div style={head}>EQUIPPED</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
           {GEAR.map((k: GearSlot) => {
@@ -3514,7 +3870,7 @@ export default function DungeonOfEchoes() {
     if (Math.abs(mm.x - g.px) > VH || Math.abs(mm.y - g.py) > VH || !g.seen[mm.y]?.[mm.x]) continue;
     const vis = litT(g, mm.x, mm.y);
     if (!vis && !mm.boss) continue;
-    const sty: CSSProperties | undefined = mm.boss ? (vis ? { filter: "drop-shadow(0 0 3px rgba(200,0,0,.8))" } : { filter: "brightness(0)", opacity: 0.55 }) : mm.stun > 0 ? { opacity: 0.6 } : { filter: "drop-shadow(0 2px 2px rgba(0,0,0,.8))" };
+    const sty: CSSProperties | undefined = mm.boss ? (vis ? { filter: "drop-shadow(0 0 3px rgba(200,0,0,.8))" } : { filter: "brightness(0)", opacity: 0.55 }) : mm.stun > 0 ? { opacity: 0.6 } : mm.el ? { filter: "drop-shadow(0 0 3px rgba(255,200,60,.95))" } : { filter: "drop-shadow(0 2px 2px rgba(0,0,0,.8))" };
     objs.push(<div key={`m${mm.id}`} style={tPos(mfx - 0.5, mfy - 0.5)}>{spr(mm.boss ? (mm.t === "lord" ? "lord" : "brood") : mm.t, "100%", sty)}</div>);
   }
   const nowMs = Date.now();
@@ -3522,6 +3878,7 @@ export default function DungeonOfEchoes() {
   const wBox = (x: number, y: number, sz: number): CSSProperties => ({ position: "absolute", left: `${((x - sz / 2) / W) * 100}%`, top: `${((y - sz / 2) / H) * 100}%`, width: `${(sz / W) * 100}%`, height: `${(sz / H) * 100}%` });
   const pfx = g.wx ?? g.px + 0.5, pfy = g.wy ?? g.py + 0.5;
   const cBoss = c ? c.enemies.find((e: Enemy) => e.boss && !e.dead) : undefined;
+  const inViewP = (x: number, y: number): boolean => Math.abs(x - pfx) < VT / 2 + 2 && Math.abs(y - pfy) < VT / 2 + 2;
   if (c) {
     const inView = (x: number, y: number): boolean => Math.abs(x - pfx) < VT / 2 + 2 && Math.abs(y - pfy) < VT / 2 + 2;
     for (const tl of c.tele ?? []) objs.push(
@@ -3545,12 +3902,18 @@ export default function DungeonOfEchoes() {
           </div>
         );
       }
+      if ((e.wk === "arrow" || e.wk === "spit" || e.wk === "hex") && (e.wind ?? 0) > 0 && e.ax !== undefined && e.ay !== undefined) {
+        const pr = Math.max(0, Math.min(1, 1 - (e.wind ?? 0) / (e.wm || 1)));
+        if (e.wk === "spit") objs.push(<div key={`sp${e.uid}`} data-aim="spit" style={{ ...wBox(e.ax, e.ay, 2.2), borderRadius: "50%", border: "2px dashed rgba(140,255,80,.9)", boxSizing: "border-box", zIndex: 1, opacity: 0.4 + pr * 0.6 }} />);
+        else { const vx = e.ax - ex, vy = e.ay - ey, vl = Math.hypot(vx, vy) || 1, L = 7; objs.push(<svg key={`aim${e.uid}`} data-aim={e.wk} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 2, pointerEvents: "none" }}><line x1={ex} y1={ey} x2={ex + vx / vl * L} y2={ey + vy / vl * L} stroke={e.wk === "hex" ? "#c04cff" : "#ff3b30"} strokeWidth={0.06 + pr * 0.06} strokeDasharray="0.25 0.18" opacity={0.35 + pr * 0.6} /></svg>); }
+      }
       const on = i === c.target;
       objs.push(
         <div key={`e${e.uid}`} data-enemy={e.uid} data-noj="1" onPointerDown={() => run((gg: Game) => { const cc = gg.combat; if (!cc) return; const k = cc.enemies.findIndex((x: Enemy) => x.uid === e.uid && !x.dead); if (k >= 0) cc.target = k; })} style={{ ...wBox(ex, ey, sz), zIndex: 4, pointerEvents: "auto", cursor: "pointer" }}>
           {on && <div style={{ position: "absolute", inset: "-12%", borderRadius: "50%", border: "2px dashed #ffcc4d", pointerEvents: "none" }} />}
-          <div style={{ position: "absolute", inset: 0, filter: e.stun > 0 ? "brightness(1.5) saturate(.4)" : e.boss ? "drop-shadow(0 0 4px rgba(190,0,0,.8))" : "drop-shadow(0 2px 2px rgba(0,0,0,.7))", animation: e.wk === "cast" && (e.wind ?? 0) > 0 ? "doePulse .4s infinite" : undefined }}>{spr(sprOf(e), "100%")}</div>
-          <div style={{ position: "absolute", left: "5%", right: "5%", top: "-14%", height: 4, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden" }}><div style={{ width: `${(Math.max(0, e.hp) / e.max) * 100}%`, height: "100%", background: e.boss ? "#a855f7" : "#e5484d" }} /></div>
+          <div style={{ position: "absolute", inset: 0, filter: e.stun > 0 ? "brightness(1.5) saturate(.4)" : e.boss ? "drop-shadow(0 0 4px rgba(190,0,0,.8))" : "drop-shadow(0 2px 2px rgba(0,0,0,.7))", animation: (e.wk === "cast" || e.wk === "hex" || e.wk === "spit") && (e.wind ?? 0) > 0 ? "doePulse .4s infinite" : undefined }}>{spr(sprOf(e), "100%")}</div>
+          <div style={{ position: "absolute", left: "5%", right: "5%", top: "-14%", height: 4, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden", outline: e.elite ? "1px solid #ffcc4d" : undefined }}><div style={{ width: `${(Math.max(0, e.hp) / e.max) * 100}%`, height: "100%", background: e.boss ? "#a855f7" : e.elite ? "#f5a524" : "#e5484d" }} /></div>
+          {e.elite && <div data-elite="1" style={{ position: "absolute", left: "-12%", top: "-30%", fontSize: 10, color: "#ffcc4d", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>★</div>}
           {(e.stun > 0 || e.burnT > 0 || e.poisT > 0) && <div style={{ position: "absolute", left: 0, right: 0, bottom: "-30%", textAlign: "center", fontSize: 10, pointerEvents: "none" }}>{e.stun > 0 ? "😵" : ""}{e.burnT > 0 ? "🔥" : ""}{e.poisT > 0 ? "☠️" : ""}</div>}
           {g.fx.filter((x: Fx) => x.at === "e" + e.uid && x.text.startsWith("-") && nowMs - x.ts < 900).map((x: Fx) => splat(x.id))}
           {arenaFx(g, "e" + e.uid)}
@@ -3561,7 +3924,22 @@ export default function DungeonOfEchoes() {
     const sh = (c.shots ?? []).filter((x: Shot) => nowMs - x.ts < 160);
     if (sh.length > 0) objs.push(<svg key="shots" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 5 }}>{sh.map((x: Shot) => <line key={x.id} x1={x.x1} y1={x.y1} x2={x.x2} y2={x.y2} stroke={x.c} strokeWidth={0.11} strokeLinecap="round" opacity={0.9} />)}</svg>);
   }
-  if (g.cls === "ranger") (g.perks.includes("packleader") ? ["wolf", "hawk"] : ["wolf"]).forEach((pk: string, k: number) => objs.push(<div key={`pet${pk}`} style={{ ...wBox(pfx - 0.55 + k * 1.1, pfy + 0.6, 0.62), zIndex: 3, filter: g.buffs.frenzy > 0 ? "drop-shadow(0 0 3px rgba(220,30,30,.9))" : "drop-shadow(0 2px 2px rgba(0,0,0,.7))" }}>{spr(pk, "100%")}</div>));
+  (g.pets ?? []).forEach((p: Pet, i: number) => {
+    if (!inViewP(p.x, p.y)) return;
+    const ko = p.ko > 0, ag = p.aT ? nowMs - p.aT : 9999, lunge = !ko && ag < 260;
+    const sz = petSz(p.k);
+    let ox = 0, oy = 0, cx = 0, cy = 0;
+    if (lunge && p.tx !== undefined && p.ty !== undefined) { const vx = p.tx - p.x, vy = p.ty - p.y, vl = Math.hypot(vx, vy) || 1; const k = p.k === "imp" ? 8 : Math.sin((ag / 260) * Math.PI) * 45; ox = vx / vl * k; oy = vy / vl * k; cx = vx / sz * 100; cy = vy / sz * 100; }
+    objs.push(
+      <div key={`pet${i}`} data-pet={i} data-petk={p.k} data-ko={ko ? "1" : "0"} data-sz={sz} style={{ ...wBox(p.x, p.y, sz), zIndex: 3, pointerEvents: "none" }}>
+        <div style={{ position: "absolute", inset: 0, transform: `translate(${ox}%, ${oy}%)${ko ? " rotate(80deg)" : ""}`, opacity: ko ? 0.55 : 1, filter: ko ? "grayscale(1) brightness(.6)" : g.buffs.frenzy > 0 ? "drop-shadow(0 0 3px rgba(220,30,30,.9))" : "drop-shadow(0 2px 2px rgba(0,0,0,.7))" }}>{spr(petSpr(p.k), "100%")}</div>
+        {lunge && p.k !== "imp" && <svg data-petatk="1" viewBox="0 0 20 20" style={{ position: "absolute", left: `${cx}%`, top: `${cy}%`, width: "100%", height: "100%", overflow: "visible", opacity: 1 - ag / 260 }}><path d="M4 3 L14 15 M8 2 L17 12 M2 7 L11 18" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" /></svg>}
+        {ko ? <div style={{ position: "absolute", left: 0, right: 0, top: "-45%", textAlign: "center", fontSize: 10 }}>💫</div>
+          : c && <div style={{ position: "absolute", left: "8%", right: "8%", top: "-16%", height: 3, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden" }}><div style={{ width: `${(Math.max(0, p.hp) / p.max) * 100}%`, height: "100%", background: "#3fcf6a" }} /></div>}
+        {arenaFx(g, "pt" + i)}
+      </div>
+    );
+  });
   const tilePct = `${100 / VT}%`;
   const floats = g.fx.filter((x: Fx) => x.at === "m" && nowMs - x.ts < 1250);
   const onMerchant = nearMerchant(g);
@@ -3577,7 +3955,7 @@ export default function DungeonOfEchoes() {
           </div>
         </div>
         {g.hurtTs && nowMs - g.hurtTs < 700 ? <div key={`h${g.hurtTs}`} style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse at center, transparent 40%, rgba(190,0,0,.5) 100%)", animation: "doeFlash .55s ease-out forwards", zIndex: 6 }} /> : null}
-        {c ? <div data-incombat="1" style={{ position: "absolute", left: 6, top: 6, padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#ffe0d0", background: "rgba(120,10,10,.72)", border: "1px solid rgba(255,90,70,.7)", textShadow: "0 1px 2px #000", pointerEvents: "none", zIndex: 7 }}>{alive(c).length === 0 ? "✅ Clear…" : cBoss ? `☠️ ${cBoss.name.replace(/^The /, "")} · Phase ${c.phase}/${cBoss.bk === "lord" ? 3 : 2}` : `⚔️ In combat · ${alive(c).length}`}</div> : null}
+        {c ? <div data-incombat="1" style={{ position: "absolute", left: 6, top: 6, padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#ffe0d0", background: "rgba(120,10,10,.72)", border: "1px solid rgba(255,90,70,.7)", textShadow: "0 1px 2px #000", pointerEvents: "none", zIndex: 7 }}>{alive(c).length === 0 ? "✅ Clear…" : cBoss ? `☠️ ${cBoss.name.replace(/^The /, "")} · Phase ${c.phase}/${cBoss.bk === "lord" ? 3 : 2}` : `⚔️ In combat · ${alive(c).length}`}{(g.buffs.hex ?? 0) > 0 ? " · 🌀 Hexed" : ""}</div> : null}
         {c && c.charging ? <div style={{ position: "absolute", left: 0, right: 0, top: "30%", textAlign: "center", fontWeight: 800, fontSize: 12, color: "#ffb0ff", animation: "doePulse .8s infinite", textShadow: "0 1px 3px #000", pointerEvents: "none", zIndex: 7 }}>⚠️ CATACLYSM — leave the purple ring!</div> : null}
         <div style={{ position: "absolute", left: "50%", bottom: `${50 + 50 / VT}%`, transform: "translateX(-50%)", display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 1, pointerEvents: "none", zIndex: 6 }}>
           {floats.map((x: Fx) => <span key={x.id} data-float="1" style={{ fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000, 0 0 2px #000", whiteSpace: "nowrap", animation: `doeRise 1.2s ease-out ${-(nowMs - x.ts)}ms forwards` }}>{x.text}</span>)}
