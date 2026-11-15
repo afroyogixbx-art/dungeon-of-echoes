@@ -26,10 +26,10 @@ interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number
 interface Proj { id: number; x: number; y: number; vx: number; vy: number; dmg: number; from: number; life: number; c: string; }
 interface Tele { id: number; x: number; y: number; r: number; t: number; max: number; dmg: number; from: number; kind: string; }
 interface Shot { id: number; x1: number; y1: number; x2: number; y2: number; ts: number; c: string; }
-interface Inp { jx: number; jy: number; kx: number; ky: number; gx: number; gy: number; atk: boolean; katk: boolean; gatk: boolean; stepT: number; monT: number; regT: number; alt: boolean; saveT: number; rT: number; slowT: number; shopL: boolean; }
+interface Inp { jx: number; jy: number; kx: number; ky: number; gx: number; gy: number; atk: boolean; katk: boolean; gatk: boolean; stepT: number; monT: number; regT: number; alt: boolean; saveT: number; rT: number; slowT: number; shopL: boolean; vx: number; vy: number; idleT: number; }
 interface Buffs { rage: number; holy: number; evade: number; shield: number; frenzy: number; fury: number; iron: number; defend: boolean; dotT: number; dotD: number; }
 interface Inv { uid: number; id: string; ident: boolean; bon: Stats; freed: boolean; }
-interface LogL { t: string; c: string; }
+interface LogL { t: string; c: string; ts?: number; }
 interface Fx { id: number; text: string; c: string; at: string; ts: number; }
 interface Full { maxHp: number; maxMp: number; atk: number; def: number; crit: number; dodge: number; ls: number; fire: number; ice: number; holy: number; poison: number; sp: string[]; curses: string[]; }
 interface Meta { tokens: number; best: number; owned: Record<string, string[]>; disc: string[]; }
@@ -419,8 +419,12 @@ const BIOME: Record<Biome, { name: string; sub: string }> = {
 };
 const FAV: Record<Biome, string[]> = { warren: ["spider", "rat", "bat", "slime", "goblin"], crypt: ["skel", "wraith", "necro", "lich", "demon", "shade"] };
 function freshBuffs(): Buffs { return { rage: 0, holy: 0, evade: 0, shield: 0, frenzy: 0, fury: 0, iron: 0, defend: false, dotT: 0, dotD: 0 }; }
-function log(g: Game, t: string, c: string = "sys"): void { g.log.unshift({ t, c }); if (g.log.length > 60) g.log.pop(); }
+function log(g: Game, t: string, c: string = "sys"): void { g.log.unshift({ t, c, ts: Date.now() }); if (g.log.length > 60) g.log.pop(); }
 function addFx(g: Game, text: string, c: string, at: string): void { g.fx.push({ id: UID++, text, c, at, ts: Date.now() }); if (g.fx.length > 12) g.fx.shift(); }
+// floating pickup text above the hero (map and arena) instead of log lines
+const GOLDC = "#ffcc4d", XPC = "#c79bff";
+function gain(g: Game, text: string, color: string): void { addFx(g, text, color, "m"); }
+function rarCol(inv: Inv): string { return inv.ident ? RCOL[IT[inv.id].r] : "#d8cfc0"; }
 
 // ---- item instances ----
 const NOUN: Record<string, string> = { "🪄": "Staff", "🏹": "Bow", "🔪": "Dagger", "🪓": "Axe", "🔨": "Mace", "🔱": "Scepter" };
@@ -462,7 +466,7 @@ function makeInst(id: string, f: number, roll: boolean): Inv {
   return { uid: UID++, id, ident, bon: roll ? rollBonus(it, f) : {}, freed: false };
 }
 function addItem(g: Game, inv: Inv): void {
-  if (g.inv.length >= MAXINV) { const p = sellOf(inv); g.gold += p; log(g, `Bag full: auto-sold ${instName(inv)} for ${p}g.`, "loot"); return; }
+  if (g.inv.length >= MAXINV) { const p = sellOf(inv); g.gold += p; gain(g, `Bag full: sold ${instName(inv)} +${p} gold`, GOLDC); return; }
   if (inv.ident) discover(inv.id);
   g.inv.push(inv);
 }
@@ -669,7 +673,7 @@ function descend(g: Game): void {
   if (g.mode === "endless") {
     const m = meta();
     if (g.floor > m.best) m.best = g.floor;
-    if ((g.floor - 1) % 10 === 0) { m.tokens++; g.tokensEarned++; log(g, `🪙 Cleared ${g.floor - 1} floors! +1 Endless token (total ${m.tokens}).`, "loot"); }
+    if ((g.floor - 1) % 10 === 0) { m.tokens++; g.tokensEarned++; gain(g, `+1 Endless token (${m.tokens})`, XPC); }
     saveMeta();
   }
   genFloor(g); reveal(g);
@@ -800,12 +804,12 @@ function resolveDeaths(g: Game): void {
     if (e.dead || e.hp > 0) continue;
     e.dead = true; e.hp = 0; g.kills++;
     const gold = goldGain(g, e.gold * (0.8 + Math.random() * 0.4));
-    log(g, `${e.name} is slain! +${e.xp} XP, +${gold}g`, "loot");
+    gain(g, `+${e.xp} XP`, XPC); gain(g, `+${gold} gold`, GOLDC);
     gainXp(g, e.xp);
     const drops: Inv[] = [];
     if (e.boss) { for (let k = 0; k < 2; k++) drops.push(makeInst(rollItem(g.floor, 3, g.cls, "gear"), g.floor, true)); drops.push(makeInst("c_ident", g.floor, false)); }
     else if (Math.random() < 0.3) drops.push(makeInst(rollItem(g.floor, 0, g.cls, "any"), g.floor, true));
-    for (const d of drops) { addItem(g, d); log(g, `Loot: ${instIcon(d)} ${instName(d)}${d.ident ? ` (${RAR[IT[d.id].r]})` : ""}`, "loot"); }
+    for (const d of drops) { gain(g, `+ ${instName(d)}`, rarCol(d)); addItem(g, d); }
   }
   const t = c.enemies[c.target];
   if (!t || t.dead) { const i = c.enemies.findIndex((x: Enemy) => !x.dead); if (i >= 0) c.target = i; }
@@ -1176,7 +1180,7 @@ function touchTiles(g: Game, p: { x: number; y: number }, I: Inp): boolean {
       g.map[ty][tx] = 1;
       const gold = goldGain(g, (10 + tierOf(g.floor) * 8) * (0.7 + Math.random() * 0.6));
       const inv = makeInst(rollItem(g.floor, g.floor >= 5 ? 1 : 0, g.cls, "any"), g.floor, true); addItem(g, inv);
-      log(g, `📦 Chest: +${gold}g and ${instIcon(inv)} ${instName(inv)}${inv.ident ? ` (${RAR[IT[inv.id].r]})` : ""}`, "loot");
+      gain(g, `+${gold} gold`, GOLDC); gain(g, `+ ${instName(inv)}`, rarCol(inv));
     }
     if (tile === 5 && d < 0.55) {
       g.map[ty][tx] = 1; I.slowT = 2;
@@ -1230,19 +1234,302 @@ function mapMonsters(g: Game, dt: number, p: { x: number; y: number }): boolean 
   }
   return ch;
 }
+// constant-speed steering: speed eases toward the target quickly while the heading rotates toward the input,
+// so turns and reversals stay at full speed instead of passing through zero
+function steerVel(I: Inp, tx: number, ty: number, dt: number): void {
+  const ACC = 40, ROT = 16;
+  const cs = Math.hypot(I.vx, I.vy), ts = Math.hypot(tx, ty);
+  if (ts < 1e-3) { const ns = Math.max(0, cs - ACC * dt); if (cs > 0) { I.vx *= ns / cs; I.vy *= ns / cs; } return; }
+  const ns = cs < ts ? Math.min(ts, cs + ACC * dt) : Math.max(ts, cs - ACC * dt);
+  if (cs < 0.3) { I.vx = (tx / ts) * ns; I.vy = (ty / ts) * ns; return; }
+  const ca = Math.atan2(I.vy, I.vx), ta = Math.atan2(ty, tx);
+  let da = ta - ca; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+  const st = ROT * dt, na = Math.abs(da) <= st ? ta : ca + Math.sign(da) * st;
+  I.vx = Math.cos(na) * ns; I.vy = Math.sin(na) * ns;
+}
+// ---------- tile art: pre-rendered once per floor into an offscreen canvas ----------
+const TS = 32, VT = 11;
+function hrand(x: number, y: number, s: number): number {
+  let h = (Math.imul(x + 101, 374761393) + Math.imul(y + 211, 668265263) + Math.imul(s + 7, 362437)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+function rgbS(r: number, g: number, b: number, a = 1): string { return `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${a})`; }
+interface Art { cv: HTMLCanvasElement; map: number[][]; baked: Int8Array; lights: [number, number, number][]; bio: Biome; }
+let ART: Art | null = null;
+function webCorner(c: CanvasRenderingContext2D, cx: number, cy: number, sx: number, sy: number, len: number, a: number): void {
+  c.strokeStyle = `rgba(232,232,240,${a})`; c.lineWidth = 0.8; c.beginPath();
+  for (let k = 0; k <= 4; k++) { const an = (k / 4) * Math.PI / 2; c.moveTo(cx, cy); c.lineTo(cx + sx * Math.cos(an) * len, cy + sy * Math.sin(an) * len); }
+  for (let ring = 1; ring <= 3; ring++) {
+    const rr = (ring / 3.4) * len;
+    for (let k = 0; k <= 4; k++) { const an = (k / 4) * Math.PI / 2; const px = cx + sx * Math.cos(an) * rr, py = cy + sy * Math.sin(an) * rr; if (k === 0) c.moveTo(px, py); else c.lineTo(px, py); }
+  }
+  c.stroke();
+}
+function bones(c: CanvasRenderingContext2D, X: number, Y: number, r: (s: number) => number): void {
+  c.lineCap = "round";
+  for (let i = 0; i < 3; i++) {
+    const x = X + 6 + r(70 + i) * 20, y = Y + 6 + r(80 + i) * 20, an = r(90 + i) * Math.PI, l = 4 + r(95 + i) * 6;
+    c.strokeStyle = "rgba(225,215,190,.85)"; c.lineWidth = 1.6; c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(an) * l, y + Math.sin(an) * l); c.stroke();
+    c.fillStyle = "rgba(235,225,200,.9)"; c.beginPath(); c.arc(x, y, 1.3, 0, 7); c.arc(x + Math.cos(an) * l, y + Math.sin(an) * l, 1.3, 0, 7); c.fill();
+  }
+}
+function skull(c: CanvasRenderingContext2D, x: number, y: number, s: number): void {
+  c.fillStyle = "#d8cfb8"; c.beginPath(); c.arc(x, y, s, Math.PI, 0); c.lineTo(x + s * 0.7, y + s * 0.9); c.lineTo(x - s * 0.7, y + s * 0.9); c.closePath(); c.fill();
+  c.fillStyle = "#1a1418"; c.beginPath(); c.arc(x - s * 0.4, y + s * 0.05, s * 0.28, 0, 7); c.arc(x + s * 0.4, y + s * 0.05, s * 0.28, 0, 7); c.fill();
+  c.fillRect(x - s * 0.08, y + s * 0.35, s * 0.16, s * 0.25);
+}
+function candle(c: CanvasRenderingContext2D, x: number, y: number, h: number): void {
+  c.fillStyle = "#e9dfc4"; c.fillRect(x - 1.6, y - h, 3.2, h);
+  c.fillStyle = "rgba(0,0,0,.25)"; c.fillRect(x + 0.6, y - h, 1, h);
+  const gl = c.createRadialGradient(x, y - h - 2, 0, x, y - h - 2, 7); gl.addColorStop(0, "rgba(255,200,110,.75)"); gl.addColorStop(1, "rgba(255,160,60,0)");
+  c.fillStyle = gl; c.fillRect(x - 8, y - h - 10, 16, 16);
+  c.fillStyle = "#ffd77a"; c.beginPath(); c.ellipse(x, y - h - 2.2, 1.4, 2.6, 0, 0, 7); c.fill();
+}
+function bakeTile(c: CanvasRenderingContext2D, g: Game, x: number, y: number, bio: Biome, lights: [number, number, number][] | null): void {
+  const X = x * TS, Y = y * TS, v = g.map[y][x];
+  const r = (s: number): number => hrand(x, y, s + g.floor * 977);
+  const war = bio === "warren";
+  const sol = (ox: number, oy: number): boolean => solidT(g, x + ox, y + oy);
+  c.save(); c.beginPath(); c.rect(X, Y, TS, TS); c.clip();
+  if (v === 0) {
+    const anyOpen = !sol(0, 1) || !sol(0, -1) || !sol(1, 0) || !sol(-1, 0) || !sol(1, 1) || !sol(-1, 1) || !sol(1, -1) || !sol(-1, -1);
+    const j = (r(1) - 0.5) * 10;
+    const tb = war ? [30, 36, 25] : [30, 24, 40];
+    c.fillStyle = rgbS(tb[0] + j, tb[1] + j, tb[2] + j); c.fillRect(X, Y, TS, TS);
+    if (!anyOpen) { c.fillStyle = "rgba(0,0,0,.35)"; c.fillRect(X, Y, TS, TS); c.restore(); return; }
+    for (let i = 0; i < 7; i++) { c.fillStyle = `rgba(0,0,0,${0.12 + r(10 + i) * 0.2})`; c.fillRect(X + r(20 + i) * TS, Y + r(30 + i) * TS, 2 + r(40 + i) * 4, 1 + r(50 + i) * 2); }
+    for (let i = 0; i < 3; i++) { c.fillStyle = war ? "rgba(150,180,110,.12)" : "rgba(170,140,220,.12)"; c.fillRect(X + r(60 + i) * TS, Y + r(65 + i) * TS, 3, 1); }
+    const rim = war ? "rgba(170,205,120,.4)" : "rgba(195,160,255,.4)";
+    c.fillStyle = rim;
+    if (!sol(0, -1)) c.fillRect(X, Y, TS, 2);
+    if (!sol(-1, 0)) c.fillRect(X, Y, 2, TS);
+    if (!sol(1, 0)) c.fillRect(X + TS - 2, Y, 2, TS);
+    if (!sol(0, 1)) {
+      const fy = Y + Math.round(TS * 0.38), fh = Y + TS - fy;
+      const gr = c.createLinearGradient(0, fy, 0, Y + TS);
+      gr.addColorStop(0, war ? "#4d573a" : "#4b3e60"); gr.addColorStop(1, war ? "#20251a" : "#1f1828");
+      c.fillStyle = gr; c.fillRect(X, fy, TS, fh);
+      c.fillStyle = war ? "rgba(205,235,150,.5)" : "rgba(215,185,255,.5)"; c.fillRect(X, fy, TS, 1.5);
+      if (war) {
+        for (let i = 0; i < 5; i++) { c.fillStyle = `rgba(0,0,0,${0.18 + r(100 + i) * 0.2})`; c.beginPath(); c.ellipse(X + r(110 + i) * TS, fy + 3 + r(120 + i) * (fh - 5), 3 + r(130 + i) * 5, 2 + r(140 + i) * 3, 0, 0, 7); c.fill(); }
+        c.strokeStyle = "rgba(90,70,40,.7)"; c.lineWidth = 1; c.beginPath();
+        const rx = X + r(150) * TS; c.moveTo(rx, fy); c.quadraticCurveTo(rx + 4, fy + fh * 0.5, rx - 2, Y + TS - 2); c.stroke();
+      } else {
+        const rows = 3, bh = fh / rows;
+        for (let ri = 0; ri < rows; ri++) {
+          const off = (ri % 2) * 8 + r(160 + ri) * 4;
+          for (let bx = -16 + off; bx < TS; bx += 16) {
+            const sh = (r(170 + ri * 5 + Math.round(bx)) - 0.5) * 16;
+            c.fillStyle = rgbS(64 + sh, 52 + sh, 80 + sh); c.fillRect(X + bx + 1, fy + 2 + ri * bh, 14, bh - 1.5);
+            c.fillStyle = "rgba(255,255,255,.06)"; c.fillRect(X + bx + 1, fy + 2 + ri * bh, 14, 1);
+          }
+        }
+        if (r(180) < 0.35) { c.strokeStyle = "rgba(10,6,14,.8)"; c.lineWidth = 1; c.beginPath(); let cx = X + r(181) * TS, cy = fy + 2; c.moveTo(cx, cy); for (let k = 0; k < 4; k++) { cx += (r(182 + k) - 0.5) * 9; cy += fh / 4; c.lineTo(cx, cy); } c.stroke(); }
+      }
+      const d = r(7);
+      if (!war && d < 0.13) {
+        c.fillStyle = "#0c0810"; c.beginPath(); c.moveTo(X + 9, Y + TS - 3); c.lineTo(X + 9, fy + 9); c.arc(X + 16, fy + 9, 7, Math.PI, 0); c.lineTo(X + 23, Y + TS - 3); c.closePath(); c.fill();
+        skull(c, X + 16, fy + 12, 3.6);
+      } else if (!war && d < 0.26) {
+        c.fillStyle = "#0c0810"; c.beginPath(); c.moveTo(X + 10, Y + TS - 3); c.lineTo(X + 10, fy + 9); c.arc(X + 16, fy + 9, 6, Math.PI, 0); c.lineTo(X + 22, Y + TS - 3); c.closePath(); c.fill();
+        candle(c, X + 16, Y + TS - 4, 6); if (lights) lights.push([x + 0.5, y + 0.6, 1]);
+      } else if (war && d < 0.12) {
+        for (let i = 0; i < 3; i++) { const fx = X + 8 + r(190 + i) * 16, fyy = fy + 4 + r(195 + i) * (fh - 8); const gl = c.createRadialGradient(fx, fyy, 0, fx, fyy, 6); gl.addColorStop(0, "rgba(170,255,110,.8)"); gl.addColorStop(1, "rgba(120,255,80,0)"); c.fillStyle = gl; c.fillRect(fx - 6, fyy - 6, 12, 12); c.fillStyle = "#c8ff8a"; c.beginPath(); c.arc(fx, fyy, 1.6, 0, 7); c.fill(); }
+        if (lights) lights.push([x + 0.5, y + 0.7, 2]);
+      } else if (war && d < 0.3) {
+        c.strokeStyle = "rgba(230,230,240,.45)"; c.lineWidth = 0.7; c.beginPath();
+        for (let i = 0; i < 4; i++) { const sx = X + 4 + r(200 + i) * 24; c.moveTo(sx, fy); c.lineTo(sx + (r(205 + i) - 0.5) * 6, fy + 6 + r(210 + i) * (fh - 6)); }
+        c.stroke();
+      }
+    }
+    c.restore(); return;
+  }
+  // ----- floor -----
+  if (war) {
+    c.fillStyle = "#151a10"; c.fillRect(X, Y, TS, TS);
+    const j = (r(1) - 0.5) * 10;
+    const n = 3 + Math.floor(r(2) * 3);
+    for (let i = 0; i < n; i++) {
+      const cx = X + 4 + r(300 + i) * 24, cy = Y + 4 + r(310 + i) * 24, rx = 6 + r(320 + i) * 7, ry = 5 + r(330 + i) * 6, sh = (r(340 + i) - 0.5) * 14 + j;
+      c.fillStyle = rgbS(44 + sh, 50 + sh, 34 + sh); c.beginPath(); c.ellipse(cx, cy, rx, ry, r(350 + i) * 3, 0, 7); c.fill();
+      c.fillStyle = "rgba(255,255,230,.05)"; c.beginPath(); c.ellipse(cx - 1, cy - 1.5, rx * 0.7, ry * 0.5, r(350 + i) * 3, 0, 7); c.fill();
+    }
+    if (r(3) < 0.35) { c.strokeStyle = "rgba(5,8,3,.75)"; c.lineWidth = 1; c.beginPath(); let cx = X + r(360) * TS, cy = Y + r(361) * TS; c.moveTo(cx, cy); for (let k = 0; k < 4; k++) { cx += (r(362 + k) - 0.5) * 14; cy += (r(366 + k) - 0.5) * 14; c.lineTo(cx, cy); } c.stroke(); }
+    for (let i = 0; i < 6; i++) { c.fillStyle = r(370 + i) < 0.5 ? "rgba(110,150,60,.35)" : "rgba(0,0,0,.3)"; c.fillRect(X + r(380 + i) * TS, Y + r(390 + i) * TS, 1.5, 1.5); }
+    const d = r(4);
+    if (d < 0.06) {
+      const ex = X + 8 + r(400) * 14, ey = Y + 8 + r(401) * 14;
+      for (let i = 0; i < 4; i++) { const ox = ex + (r(402 + i) - 0.5) * 10, oy = ey + (r(406 + i) - 0.5) * 9; c.fillStyle = "rgba(0,0,0,.35)"; c.beginPath(); c.ellipse(ox + 1, oy + 1.5, 3.2, 4, 0, 0, 7); c.fill(); c.fillStyle = "#d9d4bb"; c.beginPath(); c.ellipse(ox, oy, 3, 3.8, 0, 0, 7); c.fill(); c.fillStyle = "rgba(255,255,255,.55)"; c.beginPath(); c.arc(ox - 1, oy - 1.5, 0.9, 0, 7); c.fill(); }
+      c.strokeStyle = "rgba(230,230,240,.35)"; c.lineWidth = 0.6; c.beginPath(); c.moveTo(ex - 8, ey - 6); c.lineTo(ex + 8, ey + 5); c.moveTo(ex + 7, ey - 7); c.lineTo(ex - 6, ey + 6); c.stroke();
+    } else if (d < 0.12) bones(c, X, Y, r);
+    else if (d < 0.16) { const gl = c.createRadialGradient(X + 16, Y + 16, 0, X + 16, Y + 16, 11); gl.addColorStop(0, "rgba(120,170,40,.45)"); gl.addColorStop(1, "rgba(120,170,40,0)"); c.fillStyle = gl; c.fillRect(X, Y, TS, TS); }
+    const corners: [number, number, number, number, number, number][] = [[-1, 0, 0, -1, 0, 0], [1, 0, 0, -1, 1, 0], [-1, 0, 0, 1, 0, 1], [1, 0, 0, 1, 1, 1]];
+    corners.forEach((k: [number, number, number, number, number, number], i: number) => {
+      if (sol(k[0], k[1]) && sol(k[2], k[3]) && r(420 + i) < 0.7) webCorner(c, X + k[4] * TS, Y + k[5] * TS, k[4] ? -1 : 1, k[5] ? -1 : 1, 12 + r(430 + i) * 8, 0.45);
+    });
+  } else {
+    c.fillStyle = "#120e17"; c.fillRect(X, Y, TS, TS);
+    const j = (r(1) - 0.5) * 8;
+    const pat = Math.floor(r(2) * 4);
+    const sp = 0.4 + r(5) * 0.2;
+    const slabs: [number, number, number, number][] = pat === 0 ? [[0, 0, 1, 1]] : pat === 1 ? [[0, 0, 1, sp], [0, sp, 1, 1 - sp]] : pat === 2 ? [[0, 0, sp, 1], [sp, 0, 1 - sp, 1]] : [[0, 0, sp, 0.5], [sp, 0, 1 - sp, 0.5], [0, 0.5, 1 - sp, 0.5], [1 - sp, 0.5, sp, 0.5]];
+    slabs.forEach((s: [number, number, number, number], i: number) => {
+      const sx = X + s[0] * TS + 1, sy = Y + s[1] * TS + 1, sw = s[2] * TS - 2, sh = s[3] * TS - 2, d = (r(500 + i) - 0.5) * 14 + j;
+      c.fillStyle = rgbS(50 + d, 43 + d, 60 + d); c.fillRect(sx, sy, sw, sh);
+      c.fillStyle = "rgba(255,240,255,.07)"; c.fillRect(sx, sy, sw, 1); c.fillRect(sx, sy, 1, sh);
+      c.fillStyle = "rgba(0,0,0,.35)"; c.fillRect(sx, sy + sh - 1, sw, 1); c.fillRect(sx + sw - 1, sy, 1, sh);
+      if (r(510 + i) < 0.3) { c.fillStyle = "rgba(0,0,0,.18)"; c.beginPath(); c.ellipse(sx + r(520 + i) * sw, sy + r(530 + i) * sh, 3 + r(540 + i) * 4, 2 + r(545 + i) * 3, 0, 0, 7); c.fill(); }
+    });
+    if (r(3) < 0.3) { c.strokeStyle = "rgba(8,5,12,.85)"; c.lineWidth = 1; c.beginPath(); let cx = X + r(560) * TS, cy = Y + r(561) * TS; c.moveTo(cx, cy); for (let k = 0; k < 3; k++) { cx += (r(562 + k) - 0.5) * 16; cy += (r(566 + k) - 0.5) * 16; c.lineTo(cx, cy); } c.stroke(); }
+    for (let i = 0; i < 5; i++) { c.fillStyle = "rgba(200,190,220,.08)"; c.fillRect(X + r(570 + i) * TS, Y + r(580 + i) * TS, 1, 1); }
+    const d = r(4);
+    const nearWall = sol(0, -1) || sol(-1, 0) || sol(1, 0);
+    if (d < 0.05) {
+      c.save(); c.translate(X + 16, Y + 16); c.rotate(r(600) * 6.28);
+      c.strokeStyle = "rgba(150,90,220,.35)"; c.lineWidth = 1; c.beginPath(); c.arc(0, 0, 9, 0, 7); c.moveTo(0, -9); c.lineTo(7.8, 4.5); c.lineTo(-7.8, 4.5); c.closePath(); c.stroke(); c.restore();
+    } else if (d < 0.1) bones(c, X, Y, r);
+    else if (d < 0.13) skull(c, X + 10 + r(610) * 12, Y + 12 + r(611) * 10, 3.5);
+    else if (nearWall && d < 0.24) {
+      const cx = X + 8 + r(620) * 16, cy = Y + 14 + r(621) * 12;
+      candle(c, cx, cy, 5 + r(622) * 4); if (r(623) < 0.6) candle(c, cx + 5, cy + 2, 3 + r(624) * 3);
+      if (lights) lights.push([cx / TS, cy / TS - 0.2, 1]);
+    }
+  }
+  // ambient occlusion from neighbouring walls
+  const ao = (x0: number, y0: number, x1: number, y1: number, w: number, h: number, a: number): void => { const gr = c.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, "rgba(0,0,0,0)"); c.fillStyle = gr; c.fillRect(Math.min(x0, x1), Math.min(y0, y1), w, h); };
+  if (sol(0, -1)) ao(X, Y, X, Y + 11, TS, 11, 0.55);
+  if (sol(-1, 0)) ao(X, Y, X + 7, Y, 7, TS, 0.4);
+  if (sol(1, 0)) ao(X + TS, Y, X + TS - 7, Y, 7, TS, 0.4);
+  if (sol(0, 1)) ao(X, Y + TS, X, Y + TS - 4, TS, 4, 0.3);
+  // hazards
+  if (v === 5) {
+    const cx = X + 16, cy = Y + 16;
+    c.strokeStyle = "rgba(238,238,248,.8)"; c.lineWidth = 1; c.beginPath();
+    for (let k = 0; k < 8; k++) { const an = k * Math.PI / 4 + r(700) * 0.4; c.moveTo(cx, cy); c.lineTo(cx + Math.cos(an) * 17, cy + Math.sin(an) * 17); }
+    for (let ring = 1; ring <= 4; ring++) { const rr = ring * 3.6; for (let k = 0; k <= 8; k++) { const an = k * Math.PI / 4 + r(700) * 0.4; const px = cx + Math.cos(an) * rr, py = cy + Math.sin(an) * rr; if (k === 0) c.moveTo(px, py); else c.lineTo(px, py); } }
+    c.stroke();
+    c.fillStyle = "rgba(255,255,255,.7)"; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(X + 6 + r(710 + i) * 20, Y + 6 + r(715 + i) * 20, 0.9, 0, 7); c.fill(); }
+  } else if (v === 6) {
+    const cx = X + 16, cy = Y + 16;
+    const gl = c.createRadialGradient(cx, cy, 2, cx, cy, 15); gl.addColorStop(0, "rgba(190,90,255,.45)"); gl.addColorStop(1, "rgba(120,40,200,0)"); c.fillStyle = gl; c.fillRect(X, Y, TS, TS);
+    c.save(); c.translate(cx, cy); c.rotate(r(720) * 6.28);
+    c.strokeStyle = "#c27bff"; c.lineWidth = 1.4; c.beginPath(); c.arc(0, 0, 10, 0, 7); c.moveTo(0, -10); c.lineTo(8.7, 5); c.lineTo(-8.7, 5); c.closePath(); c.moveTo(0, -4); c.lineTo(0, 4); c.moveTo(-3, 0); c.lineTo(3, 0); c.stroke();
+    c.restore();
+  }
+  c.restore();
+}
+function artFor(g: Game): Art | null {
+  const bio: Biome = g.biome ?? biomeOf(g.floor);
+  if (ART && ART.map === g.map && ART.bio === bio) return ART;
+  if (typeof document === "undefined") return null;
+  const cv = document.createElement("canvas"); cv.width = W * TS; cv.height = H * TS;
+  const c = cv.getContext("2d"); if (!c) return null;
+  const lights: [number, number, number][] = [];
+  const baked = new Int8Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { bakeTile(c, g, x, y, bio, lights); baked[y * W + x] = g.map[y][x]; }
+  ART = { cv, map: g.map, baked, lights, bio };
+  return ART;
+}
+function litT(g: Game, x: number, y: number): boolean { const dx = x - g.px, dy = y - g.py; return dx * dx + dy * dy <= R * R + 1; }
+let VIEW_K = "", VIEW_T = 0;
+function drawView(cv: HTMLCanvasElement, g: Game, force: boolean): void {
+  const art = artFor(g); if (!art) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  // tile art is 32px per tile, so more canvas pixels than ~1.4x that add no detail, only fill cost; CSS scales it up
+  const cw = Math.min(Math.round(cv.clientWidth * dpr), Math.round(VT * TS * 1.4)); if (!cw) return;
+  if (cv.width !== cw || cv.height !== cw) { cv.width = cw; cv.height = cw; force = true; }
+  // redraw when the camera moves; otherwise only ~12 times a second for candle flicker
+  const key = `${(g.wx ?? 0).toFixed(3)},${(g.wy ?? 0).toFixed(3)},${g.floor},${g.px},${g.py}`, tn = performance.now();
+  if (!force && key === VIEW_K && tn - VIEW_T < 80) return;
+  VIEW_K = key; VIEW_T = tn;
+  const c = cv.getContext("2d"); if (!c) return;
+  const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
+  const s = cw / VT, x0 = px - VT / 2, y0 = py - VT / 2;
+  const ac = art.cv.getContext("2d");
+  for (let ty = Math.max(0, Math.floor(y0)); ty <= Math.min(H - 1, Math.floor(y0 + VT)); ty++) for (let tx = Math.max(0, Math.floor(x0)); tx <= Math.min(W - 1, Math.floor(x0 + VT)); tx++) {
+    if (art.baked[ty * W + tx] !== g.map[ty][tx] && ac) { bakeTile(ac, g, tx, ty, art.bio, null); art.baked[ty * W + tx] = g.map[ty][tx]; }
+  }
+  c.setTransform(1, 0, 0, 1, 0, 0);
+  c.fillStyle = "#07060a"; c.fillRect(0, 0, cw, cw);
+  const sx0 = Math.max(0, x0), sy0 = Math.max(0, y0), sx1 = Math.min(W, x0 + VT), sy1 = Math.min(H, y0 + VT);
+  if (sx1 > sx0 && sy1 > sy0) c.drawImage(art.cv, sx0 * TS, sy0 * TS, (sx1 - sx0) * TS, (sy1 - sy0) * TS, (sx0 - x0) * s, (sy0 - y0) * s, (sx1 - sx0) * s, (sy1 - sy0) * s);
+  for (let ty = Math.floor(y0); ty <= Math.floor(y0 + VT); ty++) for (let tx = Math.floor(x0); tx <= Math.floor(x0 + VT); tx++) {
+    const inb = tx >= 0 && ty >= 0 && tx < W && ty < H;
+    const dx = (tx - x0) * s, dy = (ty - y0) * s;
+    if (!inb || !g.seen[ty][tx]) { c.fillStyle = "#07060a"; c.fillRect(Math.floor(dx), Math.floor(dy), Math.ceil(s) + 1, Math.ceil(s) + 1); }
+    else if (!litT(g, tx, ty)) { c.fillStyle = "rgba(6,4,10,.62)"; c.fillRect(Math.floor(dx), Math.floor(dy), Math.ceil(s) + 1, Math.ceil(s) + 1); }
+  }
+  c.globalCompositeOperation = "lighter";
+  const now = performance.now() / 1000;
+  art.lights.forEach((L: [number, number, number], i: number) => {
+    if (L[0] < x0 - 1 || L[0] > x0 + VT + 1 || L[1] < y0 - 1 || L[1] > y0 + VT + 1) return;
+    const lx = Math.floor(L[0]), ly = Math.floor(L[1]);
+    if (lx < 0 || ly < 0 || lx >= W || ly >= H || !g.seen[ly][lx]) return;
+    const f = 0.75 + 0.25 * Math.sin(now * (7 + (i % 5)) + i * 1.7) * Math.sin(now * 3.1 + i);
+    const gx = (L[0] - x0) * s, gy = (L[1] - y0) * s, rad = s * (L[2] === 2 ? 1.1 : 1.5);
+    const lg = c.createRadialGradient(gx, gy, 0, gx, gy, rad); lg.addColorStop(0, L[2] === 2 ? `rgba(140,255,90,${0.22 * f})` : `rgba(255,180,90,${0.3 * f})`); lg.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = lg; c.fillRect(gx - rad, gy - rad, rad * 2, rad * 2);
+  });
+  c.globalCompositeOperation = "source-over";
+}
+function drawMini(cv: HTMLCanvasElement, g: Game, big: boolean): void {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cw = Math.round(cv.clientWidth * dpr); if (!cw) return;
+  if (cv.width !== cw || cv.height !== cw) { cv.width = cw; cv.height = cw; }
+  const c = cv.getContext("2d"); if (!c) return;
+  const bio: Biome = g.biome ?? biomeOf(g.floor), war = bio === "warren";
+  // the corner minimap follows the hero with a 16-tile window; the full map shows the whole floor
+  const span = big ? W : 16, px0 = g.wx ?? g.px + 0.5, py0 = g.wy ?? g.py + 0.5;
+  const ox = big ? 0 : clampN(px0 - span / 2, 0, W - span), oy = big ? 0 : clampN(py0 - span / 2, 0, H - span);
+  const s = cw / span;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cw, cw);
+  c.fillStyle = "rgba(6,5,10,.82)"; c.fillRect(0, 0, cw, cw);
+  c.translate(-ox * s, -oy * s);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!g.seen[y][x]) continue;
+    const v = g.map[y][x];
+    if (v === 0) { if (!solidT(g, x, y + 1) || !solidT(g, x, y - 1) || !solidT(g, x + 1, y) || !solidT(g, x - 1, y)) { c.fillStyle = war ? "#3b4630" : "#3d3150"; c.fillRect(x * s, y * s, s, s); } continue; }
+    c.fillStyle = litT(g, x, y) ? (war ? "#8b9b6a" : "#9a86b8") : (war ? "#5d6b47" : "#64557c");
+    c.fillRect(x * s, y * s, s + 0.3, s + 0.3);
+  }
+  const dot = (x: number, y: number, col: string, r0: number): void => { c.fillStyle = col; c.beginPath(); c.arc(x * s, y * s, Math.max(1.5 * dpr, r0 * s), 0, 7); c.fill(); };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    if (!g.seen[y][x]) continue;
+    const v = g.map[y][x];
+    if (v === 2) { c.fillStyle = "#6dffa0"; c.fillRect((x + 0.1) * s, (y + 0.1) * s, s * 0.8, s * 0.8); c.strokeStyle = "#0a2a14"; c.lineWidth = Math.max(1, s * 0.12); c.strokeRect((x + 0.1) * s, (y + 0.1) * s, s * 0.8, s * 0.8); }
+    else if (v === 4) dot(x + 0.5, y + 0.5, "#ffcc4d", 0.48);
+    else if (v === 3 && big) dot(x + 0.5, y + 0.5, "#c98a3a", 0.3);
+  }
+  for (const m of g.mons) {
+    if (!g.seen[m.y]?.[m.x]) continue;
+    if (!(m.boss || litT(g, m.x, m.y))) continue;
+    dot(m.fx ?? m.x + 0.5, m.fy ?? m.y + 0.5, m.boss ? "#ff3355" : "#ff6b6b", m.boss ? 0.6 : 0.38);
+  }
+  const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
+  c.strokeStyle = "#000"; c.lineWidth = Math.max(1, dpr);
+  dot(px, py, "#fff2c8", 0.55); c.beginPath(); c.arc(px * s, py * s, Math.max(1.5 * dpr, 0.55 * s), 0, 7); c.stroke();
+  if (!big) { c.strokeStyle = "rgba(255,230,180,.35)"; c.lineWidth = 1; c.strokeRect((px - VT / 2) * s, (py - VT / 2) * s, VT * s, VT * s); }
+}
+function worldTf(g: Game): string { const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5; return `translate(${(-(px - VT / 2) / W) * 100}%, ${(-(py - VT / 2) / H) * 100}%)`; }
 function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   if (g.screen !== "map") return false;
   let ch = false;
   if (g.wx === undefined || g.wy === undefined || Math.floor(g.wx) !== g.px || Math.floor(g.wy) !== g.py) { g.wx = g.px + 0.5; g.wy = g.py + 0.5; ch = true; }
   const p = { x: g.wx, y: g.wy };
   I.slowT = Math.max(0, I.slowT - dt);
+  const sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1);
   const mag = Math.hypot(mx, my);
-  if (mag > 0.15) {
-    const k = Math.min(1, mag) / mag, sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1);
+  let tvx = 0, tvy = 0;
+  if (mag > 0.12) { const k = (Math.min(1, mag) / mag) * sp; tvx = mx * k; tvy = my * k; I.idleT = 0; }
+  else { I.idleT += dt; if (I.idleT < 0.05) { tvx = I.vx; tvy = I.vy; } }
+  steerVel(I, tvx, tvy, dt);
+  const vm = Math.hypot(I.vx, I.vy);
+  if (vm > 0.01) {
     const ox = p.x, oy = p.y;
-    slideMove(g, p, mx * k * sp, my * k * sp, dt, PR);
-    const got = ((p.x - ox) * mx + (p.y - oy) * my) / mag;
-    if (got < sp * Math.min(1, mag) * dt * 0.6) laneAssist(g, p, mx, my, sp * dt);
+    slideMove(g, p, I.vx, I.vy, dt, PR);
+    const got = ((p.x - ox) * I.vx + (p.y - oy) * I.vy) / vm;
+    if (mag > 0.12 && got < vm * dt * 0.6) laneAssist(g, p, I.vx, I.vy, vm * dt);
     ch = true;
   }
   g.wx = p.x; g.wy = p.y;
@@ -1518,9 +1805,9 @@ function unequip(g: Game, slot: GearSlot): void {
 }
 
 const HELP: [string, string][] = [
-  ["🕹️ Controls (touch)", "Touch and drag anywhere on the LEFT half of the screen to spawn a floating joystick; hold it to keep moving (analog, 8 directions). Action buttons sit on the right: ⚔️ Attack (hold to keep swinging), your 3 abilities with cooldown rings, 💨 Dodge roll, 🎒 Item and 🏃 Flee. Menus, the bag and shops are normal taps. Works in portrait and landscape. You regenerate slowly while exploring."],
-  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving). Combat: Space or J = attack (hold), Enter = attack once, 1/2/3 = abilities, Shift or K = dodge roll, I = item menu, F = flee, Tab or Q/E = switch target. Map: movement is free and analog (you glide along walls), I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc on the map or in combat opens the exit prompt (the game pauses)."],
-  ["🎮 Gamepad", "Left stick or D-pad moves. Combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, LB/L1 switch target, View/Select item menu. Map: A trade with a merchant, Y bag, X codex, View/Select help. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options pauses (exit prompt)."],
+  ["🕹️ Controls (touch)", "Touch and drag anywhere on the LEFT half of the screen to spawn a floating joystick; hold it to keep moving (analog, 8 directions). Action buttons sit on the right: ⚔️ Attack (hold to keep swinging), your 3 abilities with cooldown rings, 💨 Dodge roll, 🎒 Item and 🏃 Flee. Tap the minimap (top-right of the dungeon view) for the full map, which pauses the game. Item pickups float above your hero. Menus, the bag and shops are normal taps. Works in portrait and landscape. You regenerate slowly while exploring."],
+  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving). Combat: Space or J = attack (hold), Enter = attack once, 1/2/3 = abilities, Shift or K = dodge roll, I = item menu, F = flee, Tab or Q/E = switch target. Map: movement is free and analog (you glide along walls), M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc on the map or in combat opens the exit prompt (the game pauses)."],
+  ["🎮 Gamepad", "Left stick or D-pad moves. Combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, LB/L1 switch target, View/Select item menu. Map: A trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options pauses (exit prompt)."],
   ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant, 🔽 stairs take you down. Bosses guard the stairs on every 5th floor."],
   ["⚔️ Combat", "Real-time. Enemies chase you and attack on their own timers. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep; bosses drop acid pools, shadow flame and the Echo Lord's CATACLYSM ring. Standing still gets you killed. Your attack auto-targets the nearest foe in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Abilities cost MP and have cooldowns. Burn, poison, buffs and pets tick every 1.5 s. The game pauses whenever a menu, shop or prompt is open, or the app is in the background."],
   ["✨ Abilities", "Each class has 3 abilities that cost MP and have cooldowns. MP regenerates every turn. Warriors gain MP when hit; Mages restore MP with staff strikes; Ranger wolves attack on their own."],
@@ -2015,7 +2302,7 @@ export default function DungeonOfEchoes() {
   const [codeText, setCodeText] = useState<string>("");
   const [imp, setImp] = useState<string>("");
   const [msg, setMsg] = useState<string>("");
-  const inp = useRef<Inp>({ jx: 0, jy: 0, kx: 0, ky: 0, gx: 0, gy: 0, atk: false, katk: false, gatk: false, stepT: 0, monT: 0.5, regT: 0, alt: false, saveT: 0, rT: 0, slowT: 0, shopL: false });
+  const inp = useRef<Inp>({ jx: 0, jy: 0, kx: 0, ky: 0, gx: 0, gy: 0, atk: false, katk: false, gatk: false, stepT: 0, monT: 0.5, regT: 0, alt: false, saveT: 0, rT: 0, slowT: 0, shopL: false, vx: 0, vy: 0, idleT: 0 });
   const tickRef = useRef<(dt: number) => void>(() => undefined);
   const padRef = useRef<(dt: number) => void>(() => undefined);
   const keyRef = useRef<(e: KeyboardEvent, down: boolean) => void>(() => undefined);
@@ -2023,6 +2310,13 @@ export default function DungeonOfEchoes() {
   const joyRef = useRef<{ id: number; ox: number; oy: number }>({ id: -1, ox: 0, oy: 0 });
   const joyBase = useRef<HTMLDivElement | null>(null);
   const joyKnob = useRef<HTMLDivElement | null>(null);
+  const mapCv = useRef<HTMLCanvasElement | null>(null);
+  const worldEl = useRef<HTMLDivElement | null>(null);
+  const miniCv = useRef<HTMLCanvasElement | null>(null);
+  const bigCv = useRef<HTMLCanvasElement | null>(null);
+  const miniT = useRef<number>(0);
+  const drawRef = useRef<(force: boolean) => void>(() => undefined);
+  const [bigMap, setBigMap] = useState<boolean>(false);
   const [vp, setVp] = useState<{ w: number; h: number }>(() => ({ w: typeof window !== "undefined" ? window.innerWidth : 400, h: typeof window !== "undefined" ? window.innerHeight : 800 }));
   const refresh = useCallback((): void => setTick((n: number) => n + 1), []);
   const run = useCallback((fn: (g: Game) => void): void => { const g = G.current; if (!g) return; fn(g); LAST_SAVE = saveRun(g); refresh(); }, [refresh]);
@@ -2116,11 +2410,13 @@ export default function DungeonOfEchoes() {
 
   useEffect(() => {
     const g = G.current; if (!g || g.fx.length === 0) return;
-    const id = window.setTimeout(() => { const now = Date.now(); g.fx = g.fx.filter((x: Fx) => now - x.ts < 1000); refresh(); }, 1050);
+    const id = window.setTimeout(() => { const now = Date.now(); g.fx = g.fx.filter((x: Fx) => now - x.ts < (x.at === "m" ? 1300 : 1000)); refresh(); }, 1050);
     return () => window.clearTimeout(id);
   });
+  useEffect(() => { drawRef.current(true); });
+  useEffect(() => { const gg = G.current; const cv = bigCv.current; if (bigMap && gg && cv) drawMini(cv, gg, true); }, [bigMap, vp]);
 
-  const col = (c: string): string => c === "bad" ? t.text.danger : c === "heal" ? t.text.success : c === "loot" ? t.text.warning : c === "good" ? t.text.accent : c === "dmg" ? t.text.primary : t.text.secondary;
+  const col = (c: string): string => c.startsWith("#") ? c : c === "bad" ? t.text.danger : c === "heal" ? t.text.success : c === "loot" ? t.text.warning : c === "good" ? t.text.accent : c === "dmg" ? t.text.primary : t.text.secondary;
   const card: CSSProperties = { background: t.bg.elevated, border: `1px solid ${t.border.default}`, borderRadius: 12, padding: 10, boxSizing: "border-box", minWidth: 0 };
   const row: CSSProperties = { display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" };
   const small: CSSProperties = { fontSize: 12, color: t.text.secondary, lineHeight: 1.35 };
@@ -2154,11 +2450,22 @@ export default function DungeonOfEchoes() {
   );
   const arenaFx = (gg: Game, at: string): ReactNode => (
     <div style={{ position: "absolute", left: "50%", bottom: "100%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", pointerEvents: "none", whiteSpace: "nowrap", zIndex: 8 }}>
-      {gg.fx.filter((x: Fx) => x.at === at && Date.now() - x.ts < 1000).map((x: Fx) => (
+      {gg.fx.filter((x: Fx) => (x.at === at || (at === "p" && x.at === "m")) && Date.now() - x.ts < 1000).map((x: Fx) => (
         <span key={x.id} style={{ animation: "doeFloat 1s ease-out forwards", fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000" }}>{x.text}</span>
       ))}
     </div>
   );
+  // short-lived notices (level ups, boss warnings, hazards, shop results) replace the old log panel
+  const notes = (g0: Game, inline: boolean): ReactNode => {
+    const now = Date.now();
+    const ls = g0.log.filter((l: LogL) => l.ts !== undefined && now - l.ts < 3600 && l.c !== "dmg").slice(0, 3);
+    if (ls.length === 0) return null;
+    return (
+      <div data-notes="1" style={inline ? { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" } : { position: "absolute", left: 6, right: 6, bottom: 8, display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 4, pointerEvents: "none", zIndex: 7 }}>
+        {ls.map((l: LogL, i: number) => <div key={`${l.ts}-${i}-${l.t}`} style={{ maxWidth: "94%", fontSize: 12, fontWeight: 700, lineHeight: 1.3, padding: "4px 10px", borderRadius: 999, background: "rgba(10,8,14,.86)", border: `1px solid ${col(l.c)}`, color: col(l.c), textAlign: "center", animation: `doeNote 3.6s ease-in ${-(now - (l.ts ?? now))}ms forwards` }}>{l.t}</div>)}
+      </div>
+    );
+  };
   const logBox = (g: Game, n: number): ReactNode => (
     <div data-noj="1" style={{ ...card, maxHeight: 130, overflowY: "auto", padding: 8, touchAction: "pan-y" }}>
       {g.log.slice(0, n).map((l: LogL, i: number) => (
@@ -2281,9 +2588,13 @@ export default function DungeonOfEchoes() {
   const joyMove = (e: { clientX: number; clientY: number; pointerId: number }): void => {
     const J = joyRef.current; if (J.id !== e.pointerId) return;
     let dx = e.clientX - J.ox, dy = e.clientY - J.oy; const R0 = 46; const m = Math.hypot(dx, dy);
-    if (m > R0) { dx = (dx / m) * R0; dy = (dy / m) * R0; }
-    const I = inp.current; const nx = dx / R0, ny = dy / R0; const dead = Math.hypot(nx, ny) < 0.15;
-    I.jx = dead ? 0 : nx; I.jy = dead ? 0 : ny;
+    if (m > R0) {
+      // the base follows the finger, so reversing direction never has to travel back through the centre
+      J.ox += (dx / m) * (m - R0); J.oy += (dy / m) * (m - R0); dx = (dx / m) * R0; dy = (dy / m) * R0;
+      const bb = joyBase.current; if (bb) { bb.style.left = `${J.ox}px`; bb.style.top = `${J.oy}px`; }
+    }
+    const I = inp.current; const n = Math.min(R0, m) / R0;
+    if (n < 0.12) { I.jx = 0; I.jy = 0; } else { const k = Math.min(1, 0.4 + ((n - 0.12) / 0.33) * 0.6) / n; I.jx = (dx / R0) * k; I.jy = (dy / R0) * k; }
     const b = joyBase.current; if (b && b.style.display !== "block") { b.style.display = "block"; b.style.left = `${J.ox}px`; b.style.top = `${J.oy}px`; }
     const kn = joyKnob.current; if (kn) kn.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
   };
@@ -2299,10 +2610,32 @@ export default function DungeonOfEchoes() {
     </div>
   );
   const toastEl = toast ? <div key={toast} role="status" style={{ position: "fixed", left: "50%", bottom: 18, transform: "translateX(-50%)", zIndex: 60, maxWidth: "90vw", fontSize: 13, fontWeight: 700, padding: "8px 14px", borderRadius: 999, background: t.bg.elevated, color: t.text.primary, border: `1px solid ${t.border.default}`, boxShadow: "0 4px 14px rgba(0,0,0,.35)", pointerEvents: "none", animation: "doeFlash 2.6s ease-in forwards", fontFamily: t.font.family }}>{toast}</div> : null;
-  const style = <div style={{ display: "contents" }}>{exitModal}{sheetEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}"}</style></div>;
+  const toggleMap = (): void => {
+    const gg = G.current; const I = inp.current;
+    HELD.clear(); I.kx = 0; I.ky = 0; I.vx = 0; I.vy = 0;
+    if (!gg || gg.screen !== "map") { setBigMap(false); return; }
+    setBigMap((b: boolean) => !b);
+  };
+  const bigSide = land ? Math.max(160, Math.min(vp.h - 36, vp.w - 260)) : Math.max(160, Math.min(vp.w - 28, vp.h - 250));
+  const bigMapEl = bigMap && g && g.screen === "map" ? (
+    <div role="dialog" aria-label="Dungeon map" data-noj="1" data-bigmap="1" style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(4,3,8,.94)", display: "flex", alignItems: "center", justifyContent: "center", padding: `${sa("top", 10)} ${sa("right", 10)} ${sa("bottom", 10)} ${sa("left", 10)}`, boxSizing: "border-box", fontFamily: t.font.family, color: t.text.primary }}>
+      <div style={{ display: "flex", flexDirection: land ? "row" : "column", gap: 14, alignItems: "center", maxWidth: "100%", maxHeight: "100%" }}>
+        <canvas ref={bigCv} onClick={toggleMap} style={{ width: bigSide, height: bigSide, borderRadius: 12, border: `1px solid ${t.border.strong}`, display: "block", flex: "0 0 auto" }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 170, maxWidth: 320 }}>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>🗺️ {g.mode === "story" ? `Floor ${g.floor}` : `Depth ${g.floor}`} · {BIOME[g.biome ?? biomeOf(g.floor)].name}</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 12, color: t.text.secondary }}>
+            <span><b style={{ color: "#fff2c8" }}>●</b> You</span><span><b style={{ color: "#6dffa0" }}>■</b> Stairs</span><span><b style={{ color: "#ffcc4d" }}>●</b> Merchant</span><span><b style={{ color: "#c98a3a" }}>●</b> Chest</span><span><b style={{ color: "#ff6b6b" }}>●</b> Monster in sight</span>
+          </div>
+          <div style={{ fontSize: 12, color: t.text.tertiary }}>Only explored areas are shown. The game is paused.</div>
+          <button autoFocus onClick={toggleMap} style={{ minHeight: 46, borderRadius: 12, border: "none", background: t.fill.primary, color: t.text.onPrimary, fontFamily: "inherit", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Close map (M / Esc / B)</button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+  const style = <div style={{ display: "contents" }}>{exitModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}"}</style></div>;
   const back = (): void => { if (g) run((gg: Game) => { gg.screen = gg.prev; }); else setUi("title"); };
   // ---------- INPUT: keyboard, gamepad, real-time loop ----------
-  const isPlay = (): boolean => { const gg = G.current; return !!gg && !exitAsk && !sheet && (gg.screen === "map" || (gg.screen === "combat" && !!gg.combat && !gg.combat.itemOpen)); };
+  const isPlay = (): boolean => { const gg = G.current; return !!gg && !exitAsk && !sheet && !bigMap && (gg.screen === "map" || (gg.screen === "combat" && !!gg.combat && !gg.combat.itemOpen)); };
   const openExit = (): void => { const gg = G.current; if (gg) LAST_SAVE = saveRun(gg); HELD.clear(); const I = inp.current; I.kx = 0; I.ky = 0; I.katk = false; I.atk = false; setExitAsk(true); };
   const cycleTarget = (d: number): void => run((x: Game) => { const c = x.combat; if (!c) return; const n = c.enemies.length; for (let k = 1; k <= n; k++) { const i = (((c.target + d * k) % n) + n) % n; const e = c.enemies[i]; if (e && !e.dead && e.hp > 0) { c.target = i; return; } } });
   const cycleTab = (d: number): void => {
@@ -2312,6 +2645,7 @@ export default function DungeonOfEchoes() {
     if (gg && gg.screen === "combat") cycleTarget(d);
   };
   const goBack = (): void => {
+    if (bigMap) { setBigMap(false); return; }
     if (sheet) { setSheet(null); return; }
     if (exitAsk) { keepPlaying(); return; }
     const gg = G.current;
@@ -2348,6 +2682,13 @@ export default function DungeonOfEchoes() {
     else if (gg.screen === "inventory") { gg.screen = "map"; gg.sel = -1; }
     else if (gg.screen === "combat" && gg.combat) gg.combat.itemOpen = !gg.combat.itemOpen;
   });
+  drawRef.current = (force: boolean): void => {
+    const gg = G.current; if (!gg || gg.screen !== "map") return;
+    const cv = mapCv.current; if (cv) drawView(cv, gg, force);
+    const we = worldEl.current; if (we) we.style.transform = worldTf(gg);
+    const mc = miniCv.current; const now = performance.now();
+    if (mc && (force || now - miniT.current > 120)) { miniT.current = now; drawMini(mc, gg, false); }
+  };
   const openPage = (s: Screen): void => run((gg: Game) => { if (gg.screen === "map") { gg.prev = "map"; gg.screen = s; } });
   keyRef.current = (e: KeyboardEvent, down: boolean): void => {
     const tg = e.target as HTMLElement | null;
@@ -2370,6 +2711,7 @@ export default function DungeonOfEchoes() {
       navMove(DIR[k][0], DIR[k][1], false); return;
     }
     if (k === "Escape" || (k === "Backspace" && !play)) { e.preventDefault(); goBack(); return; }
+    if (k === "m" && gg && gg.screen === "map" && !exitAsk && !sheet) { e.preventDefault(); toggleMap(); return; }
     if (!play) {
       if ((k === "Enter" || k === " ") && !onBtn) { e.preventDefault(); navOk(); return; }
       if (k === "q" || k === "[") { cycleTab(-1); return; }
@@ -2403,7 +2745,7 @@ export default function DungeonOfEchoes() {
     const pad: Gamepad = gp;
     const b = (i: number): boolean => !!pad.buttons[i] && pad.buttons[i].pressed;
     let ax = pad.axes[0] ?? 0, ay = pad.axes[1] ?? 0;
-    if (Math.hypot(ax, ay) < 0.22) { ax = 0; ay = 0; }
+    { const sm = Math.hypot(ax, ay); if (sm < 0.22) { ax = 0; ay = 0; } else { const k = Math.min(1, (sm - 0.22) / 0.63) / sm; ax *= k; ay *= k; } }
     if (b(14)) ax = -1;
     if (b(15)) ax = 1;
     if (b(12)) ay = -1;
@@ -2435,10 +2777,12 @@ export default function DungeonOfEchoes() {
         if (edge(0)) interact();
         if (edge(3)) openBag();
         if (edge(2)) openPage("codex");
-        if (edge(8)) openPage("help");
+        if (edge(8)) toggleMap();
+        if (edge(11)) openPage("help");
       }
       if (edge(9)) openExit();
     } else {
+      if (bigMap && (edge(8) || edge(0))) { toggleMap(); return; }
       if (edge(0)) navOk();
       if (edge(1)) goBack();
       if (edge(4)) cycleTab(-1);
@@ -2448,10 +2792,11 @@ export default function DungeonOfEchoes() {
   };
   tickRef.current = (dt: number): void => {
     const gg = G.current; const I = inp.current;
-    if (!gg || exitAsk || sheet || document.hidden) return;
+    if (!gg || exitAsk || sheet || bigMap || document.hidden) return;
     const [mx, my] = mvVec();
     if (gg.screen === "map") {
       const chg = rtMap(gg, dt, mx, my, I);
+      drawRef.current(false);
       if ((gg.screen as Screen) !== "map") { if ((gg.screen as Screen) === "combat") rtInit(gg); I.rT = 0; refresh(); }
       else if (chg) { I.rT += dt; if (I.rT >= 0.03) { I.rT = 0; refresh(); } }
     } else if (gg.screen === "combat" && gg.combat && !gg.combat.itemOpen) {
@@ -2708,9 +3053,8 @@ export default function DungeonOfEchoes() {
           <div style={{ flex: "1 1 auto", minHeight: 0, display: "flex", gap: 8 }}>
             <div style={{ width: side, flex: "0 0 auto", minHeight: 0, display: "flex", flexDirection: "column", gap: 6 }}>
               <div style={{ flex: "1 1 auto", minHeight: 50, borderRadius: 12, border: `1px dashed ${t.border.default}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: t.text.tertiary, textAlign: "center", padding: 6 }}>🕹️<br />Drag on the left half to move</div>
-              <div style={{ flex: "0 1 auto", minHeight: 0, maxHeight: "48%", display: "flex", flexDirection: "column" }}>{logBox(g0, 8)}</div>
             </div>
-            <div style={{ flex: "1 1 auto", minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: w, maxWidth: "100%" }}>{viewFn()}</div></div>
+            <div style={{ flex: "1 1 auto", minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: w, maxWidth: "100%", position: "relative" }}>{viewFn()}{notes(g0, false)}</div></div>
             <div data-noj="1" style={{ width: side, flex: "0 0 auto", minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, touchAction: "pan-y" }}>
               <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 6 }}>{below}{actions}</div>
             </div>
@@ -2722,14 +3066,13 @@ export default function DungeonOfEchoes() {
       <div style={root}>{style}
         {hud}
         <div {...joyH} style={{ display: "flex", flexDirection: "column", gap: 8, touchAction: "none" }}>
-          {viewFn()}
+          <div style={{ position: "relative" }}>{viewFn()}{notes(g0, false)}</div>
           <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
             <div style={{ flex: "1 1 0", minHeight: 150, borderRadius: 12, border: `1px dashed ${t.border.default}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: t.text.tertiary, textAlign: "center", padding: 6 }}>🕹️<br />Touch &amp; drag on the left half to move</div>
             <div data-noj="1" style={{ flex: "1.4 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: 6, justifyContent: "flex-end" }}>{actions}</div>
           </div>
         </div>
         {below}
-        {logBox(g0, 8)}
       </div>
     );
   };
@@ -2833,7 +3176,7 @@ export default function DungeonOfEchoes() {
             </div>
           ))}
         </div>
-        {logBox(g, 3)}
+        {notes(g, true)}
         </div></div>
       </div>
     );
@@ -2908,7 +3251,7 @@ export default function DungeonOfEchoes() {
             );
           })}
         </div>
-        {logBox(g, 3)}
+        {notes(g, true)}
         </div></div>
       </div>
     );
@@ -3036,73 +3379,48 @@ export default function DungeonOfEchoes() {
   const remAt = new Map<number, string>();
   for (const r of g.rem ?? []) { const [a, b] = r.split(":"); remAt.set(Number(a), b); }
   const bio: Biome = g.biome ?? biomeOf(g.floor);
-  const pfx = g.wx ?? g.px + 0.5, pfy = g.wy ?? g.py + 0.5;
-  const VT = 11, VH = 6;
-  const cells: ReactNode[] = [];
-  for (let vy = -VH; vy <= VH; vy++) for (let vx = -VH; vx <= VH; vx++) {
-    const x = g.px + vx, y = g.py + vy;
-    let bg = "#0b0a0f", glyph: ReactNode = "", gore = "", under: ReactNode = null;
-    if (x >= 0 && y >= 0 && x < W && y < H && g.seen[y][x]) {
-      const vis = vx * vx + vy * vy <= R * R + 1;
-      const tile = g.map[y][x];
-      const hw = ((x * 73856093) ^ (y * 19349663) ^ (g.floor * 83492791)) >>> 0;
-      const light = vis ? Math.max(0, 1 - Math.sqrt(vx * vx + vy * vy) / (R + 1.5)) : 0;
-      if (tile === 0) {
-        const wc = bio === "warren" ? [40, 52, 36, 30, 34, 18] : [36, 28, 50, 26, 18, 30];
-        bg = vis ? `rgb(${Math.round(wc[0] + wc[3] * light)},${Math.round(wc[1] + wc[4] * light)},${Math.round(wc[2] + wc[5] * light)})` : bio === "warren" ? "#1a2016" : "#1a1522";
-        gore = bio === "warren"
-          ? `linear-gradient(180deg, rgba(200,255,150,${(0.12 * light).toFixed(3)}), transparent 45%), radial-gradient(circle at ${20 + hw % 60}% ${30 + (hw >> 4) % 50}%, rgba(0,0,0,.35) 0 18%, transparent 22%), radial-gradient(circle at ${70 - hw % 40}% ${60 - (hw >> 6) % 40}%, rgba(90,120,60,.35) 0 14%, transparent 18%)`
-          : `linear-gradient(180deg, rgba(200,150,255,${(0.14 * light).toFixed(3)}), transparent 45%), repeating-linear-gradient(0deg, rgba(0,0,0,.55) 0 1px, transparent 1px 33%), linear-gradient(${hw % 2 ? 60 : 120}deg, transparent 48%, rgba(184,74,255,.35) 49% 50%, transparent 51%)`;
-        if (vis) {
-          if (bio === "warren" && hw % 13 === 0) under = <div style={{ position: "absolute", inset: "6%", animation: "doeFlick 2.2s ease-in-out infinite" }}>{spr("wfungus", "100%")}</div>;
-          else if (bio === "warren" && hw % 7 === 0) under = <div style={{ position: "absolute", inset: 0 }}>{spr("wweb", "100%")}</div>;
-          else if (bio === "crypt" && hw % 13 === 0) under = <div style={{ position: "absolute", inset: "6%", animation: "doeFlick 1.4s ease-in-out infinite" }}>{spr("candle", "100%")}</div>;
-          else if (bio === "crypt" && hw % 11 === 0) under = <div style={{ position: "absolute", inset: "8%" }}>{spr("niche", "100%")}</div>;
-        }
-      }
-      else {
-        const fc = bio === "warren" ? [24, 30, 20, 30, 30, 14] : [26, 22, 32, 28, 20, 26];
-        bg = vis ? `rgb(${Math.round(fc[0] + fc[3] * light)},${Math.round(fc[1] + fc[4] * light)},${Math.round(fc[2] + fc[5] * light)})` : bio === "warren" ? "#121610" : "#120f17";
-        gore = `radial-gradient(circle at 50% 50%, ${bio === "warren" ? `rgba(255,170,70,${(0.15 * light).toFixed(3)})` : `rgba(190,120,255,${(0.16 * light).toFixed(3)})`}, transparent 75%), ` + (bio === "warren"
-          ? `radial-gradient(circle at ${20 + hw % 60}% ${20 + (hw >> 3) % 60}%, rgba(90,130,50,.28) 0 18%, transparent 24%), radial-gradient(circle at ${70 - hw % 50}% ${75 - (hw >> 5) % 50}%, rgba(0,0,0,.3) 0 12%, transparent 16%)`
-          : `linear-gradient(90deg, rgba(0,0,0,.5) 0 1px, transparent 1px), linear-gradient(0deg, rgba(0,0,0,.5) 0 1px, transparent 1px)` + (hw % 7 === 0 ? `, linear-gradient(${hw % 2 ? 35 : 145}deg, transparent 46%, rgba(184,74,255,.3) 47% 49%, transparent 50%)` : ""));
-        const rk = remAt.get(y * W + x);
-        const propOp = vis ? 0.9 : 0.45;
-        if (tile === 5) under = <div style={{ position: "absolute", inset: 0, opacity: vis ? 1 : 0.5 }}>{spr("web", "100%")}</div>;
-        else if (tile === 6) under = <div style={{ position: "absolute", inset: 0, opacity: vis ? 1 : 0.5, animation: vis ? "doePulse 1.6s infinite" : undefined }}>{spr("rune", "100%")}</div>;
-        else if (rk) under = <div style={{ position: "absolute", inset: 0, opacity: vis ? 1 : 0.5 }}>{remSvg(rk)}</div>;
-        else if (tile === 1 && hw % 23 === 0) under = <div style={{ position: "absolute", inset: "6%", opacity: propOp }}>{spr(bio === "warren" ? "eggs" : "tomb", "100%")}</div>;
-        else if (tile === 1 && hw % 29 === 0) under = <div style={{ position: "absolute", inset: "6%", opacity: propOp }}>{spr(bio === "warren" ? "cocoon" : "bonepile", "100%")}</div>;
-        if (tile === 2) glyph = spr("stairs", "100%"); else if (tile === 3) glyph = spr("chest", "100%"); else if (tile === 4) glyph = spr("gold", "100%");
-      }
-    }
-    cells.push(<div key={`${x},${y}`} style={{ position: "relative", overflow: "hidden", backgroundColor: bg, backgroundImage: gore || undefined, boxShadow: "inset 0 0 0 0.5px rgba(0,0,0,.55)" }}>{under}{glyph ? <div style={{ position: "absolute", inset: "4%", display: "flex", alignItems: "center", justifyContent: "center" }}>{glyph}</div> : null}</div>);
+  const VH = 7;
+  const tPos = (x: number, y: number): CSSProperties => ({ position: "absolute", left: `${(x / W) * 100}%`, top: `${(y / H) * 100}%`, width: `${100 / W}%`, height: `${100 / H}%` });
+  const objs: ReactNode[] = [];
+  for (let y = Math.max(0, g.py - VH); y <= Math.min(H - 1, g.py + VH); y++) for (let x = Math.max(0, g.px - VH); x <= Math.min(W - 1, g.px + VH); x++) {
+    if (!g.seen[y][x]) continue;
+    const v = g.map[y][x]; const rk = remAt.get(y * W + x);
+    const isObj = v === 2 || v === 3 || v === 4;
+    if (!isObj && !rk) continue;
+    const lit = litT(g, x, y);
+    if (rk) objs.push(<div key={`r${x},${y}`} style={{ ...tPos(x, y), opacity: lit ? 1 : 0.5 }}>{remSvg(rk)}</div>);
+    if (isObj) objs.push(<div key={`o${x},${y}`} style={{ ...tPos(x, y), padding: "4%", boxSizing: "border-box", filter: lit ? "drop-shadow(0 2px 2px rgba(0,0,0,.7))" : "brightness(.5)" }}>{spr(v === 2 ? "stairs" : v === 3 ? "chest" : "gold", "100%")}</div>);
   }
-  // world (tile units) -> % of the square view; the camera is centered on the player's exact position
-  const vPct = (w: number, c: number): string => `${((w - (c - VT / 2)) / VT) * 100}%`;
-  const tilePct = `${100 / VT}%`;
-  const ents: ReactNode[] = [];
   for (const mm of g.mons) {
     const mfx = mm.fx ?? mm.x + 0.5, mfy = mm.fy ?? mm.y + 0.5;
-    if (Math.abs(mfx - pfx) > VH + 0.5 || Math.abs(mfy - pfy) > VH + 0.5 || !g.seen[mm.y]?.[mm.x]) continue;
-    const ddx = mm.x - g.px, ddy = mm.y - g.py;
-    const vis = ddx * ddx + ddy * ddy <= R * R + 1;
+    if (Math.abs(mm.x - g.px) > VH || Math.abs(mm.y - g.py) > VH || !g.seen[mm.y]?.[mm.x]) continue;
+    const vis = litT(g, mm.x, mm.y);
     if (!vis && !mm.boss) continue;
-    const sty: CSSProperties | undefined = mm.boss ? (vis ? { filter: "drop-shadow(0 0 3px rgba(200,0,0,.8))" } : { filter: "brightness(0)", opacity: 0.55 }) : mm.stun > 0 ? { opacity: 0.6 } : undefined;
-    ents.push(<div key={`m${mm.id}`} style={{ position: "absolute", left: vPct(mfx, pfx), top: vPct(mfy, pfy), width: tilePct, height: tilePct, transform: "translate(-50%,-50%)", pointerEvents: "none" }}>{spr(mm.boss ? (mm.t === "lord" ? "lord" : "brood") : mm.t, "100%", sty)}</div>);
+    const sty: CSSProperties | undefined = mm.boss ? (vis ? { filter: "drop-shadow(0 0 3px rgba(200,0,0,.8))" } : { filter: "brightness(0)", opacity: 0.55 }) : mm.stun > 0 ? { opacity: 0.6 } : { filter: "drop-shadow(0 2px 2px rgba(0,0,0,.8))" };
+    objs.push(<div key={`m${mm.id}`} style={tPos(mfx - 0.5, mfy - 0.5)}>{spr(mm.boss ? (mm.t === "lord" ? "lord" : "brood") : mm.t, "100%", sty)}</div>);
   }
+  const tilePct = `${100 / VT}%`;
+  const nowMs = Date.now();
+  const floats = g.fx.filter((x: Fx) => x.at === "m" && nowMs - x.ts < 1250);
   const onMerchant = nearMerchant(g);
   const mapView = (): ReactNode => (
-      <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", width: "100%", aspectRatio: "1", background: bio === "warren" ? "#0a0d08" : "#0b0810" }}>
-        <div style={{ position: "absolute", left: vPct(g.px - VH, pfx), top: vPct(g.py - VH, pfy), width: `${(2 * VH + 1) / VT * 100}%`, height: `${(2 * VH + 1) / VT * 100}%`, display: "grid", gridTemplateColumns: `repeat(${2 * VH + 1}, 1fr)`, gridTemplateRows: `repeat(${2 * VH + 1}, 1fr)` }}>{cells}</div>
-        {ents}
-        <div style={{ position: "absolute", left: "50%", top: "50%", width: `${180 / VT}%`, height: `${180 / VT}%`, transform: "translate(-50%,-50%)", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,170,70,.38), transparent 68%)", pointerEvents: "none" }} />
-        <div style={{ position: "absolute", left: "50%", top: "50%", width: tilePct, height: tilePct, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 2px rgba(0,0,0,.9))" }}>{spr(g.cls, "100%")}</div>
+      <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", width: "100%", aspectRatio: "1", background: "#07060a" }}>
+        <canvas ref={mapCv} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(circle at 50% 50%, ${bio === "warren" ? "rgba(255,170,80,.13)" : "rgba(220,150,255,.11)"} 0, rgba(0,0,0,0) ${(2.6 / VT) * 100}%), radial-gradient(circle at 50% 50%, rgba(0,0,0,0) ${(1.3 / VT) * 100}%, rgba(0,0,0,.6) ${((R + 1.4) / VT) * 100}%)` }} />
+        <div ref={worldEl} style={{ position: "absolute", left: 0, top: 0, width: `${(W / VT) * 100}%`, height: `${(H / VT) * 100}%`, transform: worldTf(g), pointerEvents: "none", willChange: "transform" }}>{objs}</div>
+        <div style={{ position: "absolute", left: "50%", top: "50%", width: tilePct, height: tilePct, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 3px rgba(0,0,0,.9))" }}>{spr(g.cls, "100%")}</div>
+        <div style={{ position: "absolute", left: "50%", bottom: `${50 + 50 / VT}%`, transform: "translateX(-50%)", display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 1, pointerEvents: "none", zIndex: 6 }}>
+          {floats.map((x: Fx) => <span key={x.id} data-float="1" style={{ fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000, 0 0 2px #000", whiteSpace: "nowrap", animation: `doeRise 1.2s ease-out ${-(nowMs - x.ts)}ms forwards` }}>{x.text}</span>)}
+        </div>
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
           {bio === "warren"
             ? [0, 1, 2, 3, 4, 5, 6, 7].map((i: number) => <span key={i} style={{ position: "absolute", left: `${(i * 37 + 8) % 92}%`, top: `${60 + (i * 23) % 35}%`, width: 3 + (i % 3), height: 3 + (i % 3), borderRadius: "50%", background: i % 3 === 0 ? "rgba(230,230,240,.7)" : "rgba(160,255,90,.7)", opacity: 0, animation: `doeDrift ${5 + (i % 4)}s linear ${i * 0.7}s infinite` }} />)
-            : [0, 1, 2].map((i: number) => <span key={i} style={{ position: "absolute", left: "-20%", width: "140%", top: `${10 + i * 30}%`, height: "30%", background: "radial-gradient(ellipse at center, rgba(150,70,220,.3), transparent 70%)", animation: `doeMist ${9 + i * 3}s ease-in-out ${i}s infinite alternate` }} />)}
+            : [0, 1, 2].map((i: number) => <span key={i} style={{ position: "absolute", left: "-20%", width: "140%", top: `${10 + i * 30}%`, height: "30%", background: "radial-gradient(ellipse at center, rgba(150,70,220,.22), transparent 70%)", animation: `doeMist ${9 + i * 3}s ease-in-out ${i}s infinite alternate` }} />)}
         </div>
+        <button data-noj="1" data-minimap="1" aria-label="Open map (M)" title="Map (M)" onClick={toggleMap} style={{ position: "absolute", right: 6, top: 6, width: "27%", aspectRatio: "1", padding: 0, border: "1px solid rgba(255,230,180,.4)", borderRadius: 8, background: "transparent", overflow: "hidden", zIndex: 5, cursor: "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.6)" }}>
+          <canvas ref={miniCv} style={{ width: "100%", height: "100%", display: "block" }} />
+          <span style={{ position: "absolute", left: 3, bottom: 1, fontSize: 9, fontWeight: 800, color: "rgba(255,240,210,.85)", textShadow: "0 1px 2px #000" }}>M</span>
+        </button>
         {g.bannerTs && Date.now() - g.bannerTs < 3500 ? (
           <div key={g.bannerTs} style={{ position: "absolute", left: "6%", right: "6%", top: "36%", textAlign: "center", padding: "10px 8px", borderRadius: 10, background: "rgba(8,6,12,.85)", border: `1px solid ${bio === "warren" ? "#6aa83a" : "#8a4ad0"}`, color: "#f0e8ff", animation: "doeBanner 3.2s ease-in-out forwards", pointerEvents: "none", zIndex: 3 }}>
             <div style={{ fontSize: 11, letterSpacing: 2, opacity: 0.8 }}>{g.mode === "story" ? `FLOOR ${g.floor}` : `DEPTH ${g.floor}`}</div>

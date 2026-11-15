@@ -8,6 +8,7 @@ A dark-fantasy, real-time dungeon crawler RPG that runs in the browser and insta
 - **Loot:** 80+ items, sets, legendaries, cursed and unidentified gear, plus an item codex
 - **Real-time combat:** wind-up telegraphs, projectiles, boss AoE and dodge rolls
 - **Controls:** free analog movement (glide along walls) with a floating touch joystick, keyboard (WASD/arrows) or gamepad stick, plus action buttons
+- **Map:** detailed per-biome tile art, a corner minimap and a full-screen map; pickups float above your hero
 - **Layouts:** works in portrait and landscape and respects notches/safe areas
 - **Saves:** autosaves to localStorage, with save codes to move progress between devices
 
@@ -26,7 +27,9 @@ To bring progress over from another copy of the game, export a save code there (
 | Abilities | Ability buttons (cooldown rings) | 1 / 2 / 3 | X, Y, RB |
 | Dodge roll | 💨 button | Shift or K | B / ○ |
 | Switch target | Tap an enemy | Tab, Q / E | LB |
-| Items | 🎒 button | I or B | View / Select |
+| Items | 🎒 button | I or B | View / Select (in combat) |
+| Full map (pauses) | Tap the minimap | M | View / Select (exploring) |
+| Help | ❓ button | H | R3 (exploring) |
 | Flee | 🏃 button | F | |
 | Trade with merchant | 💰 Trade | Enter / Space / E | A |
 | Menus | Tap | Arrows + Enter, Esc = back, Q/E = tabs | D-pad + A, B = back, LB/RB = tabs |
