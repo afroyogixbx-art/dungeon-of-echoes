@@ -5,6 +5,7 @@ A dark-fantasy, real-time dungeon crawler RPG that runs in the browser and insta
 - **5 classes:** Warrior, Mage, Rogue, Cleric and Ranger (with wolf and hawk pets)
 - **Pets that fight:** companions move on the map, attack on their own (lunge/claw animation, the Imp shoots fire), take damage, get knocked out for 12 s and recover after combat. Rangers have a Wolf (+Hawk); anyone can get a charm pet: Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil, Bone Hound Totem
 - **Starting perk:** each new run opens with a pick of 3 random Common perks (rolled once, saved)
+- **Boss perks (Endless):** after each boss, pick one perk from 3 offers rolled once and saved (reload won't reroll). The pool is 73 perks across Common, Uncommon, Rare, Epic and Legendary; rarer perks are stronger. Deeper floors weight toward rarer tiers, and every 10th-floor boss guarantees at least one Epic or better. Shared and class-specific perks for Warrior, Mage, Rogue, Cleric and Ranger. The starting pick is still 3 random Commons.
 - **Echo Vault:** after every 10th-floor boss, store one item across runs (separate localStorage key `dungeon-of-echoes-vault-v1`, survives death); offered at the start of the next run
 - **Story mode:** 10 floors, the Broodmother on floor 5 and the Echo Lord on floor 10
 - **Endless mode:** infinite floors, a boss every 5, permadeath, tokens and per-class upgrade trees

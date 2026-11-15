@@ -17,7 +17,7 @@ interface SetT { name: string; n: number; b2: Stats; bf: Stats; sp: string; desc
 interface Ab { id: string; name: string; icon: string; mp: number; cd: number; desc: string; }
 interface Base { hp: number; mp: number; atk: number; def: number; crit: number; dodge: number; }
 interface ClassT { id: ClassId; name: string; icon: string; tag: string; base: Base; grow: { hp: number; mp: number; atk: number; def: number; crit: number }; abs: Ab[]; passive: string; start: string[]; }
-interface Perk { id: string; name: string; icon: string; desc: string; tier: number; st?: Stats; gold?: number; rar?: string; }
+interface Perk { id: string; name: string; icon: string; desc: string; tier: number; st?: Stats; gold?: number; rar?: string; cls?: ClassId; }
 interface MonT { id: string; name: string; icon: string; hp: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; undead?: boolean; lo: number; hi: number; bio?: Biome; ff?: number; w?: number; }
 interface Room { x: number; y: number; w: number; h: number; }
 interface MapMon { id: number; x: number; y: number; t: string; boss: boolean; awake: boolean; stun: number; fx?: number; fy?: number; hp?: number; max?: number; hx?: number; hy?: number; el?: boolean; }
@@ -225,30 +225,30 @@ const CLASS_IDS: ClassId[] = ["warrior", "mage", "rogue", "cleric", "ranger"];
 
 const CAPS: Record<ClassId, Perk[]> = {
   warrior: [
-    { id: "undying", name: "Undying", icon: "⚰️", tier: 3, desc: "Once per floor, a lethal blow leaves you at 1 HP." },
-    { id: "whirlwind", name: "Whirlwind", icon: "🌪️", tier: 3, desc: "Cleave hits ALL enemies for 120% and stuns them." },
-    { id: "juggernaut", name: "Juggernaut", icon: "🗿", tier: 3, desc: "Take 15% less damage and reflect 35% of damage taken." },
+    { id: "undying", name: "Undying", icon: "⚰️", tier: 5, rar: "Legendary", cls: "warrior", desc: "Once per floor, a lethal blow leaves you at 1 HP." },
+    { id: "whirlwind", name: "Whirlwind", icon: "🌪️", tier: 4, rar: "Epic", cls: "warrior", desc: "Cleave hits ALL enemies for 120% and stuns them." },
+    { id: "juggernaut", name: "Juggernaut", icon: "🗿", tier: 4, rar: "Epic", cls: "warrior", desc: "Take 15% less damage and reflect 35% of damage taken." },
   ],
   mage: [
-    { id: "chain", name: "Chain Magic", icon: "⚡", tier: 3, desc: "Fireball chains to ALL enemies; Frost Nova deals +50%." },
-    { id: "echo", name: "Arcane Echo", icon: "🔁", tier: 3, desc: "Fireball and Frost Nova have a 30% chance to cast twice for free." },
-    { id: "archmage", name: "Archmage", icon: "🌌", tier: 3, desc: "All spells cost 50% MP and cooldowns are 1 turn shorter." },
+    { id: "chain", name: "Chain Magic", icon: "⚡", tier: 4, rar: "Epic", cls: "mage", desc: "Fireball chains to ALL enemies; Frost Nova deals +50%." },
+    { id: "echo", name: "Arcane Echo", icon: "🔁", tier: 4, rar: "Epic", cls: "mage", desc: "Fireball and Frost Nova have a 30% chance to cast twice for free." },
+    { id: "archmage", name: "Archmage", icon: "🌌", tier: 5, rar: "Legendary", cls: "mage", desc: "All spells cost 50% MP and cooldowns are 1 turn shorter." },
   ],
   rogue: [
-    { id: "shadowmeld", name: "Shadowmeld", icon: "🌫️", tier: 3, desc: "Once per floor, turn invisible to skip any non-boss fight." },
-    { id: "deathmark", name: "Death Mark", icon: "🎯", tier: 3, desc: "+10% crit; crits deal 3x damage instead of 2x." },
-    { id: "shadowstep", name: "Shadow Step", icon: "🌑", tier: 3, desc: "Open every fight with a free 150% critical strike that stuns." },
+    { id: "shadowmeld", name: "Shadowmeld", icon: "🌫️", tier: 4, rar: "Epic", cls: "rogue", desc: "Once per floor, turn invisible to skip any non-boss fight." },
+    { id: "deathmark", name: "Death Mark", icon: "🎯", tier: 5, rar: "Legendary", cls: "rogue", desc: "+10% crit; crits deal 3x damage instead of 2x." },
+    { id: "shadowstep", name: "Shadow Step", icon: "🌑", tier: 5, rar: "Legendary", cls: "rogue", desc: "Open every fight with a free 150% critical strike that stuns." },
   ],
   cleric: [
-    { id: "radiance", name: "Radiance", icon: "☀️", tier: 3, desc: "Every heal in combat also blasts ALL enemies for the amount healed." },
-    { id: "sanctuary", name: "Sanctuary", icon: "🕊️", tier: 3, desc: "Regenerate 6% max HP every combat turn." },
-    { id: "wrath", name: "Wrath of Heaven", icon: "🌩️", tier: 3, desc: "Smite strikes ALL enemies and stuns undead." },
-    { id: "resurrect", name: "Divine Resurrection", icon: "🕯️", tier: 3, desc: "Once per floor, a lethal blow instead revives you at 50% HP." },
+    { id: "radiance", name: "Radiance", icon: "☀️", tier: 4, rar: "Epic", cls: "cleric", desc: "Every heal in combat also blasts ALL enemies for the amount healed." },
+    { id: "sanctuary", name: "Sanctuary", icon: "🕊️", tier: 4, rar: "Epic", cls: "cleric", desc: "Regenerate 6% max HP every combat turn." },
+    { id: "wrath", name: "Wrath of Heaven", icon: "🌩️", tier: 5, rar: "Legendary", cls: "cleric", desc: "Smite strikes ALL enemies and stuns undead." },
+    { id: "resurrect", name: "Divine Resurrection", icon: "🕯️", tier: 5, rar: "Legendary", cls: "cleric", desc: "Once per floor, a lethal blow instead revives you at 50% HP." },
   ],
   ranger: [
-    { id: "packleader", name: "Pack Leader", icon: "🪶", tier: 3, desc: "Gain a second pet: a Hawk that strikes every turn." },
-    { id: "volley", name: "Arrow Volley", icon: "🌧️", tier: 3, desc: "Multi-Shot fires 2 arrows at EVERY enemy." },
-    { id: "eagleeye", name: "Eagle Eye", icon: "👁️", tier: 3, desc: "+20% crit; crits ignore enemy defense." },
+    { id: "packleader", name: "Pack Leader", icon: "🪶", tier: 5, rar: "Legendary", cls: "ranger", desc: "Gain a second pet: a Hawk that strikes every turn." },
+    { id: "volley", name: "Arrow Volley", icon: "🌧️", tier: 4, rar: "Epic", cls: "ranger", desc: "Multi-Shot fires 2 arrows at EVERY enemy." },
+    { id: "eagleeye", name: "Eagle Eye", icon: "👁️", tier: 4, rar: "Epic", cls: "ranger", desc: "+20% crit; crits ignore enemy defense." },
   ],
 };
 const UPG1: Perk[] = [
@@ -266,7 +266,6 @@ const UPG1X: Perk[] = [
   { id: "herbalist", name: "Herbalist", icon: "🌿", tier: 1, desc: "Healing items restore 25% more." },
   { id: "fleet", name: "Fleet-Footed", icon: "🪽", tier: 1, desc: "Dodge roll cooldown 25% shorter." },
 ];
-const COMMON_PERKS: Perk[] = [...UPG1, ...UPG1X].map((p: Perk) => ({ ...p, rar: "Common" }));
 const UPG2: Perk[] = [
   { id: "titan", name: "Titan's Blood", icon: "🏔️", tier: 2, desc: "+60 max HP, +4 DEF", st: { hp: 60, def: 4 } },
   { id: "berserk", name: "Berserker", icon: "🔥", tier: 2, desc: "+6 ATK, +5% crit", st: { atk: 6, crit: 5 } },
@@ -275,6 +274,96 @@ const UPG2: Perk[] = [
   { id: "fortune", name: "Fortune", icon: "💰", tier: 2, desc: "+50% gold from all sources", gold: 0.5 },
   { id: "prism", name: "Prismatic Edge", icon: "🌈", tier: 2, desc: "+5 fire and +5 ice damage", st: { fire: 5, ice: 5 } },
 ];
+// Additional rarity-tiered perks (shared + class-specific). Existing ids above are kept unchanged.
+const MORE_PERKS: Perk[] = [
+  // Common
+  { id: "secondwind", name: "Second Wind", icon: "🌬️", tier: 1, desc: "After each fight won, heal 5% of your max HP." },
+  { id: "spark", name: "Spark", icon: "🔥", tier: 1, desc: "+4 fire damage", st: { fire: 4 } },
+  { id: "chill", name: "Chill", icon: "❄️", tier: 1, desc: "+4 ice damage", st: { ice: 4 } },
+  { id: "wardlight", name: "Wardlight", icon: "✨", tier: 1, desc: "+4 holy damage", st: { holy: 4 } },
+  { id: "thickhide", name: "Thick Hide", icon: "🦏", tier: 1, desc: "+15 max HP, +1 DEF", st: { hp: 15, def: 1 } },
+  { id: "deepbreath", name: "Deep Breath", icon: "💨", tier: 1, desc: "After each fight, restore 10% of your max MP." },
+  // Uncommon
+  { id: "ironwall", name: "Iron Wall", icon: "🧱", tier: 2, desc: "+8 DEF", st: { def: 8 } },
+  { id: "sharpness", name: "Sharpness", icon: "🗡️", tier: 2, desc: "+8% crit", st: { crit: 8 } },
+  { id: "ghoststep", name: "Ghost Step", icon: "👻", tier: 2, desc: "+6% dodge", st: { dodge: 6 } },
+  { id: "voidedge", name: "Void Edge", icon: "🧿", tier: 2, desc: "+5 poison, +3 ATK", st: { poison: 5, atk: 3 } },
+  { id: "alchemist", name: "Alchemist", icon: "⚗️", tier: 2, desc: "Healing potions also restore 20% of your max MP." },
+  { id: "warborn", name: "Warborn", icon: "🪓", tier: 2, cls: "warrior", desc: "+20 max HP, +3 ATK", st: { hp: 20, atk: 3 } },
+  { id: "manafont", name: "Mana Font", icon: "⛲", tier: 2, cls: "mage", desc: "+25 max MP, +2 ATK", st: { mp: 25, atk: 2 } },
+  { id: "backstabber", name: "Backstabber", icon: "🗡️", tier: 2, cls: "rogue", desc: "+6% crit, +2 ATK", st: { crit: 6, atk: 2 } },
+  { id: "acolyte", name: "Acolyte", icon: "📿", tier: 2, cls: "cleric", desc: "+4 holy, +15 max HP", st: { holy: 4, hp: 15 } },
+  { id: "packtactics", name: "Pack Tactics", icon: "🐺", tier: 2, cls: "ranger", desc: "Pets deal +15% damage and have +15% HP." },
+  // Rare
+  { id: "colossus", name: "Colossus", icon: "🏛️", tier: 3, desc: "+120 max HP, +4 DEF", st: { hp: 120, def: 4 } },
+  { id: "overpower", name: "Overpower", icon: "💥", tier: 3, desc: "+10 ATK, +5% crit", st: { atk: 10, crit: 5 } },
+  { id: "ironskin", name: "Iron Skin", icon: "🪨", tier: 3, desc: "+10 DEF, +40 max HP", st: { def: 10, hp: 40 } },
+  { id: "deadlyaim", name: "Deadly Aim", icon: "🎯", tier: 3, desc: "+12% crit", st: { crit: 12 } },
+  { id: "phantomstep", name: "Phantom Step", icon: "🌙", tier: 3, desc: "+10% dodge", st: { dodge: 10 } },
+  { id: "vampiric", name: "Vampiric", icon: "🦇", tier: 3, desc: "+10% lifesteal", st: { ls: 10 } },
+  { id: "stormcall", name: "Stormcall", icon: "⛈️", tier: 3, desc: "+8 fire and +8 ice damage", st: { fire: 8, ice: 8 } },
+  { id: "thornskin", name: "Thornskin", icon: "🌵", tier: 3, desc: "+15% thorns, +4 DEF", st: { th: 15, def: 4 } },
+  { id: "lifewell", name: "Life Well", icon: "💧", tier: 3, desc: "Regenerate 3% max HP every combat tick." },
+  { id: "execution", name: "Execution", icon: "⚰️", tier: 3, desc: "Enemies below 30% HP take 25% more damage." },
+  { id: "arcanebattery", name: "Arcane Battery", icon: "🔋", tier: 3, desc: "Abilities cost 15% less MP." },
+  { id: "shieldwall", name: "Shield Wall", icon: "🛡️", tier: 3, cls: "warrior", desc: "Take 8% less damage." },
+  { id: "spellsurge", name: "Spellsurge", icon: "🎇", tier: 3, cls: "mage", desc: "+8 ATK, +30 max MP", st: { atk: 8, mp: 30 } },
+  { id: "bleedout", name: "Bleed Out", icon: "🩸", tier: 3, cls: "rogue", desc: "Your attacks also inflict poison equal to 30% of your ATK." },
+  { id: "hallow", name: "Hallow", icon: "😇", tier: 3, cls: "cleric", desc: "All heals restore 15% more." },
+  { id: "huntersmark", name: "Hunter's Mark", icon: "🏹", tier: 3, cls: "ranger", desc: "Open every fight with a free 150% hit." },
+  // Epic
+  { id: "unbreakable", name: "Unbreakable", icon: "🗽", tier: 4, desc: "Take 12% less damage, +80 max HP, +6 DEF", st: { hp: 80, def: 6 } },
+  { id: "doublecut", name: "Double Cut", icon: "⚔️", tier: 4, desc: "Attacks have a 20% chance to strike twice." },
+  { id: "bloodcycle", name: "Blood Cycle", icon: "♻️", tier: 4, desc: "+8% lifesteal, +8 ATK", st: { ls: 8, atk: 8 } },
+  { id: "spellblade", name: "Spellblade", icon: "🪄", tier: 4, cls: "mage", desc: "Basic attacks restore 10 MP." },
+  { id: "highpriest", name: "High Priest", icon: "⛪", tier: 4, cls: "cleric", desc: "Your Heal ability restores 50% more." },
+  { id: "feralpact", name: "Feral Pact", icon: "🦊", tier: 4, cls: "ranger", desc: "Pets deal +50% damage and have +50% HP." },
+  // Legendary
+  { id: "godslayer", name: "Godslayer", icon: "🔱", tier: 5, desc: "You deal 20% more damage." },
+  { id: "dragonheart", name: "Dragonheart", icon: "🐉", tier: 5, desc: "+150 max HP, +10 DEF; immune to poison and burns.", st: { hp: 150, def: 10 } },
+  { id: "eternity", name: "Eternity", icon: "♾️", tier: 5, desc: "After each fight won, restore 20% of your max HP and MP." },
+];
+function withRar(p: Perk, rar: string): Perk { return { ...p, rar, tier: RAR.indexOf(rar) + 1 }; }
+const COMMON_PERKS: Perk[] = [...UPG1, ...UPG1X, ...MORE_PERKS.filter((p: Perk) => p.tier === 1)].map((p: Perk) => withRar(p, "Common"));
+const UNCOMMON_PERKS: Perk[] = [...UPG2, ...MORE_PERKS.filter((p: Perk) => p.tier === 2)].map((p: Perk) => withRar(p, p.rar ?? "Uncommon"));
+const ALL_PERKS: Perk[] = [
+  ...COMMON_PERKS,
+  ...UNCOMMON_PERKS,
+  ...MORE_PERKS.filter((p: Perk) => p.tier >= 3).map((p: Perk) => withRar(p, p.rar ?? RAR[p.tier - 1])),
+  ...CLASS_IDS.flatMap((c: ClassId) => CAPS[c]),
+];
+const PERK_BY_ID: Record<string, Perk> = {};
+for (const p of ALL_PERKS) PERK_BY_ID[p.id] = p;
+function perkRar(p: Perk): number { const i = p.rar ? RAR.indexOf(p.rar) : -1; return i >= 0 ? i : Math.max(0, Math.min(4, (p.tier ?? 1) - 1)); }
+function perkCol(p: Perk): string { return RCOL[perkRar(p)]; }
+function perkEligible(g: Game, p: Perk): boolean { return !g.perks.includes(p.id) && (!p.cls || p.cls === g.cls); }
+function starterPool(cls: ClassId): Perk[] { return ALL_PERKS.filter((p: Perk) => perkRar(p) === 0 && (!p.cls || p.cls === cls)); }
+// Boss-offer weights [Common, Uncommon, Rare, Epic, Legendary] by floor band.
+// Floors 1–9: 40/35/18/6/1 · 10–19: 22/28/26/18/6 · 20–29: 12/22/28/26/12 · 30–39: 8/16/26/30/20 · 40+: 5/12/23/32/28
+function perkWeights(floor: number): number[] {
+  if (floor < 10) return [40, 35, 18, 6, 1];
+  if (floor < 20) return [22, 28, 26, 18, 6];
+  if (floor < 30) return [12, 22, 28, 26, 12];
+  if (floor < 40) return [8, 16, 26, 30, 20];
+  return [5, 12, 23, 32, 28];
+}
+function rollPerkTier(weights: number[]): number {
+  const sum = weights.reduce((a: number, b: number) => a + b, 0);
+  let r = Math.random() * sum;
+  for (let i = 0; i < 5; i++) { r -= weights[i]; if (r <= 0) return i; }
+  return 4;
+}
+function pickPerkOfRarity(g: Game, want: number, taken: Set<string>): Perk | undefined {
+  for (let d = 0; d <= 4; d++) {
+    const order = d === 0 ? [want] : [want + d, want - d];
+    for (const i of order) {
+      if (i < 0 || i > 4) continue;
+      const pool = shuffle(ALL_PERKS.filter((p: Perk) => perkRar(p) === i && perkEligible(g, p) && !taken.has(p.id)));
+      if (pool.length > 0) return pool[0];
+    }
+  }
+  return undefined;
+}
 
 // ---- Endless upgrade trees (generated) ----
 const TREE_LINES: Record<ClassId, string[]> = {
@@ -824,7 +913,7 @@ function newGame(cls: ClassId, mode: Mode): Game {
   const f = full(g); g.hp = f.maxHp; g.mp = f.maxMp;
   syncPets(g, true);
   // one-time starting perk (3 random Common perks, rolled once and saved with the run) + optional vaulted item
-  g.offers = shuffle(COMMON_PERKS).slice(0, 3); g.startPick = true; g.vaultOffer = !!vaultGet(); g.screen = "upgrade";
+  g.offers = shuffle(starterPool(cls)).slice(0, 3); g.startPick = true; g.vaultOffer = !!vaultGet(); g.screen = "upgrade";
   log(g, mode === "story" ? `You enter the Dungeon of Echoes as a ${c.name}. Reach Floor ${STORY_END} and slay the Echo Lord.` : `∞ Endless run as a ${c.name}. ${g.perks.length ? `${g.perks.length} capstone(s) active. ` : ""}How deep can you go?`, "good");
   return g;
 }
@@ -844,18 +933,30 @@ function descend(g: Game): void {
   g.screen = "map";
 }
 function makeOffers(g: Game): Perk[] {
-  const caps = shuffle(CAPS[g.cls].filter((p: Perk) => !g.perks.includes(p.id)));
+  const w = perkWeights(g.floor);
+  const taken = new Set<string>();
   const out: Perk[] = [];
-  if (g.floor % 10 === 0) out.push(...caps.slice(0, 3));
-  else if (caps.length > 0 && Math.random() < 0.2) out.push(caps[0]);
-  const t2 = shuffle(UPG2), t1 = shuffle(COMMON_PERKS);
-  if (out.length < 3) out.push(t2[0]);
-  let i = 0;
-  while (out.length < 3 && i < t1.length) { if (!g.perks.includes(t1[i].id)) out.push(t1[i]); i++; }
+  for (let k = 0; k < 3; k++) {
+    const p = pickPerkOfRarity(g, rollPerkTier(w), taken);
+    if (!p) break;
+    out.push(p); taken.add(p.id);
+  }
+  // 10th-floor bosses (and every 10 floors after) guarantee at least one Epic or better
+  if (g.floor % 10 === 0 && !out.some((p: Perk) => perkRar(p) >= 3)) {
+    const up = pickPerkOfRarity(g, 3, taken);
+    if (up) {
+      if (out.length < 3) out.push(up);
+      else {
+        let wi = 0;
+        for (let i = 1; i < out.length; i++) if (perkRar(out[i]) < perkRar(out[wi])) wi = i;
+        out[wi] = up;
+      }
+    }
+  }
   return out;
 }
 function applyPerk(g: Game, p: Perk): void {
-  if (p.tier === 3 || (!p.st && !p.gold)) g.perks.push(p.id);
+  if (!g.perks.includes(p.id)) g.perks.push(p.id);
   const holdVault = g.startPick === true && g.vaultOffer === true && !!vaultGet();
   if (g.startPick) { g.startPick = false; if (!holdVault) g.vaultOffer = false; g.offers = []; }
   if (p.id === "beastbond" && !g.cpet && g.cls !== "ranger") g.cpet = "wolf";
@@ -878,6 +979,7 @@ function gainXp(g: Game, n: number): void {
 }
 function healPlayer(g: Game, amt: number, combatHeal: boolean): number {
   const f = full(g); const before = g.hp;
+  if (g.perks.includes("hallow")) amt = Math.round(amt * 1.15);
   const real = f.curses.includes("c_halfheal") ? Math.round(amt * 0.5) : amt;
   g.hp = Math.min(f.maxHp, g.hp + real);
   const h = g.hp - before;
@@ -890,7 +992,7 @@ function healPlayer(g: Game, amt: number, combatHeal: boolean): number {
   return h;
 }
 function applyDot(g: Game, d: number, label: string): void {
-  if (full(g).sp.includes("dotImmune")) { log(g, `Dragonheart Plate shrugs off the ${label}.`, "good"); return; }
+  if (full(g).sp.includes("dotImmune") || g.perks.includes("dragonheart")) { log(g, `${g.perks.includes("dragonheart") ? "Dragonheart" : "Dragonheart Plate"} shrugs off the ${label}.`, "good"); return; }
   g.buffs.dotT = 3; g.buffs.dotD = Math.max(g.buffs.dotD, d);
   log(g, `You are ${label === "burn" ? "burning 🔥" : "poisoned ☠️"}!`, "bad");
 }
@@ -922,6 +1024,8 @@ function hitEnemy(g: Game, e: Enemy, mult: number, forceCrit: boolean, label: st
   if (holy && e.undead) d *= 1.2;
   if (crit) d *= g.perks.includes("deathmark") ? 3 : 2;
   if (f.sp.includes("void")) d *= 1.15;
+  if (g.perks.includes("godslayer")) d *= 1.2;
+  if (g.perks.includes("execution") && e.max > 0 && e.hp / e.max <= 0.3) d *= 1.25;
   if (g.inAb && f.sp.includes("arcanist")) d *= 1.2;
   const dmg = Math.max(1, Math.round(d));
   e.hp -= dmg;
@@ -931,6 +1035,7 @@ function hitEnemy(g: Game, e: Enemy, mult: number, forceCrit: boolean, label: st
   if (crit && f.sp.includes("critHeal")) healPlayer(g, Math.round(f.maxHp * 0.05), false);
   if (f.ice > 0 && e.hp > 0 && Math.random() < 0.1) stunE(g, e, 1);
   if (f.poison > 0) { e.poisT = Math.max(e.poisT, 3); e.poisD = Math.max(e.poisD, f.poison); }
+  if (g.perks.includes("bleedout")) { e.poisT = Math.max(e.poisT, 3); e.poisD = Math.max(e.poisD, Math.round(f.atk * 0.3)); }
   if (crit && f.sp.includes("critPoison")) { e.poisT = 4; e.poisD = Math.max(e.poisD, Math.round(f.atk * 0.4)); }
   return dmg;
 }
@@ -950,6 +1055,8 @@ function damagePlayer(g: Game, e: Enemy, raw: number, magic: boolean, verb: stri
   if (b.defend) d *= 0.5;
   if (b.holy > 0) d *= 0.5;
   if (g.perks.includes("juggernaut")) d *= 0.85;
+  if (g.perks.includes("shieldwall")) d *= 0.92;
+  if (g.perks.includes("unbreakable")) d *= 0.88;
   if (f.curses.includes("c_fragile")) d *= 1.4;
   d = Math.max(1, Math.round(d));
   const total = d;
@@ -998,6 +1105,11 @@ function bossDown(g: Game, b: Enemy): void {
 }
 function endCombat(g: Game): void {
   const c = g.combat; if (!c) return;
+  const won = c.enemies.some((e: Enemy) => e.dead && !e.away);
+  const ff = full(g);
+  if (won && g.perks.includes("secondwind")) healPlayer(g, Math.round(ff.maxHp * 0.05), false);
+  if (g.perks.includes("deepbreath")) g.mp = Math.min(ff.maxMp, g.mp + Math.round(ff.maxMp * 0.1));
+  if (won && g.perks.includes("eternity")) { healPlayer(g, Math.round(ff.maxHp * 0.2), false); g.mp = Math.min(ff.maxMp, g.mp + Math.round(ff.maxMp * 0.2)); }
   g.combat = null; g.buffs = freshBuffs(); revivePets(g);
   log(g, "✅ Combat over — menus unlocked.", "good");
   if (c.vault) { g.vaultThen = c.upg && g.offers.length > 0 ? "upgrade" : "map"; g.screen = "vault"; }
@@ -1033,6 +1145,7 @@ function engage(g: Game, m: MapMon): void {
   else log(g, fresh ? `⚔️ ${e.name} attacks!` : `⚔️ ${e.name} joins the fight!`, "bad");
   const cur = c.enemies[c.target]; if (!cur || cur.dead) c.target = c.enemies.length - 1;
   if (fresh && g.perks.includes("shadowstep")) { hitEnemy(g, e, 1.5, true, "🌑 Shadow Step"); if (e.hp > 0) stunE(g, e, 1); resolveDeaths(g); }
+  if (fresh && g.perks.includes("huntersmark") && !g.perks.includes("shadowstep")) { hitEnemy(g, e, 1.5, false, "🎯 Hunter's Mark"); resolveDeaths(g); }
 }
 // an engaged enemy loses track of you and becomes a map monster again (damage taken is kept)
 function toMapMon(g: Game, e: Enemy, stun: number, home: boolean): void {
@@ -1881,7 +1994,7 @@ function navMove(dx: number, dy: number, first: boolean): void {
 // ---------- PETS: real companions on the map ----------
 const PET_KO = 12; // seconds a knocked-out pet stays down mid-fight (revives at 40%); all KO'd pets revive at 50% when combat ends
 function petRoster(g: Game): string[] { const r: string[] = []; if (g.cls === "ranger") { r.push("wolf"); if (g.perks.includes("packleader")) r.push("hawk"); } if (g.cpet && PETS[g.cpet]) r.push(g.cpet); return r; }
-function petBoost(g: Game, f: Full): number { return (g.perks.includes("beastbond") ? 1.25 : 1) * (f.sp.includes("petBoost") ? 1.3 : 1); }
+function petBoost(g: Game, f: Full): number { return (g.perks.includes("beastbond") ? 1.25 : 1) * (g.perks.includes("packtactics") ? 1.15 : 1) * (g.perks.includes("feralpact") ? 1.5 : 1) * (f.sp.includes("petBoost") ? 1.3 : 1); }
 function syncPets(g: Game, heal = false): void {
   const ros = petRoster(g); const f = full(g); const cur = g.pets ?? []; const out: Pet[] = [];
   const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
@@ -1963,6 +2076,7 @@ function endRound(g: Game): void {
   let rg = 0;
   if (f.sp.includes("regen")) rg += 0.04;
   if (g.perks.includes("sanctuary")) rg += 0.06;
+  if (g.perks.includes("lifewell")) rg += 0.03;
   if (rg > 0) healPlayer(g, Math.round(f.maxHp * rg), false);
   b.rage = Math.max(0, b.rage - 1); b.holy = Math.max(0, b.holy - 1); b.frenzy = Math.max(0, b.frenzy - 1); b.fury = Math.max(0, b.fury - 1); b.iron = Math.max(0, b.iron - 1); b.defend = false;
   if (!f.curses.includes("c_nomana")) g.mp = Math.min(f.maxMp, g.mp + 2 + Math.round(f.maxMp * (g.cls === "mage" ? 0.05 : 0.03)) + (f.sp.includes("mpRegen") ? 6 : 0));
@@ -1976,6 +2090,7 @@ function abCost(g: Game, ab: Ab): number {
   if (sp.includes("manaSave")) m *= 0.7;
   if (sp.includes("arcanist")) m *= 0.75;
   if (g.perks.includes("archmage")) m *= 0.5;
+  if (g.perks.includes("arcanebattery")) m *= 0.85;
   return Math.round(ab.mp * m);
 }
 function abCd(g: Game, ab: Ab): number { return Math.max(0, ab.cd - (full(g).sp.includes("cdr") ? 1 : 0) - (g.perks.includes("archmage") ? 1 : 0)); }
@@ -1997,7 +2112,7 @@ function runAbility(g: Game, id: string, label: string): void {
     case "backstab": if (t) hitEnemy(g, t, 2.2, c.turn === 0 || t.stun > 0, label); break;
     case "poison": if (t) { hitEnemy(g, t, 1.0, false, label); if (t.hp > 0) { t.poisT = 4; t.poisD = Math.max(t.poisD, Math.round(f.atk * 0.45)); log(g, `${t.name} is badly poisoned.`); } } break;
     case "evade": b.evade = 2; log(g, "💨 You melt into the shadows: next 2 attacks will miss.", "good"); break;
-    case "heal": { const amt = Math.round(f.maxHp * 0.35 * (f.sp.includes("healBoost") ? 1.5 : 1)); b.dotT = 0; const h = healPlayer(g, amt, true); log(g, `✨ You heal for ${h}.`, "heal"); break; }
+    case "heal": { const amt = Math.round(f.maxHp * 0.35 * (f.sp.includes("healBoost") ? 1.5 : 1) * (g.perks.includes("highpriest") ? 1.5 : 1)); b.dotT = 0; const h = healPlayer(g, amt, true); log(g, `✨ You heal for ${h}.`, "heal"); break; }
     case "smite": {
       const wr = g.perks.includes("wrath");
       const ts = wr ? alive(c) : t ? [t] : [];
@@ -2035,9 +2150,9 @@ function useConsumable(g: Game, inv: Inv): ActRes {
   const inCombat = !!c;
   const pw = t.pw ?? 0;
   switch (t.fx) {
-    case "heal": { const h = healPlayer(g, Math.round(f.maxHp * pw / 100 * (g.perks.includes("herbalist") ? 1.25 : 1)), inCombat); log(g, `${t.icon} ${t.name}: +${h} HP.`, "heal"); break; }
+    case "heal": { const h = healPlayer(g, Math.round(f.maxHp * pw / 100 * (g.perks.includes("herbalist") ? 1.25 : 1)), inCombat); if (g.perks.includes("alchemist")) g.mp = Math.min(f.maxMp, g.mp + Math.round(f.maxMp * 0.2)); log(g, `${t.icon} ${t.name}: +${h} HP.`, "heal"); break; }
     case "mana": { const before = g.mp; g.mp = Math.min(f.maxMp, g.mp + Math.round(f.maxMp * pw / 100)); log(g, `${t.icon} +${g.mp - before} MP.`, "heal"); break; }
-    case "both": healPlayer(g, Math.round(f.maxHp * pw / 100 * (g.perks.includes("herbalist") ? 1.25 : 1)), inCombat); g.mp = Math.min(f.maxMp, g.mp + Math.round(f.maxMp * pw / 100)); log(g, `${t.icon} You feel rejuvenated.`, "heal"); break;
+    case "both": healPlayer(g, Math.round(f.maxHp * pw / 100 * (g.perks.includes("herbalist") ? 1.25 : 1)), inCombat); g.mp = Math.min(f.maxMp, g.mp + Math.round(f.maxMp * pw / 100)); if (g.perks.includes("alchemist")) g.mp = Math.min(f.maxMp, g.mp + Math.round(f.maxMp * 0.2)); log(g, `${t.icon} You feel rejuvenated.`, "heal"); break;
     case "cleanse": g.buffs.dotT = 0; healPlayer(g, Math.round(f.maxHp * pw / 100), inCombat); log(g, `${t.icon} Cleansed.`, "heal"); break;
     case "bomb": case "frost": {
       if (!c || !inCombat) { log(g, "Save that for combat."); return "none"; }
@@ -2132,6 +2247,8 @@ function doAction(g: Game, kind: string, arg: string): ActRes {
     const mage = g.cls === "mage";
     hitEnemy(g, t, mage ? 0.6 : 1, false, mage ? "🪄 Staff" : "⚔️ Attack");
     if (mage) g.mp = Math.min(f.maxMp, g.mp + 2);
+    if (g.perks.includes("spellblade")) g.mp = Math.min(f.maxMp, g.mp + 10);
+    if (g.perks.includes("doublecut") && t.hp > 0 && Math.random() < 0.2) hitEnemy(g, t, mage ? 0.6 : 1, false, "⚔️ Double Cut");
     if (f.sp.includes("doubleStrike") && t.hp > 0 && Math.random() < 0.2) hitEnemy(g, t, 1, false, "⚔️ Echo Blade");
     if (f.sp.includes("freezeHit") && t.hp > 0 && Math.random() < 0.25) stunE(g, t, 1);
     if (f.sp.includes("chainShock")) for (const e of alive(c)) if (e !== t) { const d = Math.max(1, Math.round(f.atk * 0.35 * 60 / (60 + e.def))); e.hp -= d; addFx(g, `-${d}`, "dmg", "e" + e.uid); log(g, `⚡ Lightning arcs to ${e.name} for ${d}.`, "dmg"); }
@@ -2204,6 +2321,7 @@ const HELP: [string, string][] = [
   ["☠️ Bosses", "The Broodmother (Floor 5) and the Echo Lord (Floor 10) wake when you step into their lair and fight you right there: acid pools, shadow flame and the Echo Lord's CATACLYSM ring land on the map, and spiderlings or Echo Shades crawl out around the boss. The stairs only appear once the boss is dead. Run too far and the boss returns to its lair and recovers fully — no chipping it down from range."],
   ["🐾 Pets", "Rangers start with a Wolf (plus a Hawk with Pack Leader). Anyone can gain a charm pet from a Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil or Bone Hound Totem (one charm pet at a time). Pets run at enemies on the map and attack on their own (lunge + claw marks; the Imp throws fire bolts). Enemies attack pets that get closer than you — Bone Hounds draw extra attention. A pet at 0 HP is knocked out 💫 for 12 s, then gets back up at 40%; every knocked-out pet recovers at 50% when the fight ends. Pets heal slowly while exploring; a Pet Treat fully heals and revives them."],
   ["✨ Starting perk", "Every new run (Story and Endless) opens with a choice of 3 random Common perks. The roll is saved, so reloading won't change it."],
+  ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
   ["✨ Abilities", "Each class has 3 abilities that cost MP and have cooldowns. MP regenerates every turn. Warriors gain MP when hit; Mages restore MP with staff strikes; Ranger wolves attack on their own."],
   ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 4, elites about 3 in 4, chests most of the time and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls random affixes (✦ lines: crit, lifesteal, thorns, fire/ice/holy/poison, HP, DEF…), larger on deeper floors and rarer items; hover/long-press an affix to see its range. Some gear is class-only. Sets: Ironclad, Shadowstalker, Arcanist, plus one 4-piece set per class — Warlord's Panoply (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud (Rogue), Lightbringer's Vestiture (Cleric) and Beastmaster's Garb (Ranger) — with 2/3/4-piece bonuses shown on the item and in the bag."],
@@ -2211,7 +2329,7 @@ const HELP: [string, string][] = [
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
   ["💰 Merchant", "Buy potions, scrolls and gear, sell loot, identify items, and lift curses. Merchants appear on even floors."],
   ["📖 Story", "10 floors. The Broodmother mini-boss waits on Floor 5 and the Echo Lord on Floor 10. Beat him to win."],
-  ["∞ Endless", "☠️ PERMADEATH: Endless autosaves constantly and your run save is deleted the moment you die (revives like Undying, Divine Resurrection or the Phoenix Amulet trigger first). Tokens, upgrades, best depth and codex are kept. Infinite scaling floors with a boss every 5 floors. After each boss pick an in-run upgrade (class capstones every 10th floor). Your best depth is saved."],
+  ["∞ Endless", "☠️ PERMADEATH: Endless autosaves constantly and your run save is deleted the moment you die (revives like Undying, Divine Resurrection or the Phoenix Amulet trigger first). Tokens, upgrades, best depth and codex are kept. Infinite scaling floors with a boss every 5 floors. After each boss pick an in-run perk (rarity-weighted; 10th-floor bosses guarantee an Epic or better). Your best depth is saved."],
   ["💾 Saving", "Your run autosaves every couple of seconds — even mid-fight, with every enemy's position and HP — and on every floor change; tap Continue on the title screen to resume. Tokens, upgrades, best depth and the codex are saved separately and survive death. Use 💾 Save Code to copy a backup code or paste one in on another device."],
   ["🪙 Tokens", "Every 10 Endless floors cleared earns 1 token, saved between runs. Spend them in Endless Upgrades: each class has a 36-node tree whose top tier holds game-changing capstones. Upgrades apply in Endless only."],
 ];
@@ -2645,7 +2763,10 @@ function validRun(x: unknown): Game | null {
   g.bonus = isObj(g.bonus) ? g.bonus : {};
   g.cds = isObj(g.cds) ? g.cds : {};
   g.buffs = isObj(g.buffs) ? { ...freshBuffs(), ...g.buffs } : freshBuffs();
-  g.offers = Array.isArray(g.offers) ? g.offers.filter((p: Perk) => isObj(p) && typeof p.id === "string") : [];
+  g.offers = Array.isArray(g.offers) ? g.offers.map((p: Perk) => {
+    if (!isObj(p) || typeof p.id !== "string") return null;
+    return PERK_BY_ID[p.id] ?? (typeof p.name === "string" && typeof p.desc === "string" ? p : null);
+  }).filter((p: Perk | null): p is Perk => !!p) : [];
   g.goldMult = num(g.goldMult) ? g.goldMult : 1;
   g.kills = num(g.kills) ? g.kills : 0; g.turns = num(g.turns) ? g.turns : 0; g.tokensEarned = num(g.tokensEarned) ? g.tokensEarned : 0;
   g.usedUndying = g.usedUndying === true; g.usedShadow = g.usedShadow === true; g.usedPhoenix = g.usedPhoenix === true; g.usedRes = g.usedRes === true;
@@ -3677,12 +3798,11 @@ export default function DungeonOfEchoes() {
   }
 
   if (g.screen === "upgrade") {
-    const tierName = (n: number): string => n === 3 ? "CAPSTONE" : n === 2 ? "Tier II" : "Tier I";
     return (
       <div style={root}>{style}
         {hud}
-        <div data-screen={g.startPick ? "starter" : g.vaultOffer ? "vaultoffer" : "upgrade"} style={{ fontSize: 20, fontWeight: 800 }}>{g.startPick ? "✨ Choose your starting perk" : g.vaultOffer ? "🏦 Bring vaulted item?" : "∞ Boss slain — choose an upgrade"}</div>
-        <div style={small}>{g.startPick ? `Pick one of these 3 Common perks for this ${g.mode === "story" ? "Story" : "Endless"} run. The choice is rolled once — reloading won't reroll it.` : g.vaultOffer ? "Your starting perk is locked in. You can still bring the sealed item or leave it in the vault." : g.floor % 10 === 0 ? "Capstone reward: these perks change how your class plays." : "Capstone choices appear after every 10th-floor boss."}</div>
+        <div data-screen={g.startPick ? "starter" : g.vaultOffer ? "vaultoffer" : "upgrade"} style={{ fontSize: 20, fontWeight: 800 }}>{g.startPick ? "✨ Choose your starting perk" : g.vaultOffer ? "🏦 Bring vaulted item?" : "∞ Boss slain — choose a perk"}</div>
+        <div style={small}>{g.startPick ? `Pick one of these 3 Common perks for this ${g.mode === "story" ? "Story" : "Endless"} run. The choice is rolled once — reloading won't reroll it.` : g.vaultOffer ? "Your starting perk is locked in. You can still bring the sealed item or leave it in the vault." : g.floor % 10 === 0 ? "A 10th-floor reward: at least one of these is Epic or Legendary. The offer is saved — reloading won't reroll it." : "Pick one perk. Offers are rolled once and saved — reloading won't reroll them. Deeper floors favour rarer tiers."}</div>
         {g.vaultOffer && (() => { const v = vaultGet(); if (!v) return null; return (
           <div data-vaultoffer="1" style={{ ...card, display: "flex", flexDirection: "column", gap: 8, border: `2px solid ${RCOL[3]}` }}>
             <div style={{ fontWeight: 800 }}>🏦 Bring vaulted item?</div>
@@ -3691,13 +3811,16 @@ export default function DungeonOfEchoes() {
             <div style={row}>{btn("🎒 Bring it", () => run((gg: Game) => vaultTake(gg)), { tone: "primary", grow: true })}{btn("Leave it vaulted", () => run((gg: Game) => { gg.vaultOffer = false; if (!gg.startPick && gg.offers.length === 0) gg.screen = "map"; }), { grow: true })}</div>
           </div>
         ); })()}
-        {g.offers.map((p: Perk) => (
-          <button key={p.id} onClick={() => run((gg: Game) => applyPerk(gg, p))} style={{ ...card, textAlign: "left", cursor: "pointer", color: t.text.primary, fontFamily: "inherit", border: `2px solid ${p.tier === 3 ? RCOL[4] : p.tier === 2 ? RCOL[3] : t.border.default}` }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: p.tier === 3 ? RCOL[4] : p.tier === 2 ? RCOL[3] : t.text.secondary }}>{p.rar === "Common" ? "Common" : tierName(p.tier)}</div>
+        {g.offers.map((p: Perk) => {
+          const rc = perkCol(p);
+          return (
+          <button key={p.id} data-perkrar={p.rar ?? RAR[perkRar(p)]} onClick={() => run((gg: Game) => applyPerk(gg, p))} style={{ ...card, textAlign: "left", cursor: "pointer", color: t.text.primary, fontFamily: "inherit", border: `2px solid ${rc}` }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: rc }}>{p.rar ?? RAR[perkRar(p)]}{p.cls ? ` · ${CLS[p.cls].name}` : ""}</div>
             <div style={{ fontSize: 17, fontWeight: 700 }}>{p.icon} {p.name}</div>
             <div style={{ fontSize: 13 }}>{p.desc}</div>
           </button>
-        ))}
+          );
+        })}
       </div>
     );
   }
@@ -3789,7 +3912,7 @@ export default function DungeonOfEchoes() {
         {g.perks.length > 0 && (
           <div style={{ ...card, display: "flex", flexDirection: "column", gap: 3 }}>
             <div style={{ fontWeight: 700, fontSize: 13, color: RCOL[4] }}>PERKS</div>
-            {g.perks.map((pid: string) => { const p = CAPS[g.cls].find((x: Perk) => x.id === pid) ?? COMMON_PERKS.find((x: Perk) => x.id === pid); return p ? <div key={pid} style={{ fontSize: 13 }}>{p.icon} <b>{p.name}</b> — {p.desc}</div> : null; })}
+            {g.perks.map((pid: string) => { const p = PERK_BY_ID[pid]; return p ? <div key={pid} style={{ fontSize: 13 }}>{p.icon} <b>{p.name}</b> <span style={{ color: perkCol(p), fontWeight: 700, fontSize: 11 }}>{p.rar ?? RAR[perkRar(p)]}</span> — {p.desc}</div> : null; })}
           </div>
         )}
         {(g.pets ?? []).length > 0 && (
@@ -4047,7 +4170,7 @@ export default function DungeonOfEchoes() {
       <div style={{ ...small, fontSize: 11 }}>⚔️ <b>In combat</b> — bag, map, codex, shops and stairs are locked. Red rings are incoming hits: step out or dodge. Tap an enemy to target it. Break line of sight for ~4 s to lose pursuers. {CLS[g.cls].passive}</div>
     </div>
   ) : (
-          <div style={{ ...small, fontSize: 11 }}><b>{BIOME[bio].name}</b> · {bio === "warren" ? "🕸️ webs slow you and wake the warren" : "🔮 runes drain 8% HP and wake the dead"} · 🔽 stairs · 📦 chest · 💰 merchant (walk onto it){g.floor % 5 === 0 ? ` · ${bossKind(g.floor) === "lord" ? "Echo Lord" : "Broodmother"} guards the stairs` : ""}{g.mode === "endless" ? " · ☠️ permadeath" : ""}{g.perks.length ? ` · ${g.perks.length} capstone${g.perks.length > 1 ? "s" : ""}` : ""} · monsters roam in real time</div>
+          <div style={{ ...small, fontSize: 11 }}><b>{BIOME[bio].name}</b> · {bio === "warren" ? "🕸️ webs slow you and wake the warren" : "🔮 runes drain 8% HP and wake the dead"} · 🔽 stairs · 📦 chest · 💰 merchant (walk onto it){g.floor % 5 === 0 ? ` · ${bossKind(g.floor) === "lord" ? "Echo Lord" : "Broodmother"} guards the stairs` : ""}{g.mode === "endless" ? " · ☠️ permadeath" : ""}{g.perks.length ? ` · ${g.perks.length} perk${g.perks.length > 1 ? "s" : ""}` : ""} · monsters roam in real time</div>
   );
   return playLayout(g, mapView, 1, mapActions, legend);
 }
