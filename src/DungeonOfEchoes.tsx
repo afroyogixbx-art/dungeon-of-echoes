@@ -20,13 +20,13 @@ interface ClassT { id: ClassId; name: string; icon: string; tag: string; base: B
 interface Perk { id: string; name: string; icon: string; desc: string; tier: number; st?: Stats; gold?: number; }
 interface MonT { id: string; name: string; icon: string; hp: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; undead?: boolean; lo: number; hi: number; bio?: Biome; }
 interface Room { x: number; y: number; w: number; h: number; }
-interface MapMon { id: number; x: number; y: number; t: string; boss: boolean; awake: boolean; stun: number; }
+interface MapMon { id: number; x: number; y: number; t: string; boss: boolean; awake: boolean; stun: number; fx?: number; fy?: number; }
 interface Enemy { uid: number; spr?: string; name: string; icon: string; hp: number; max: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; bk: string; undead: boolean; boss: boolean; stun: number; burnT: number; burnD: number; poisT: number; poisD: number; dead: boolean; x?: number; y?: number; atkT?: number; wind?: number; wm?: number; wk?: string; rt?: boolean; }
 interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number; boss: boolean; phase: number; charging: boolean; itemOpen: boolean; px?: number; py?: number; proj?: Proj[]; tele?: Tele[]; shots?: Shot[]; atkCd?: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; iT?: number; tick?: number; grace?: number; bossT?: number; fleeCd?: number; }
 interface Proj { id: number; x: number; y: number; vx: number; vy: number; dmg: number; from: number; life: number; c: string; }
 interface Tele { id: number; x: number; y: number; r: number; t: number; max: number; dmg: number; from: number; kind: string; }
 interface Shot { id: number; x1: number; y1: number; x2: number; y2: number; ts: number; c: string; }
-interface Inp { jx: number; jy: number; kx: number; ky: number; gx: number; gy: number; atk: boolean; katk: boolean; gatk: boolean; stepT: number; monT: number; regT: number; alt: boolean; saveT: number; rT: number; }
+interface Inp { jx: number; jy: number; kx: number; ky: number; gx: number; gy: number; atk: boolean; katk: boolean; gatk: boolean; stepT: number; monT: number; regT: number; alt: boolean; saveT: number; rT: number; slowT: number; shopL: boolean; }
 interface Buffs { rage: number; holy: number; evade: number; shield: number; frenzy: number; fury: number; iron: number; defend: boolean; dotT: number; dotD: number; }
 interface Inv { uid: number; id: string; ident: boolean; bon: Stats; freed: boolean; }
 interface LogL { t: string; c: string; }
@@ -37,7 +37,7 @@ interface TNode { id: string; tier: number; name: string; icon: string; desc: st
 interface Game {
   screen: Screen; prev: Screen; mode: Mode; cls: ClassId; lvl: number; xp: number; hp: number; mp: number; gold: number;
   inv: Inv[]; eq: Partial<Record<GearSlot, Inv>>; floor: number; map: number[][]; seen: boolean[][];
-  px: number; py: number; mons: MapMon[]; sx: number; sy: number; log: LogL[]; combat: Combat | null;
+  px: number; py: number; wx?: number; wy?: number; mons: MapMon[]; sx: number; sy: number; log: LogL[]; combat: Combat | null;
   cds: Record<string, number>; buffs: Buffs; perks: string[]; bonus: Stats; goldMult: number; inAb: boolean;
   usedUndying: boolean; usedShadow: boolean; usedPhoenix: boolean; shop: Inv[];
   offers: Perk[]; kills: number; sel: number; fx: Fx[]; turns: number; tokensEarned: number; stains?: number[]; rem?: string[]; hurtTs?: number; usedRes?: boolean; biome?: Biome; bannerTs?: number;
@@ -582,7 +582,7 @@ function genFloor(g: Game): void {
   for (let k = 0; k < 2; k++) carve(cen(pick(rooms)), cen(pick(rooms)));
   g.map = map;
   g.seen = Array.from({ length: H }, () => Array<boolean>(W).fill(false));
-  g.px = c0.x; g.py = c0.y;
+  g.px = c0.x; g.py = c0.y; g.wx = c0.x + 0.5; g.wy = c0.y + 0.5;
   const end = cen(rooms[rooms.length - 1]);
   g.sx = end.x; g.sy = end.y;
   g.mons = [];
@@ -1020,7 +1020,7 @@ function rtStep(g: Game, dt: number, mx: number, my: number, atk: boolean): void
   const f = full(g);
   c.dashCd = Math.max(0, (c.dashCd ?? 0) - dt); c.iT = Math.max(0, (c.iT ?? 0) - dt); c.atkCd = Math.max(0, (c.atkCd ?? 0) - dt); c.fleeCd = Math.max(0, (c.fleeCd ?? 0) - dt);
   for (const k of Object.keys(g.cds)) if (g.cds[k] > 0) g.cds[k] = Math.max(0, g.cds[k] - dt);
-  let vx = mx, vy = my, sp = 30 + f.dodge * 0.3;
+  let vx = mx, vy = my, sp = ARENA_SPD + f.dodge * 0.25;
   if ((c.dashT ?? 0) > 0) { c.dashT = Math.max(0, (c.dashT ?? 0) - dt); vx = c.dvx ?? 0; vy = c.dvy ?? 0; sp = 110; }
   const mag = Math.hypot(vx, vy); if (mag > 1) { vx /= mag; vy /= mag; }
   c.px = clampN((c.px ?? 16) + vx * sp * dt, 4, AW - 4); c.py = clampN((c.py ?? 35) + vy * sp * dt, 5, AH - 4);
@@ -1089,23 +1089,168 @@ function rtStep(g: Game, dt: number, mx: number, my: number, atk: boolean): void
   c.tele = tl.filter((tz: Tele) => tz.t > 0);
   if (g.screen === "combat") checkWin(g);
 }
+// ----- free (sub-tile) map movement -----
+const PR = 0.3, MR = 0.3, MAP_SPD = 3.25, ARENA_SPD = 26;
+function mSpd(m: MapMon): number { const b = MON[m.t]?.b; return 0.75 + (b && RTB[b] ? RTB[b][0] : 13) * 0.085; }
+function solidT(g: Game, x: number, y: number): boolean { return x < 0 || y < 0 || x >= W || y >= H || g.map[y][x] === 0; }
+function pushOut(g: Game, p: { x: number; y: number }, r: number): void {
+  for (let it = 0; it < 4; it++) {
+    let hit = false;
+    for (let ty = Math.floor(p.y - r); ty <= Math.floor(p.y + r); ty++) for (let tx = Math.floor(p.x - r); tx <= Math.floor(p.x + r); tx++) {
+      if (!solidT(g, tx, ty)) continue;
+      const cx = clampN(p.x, tx, tx + 1), cy = clampN(p.y, ty, ty + 1);
+      const dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy);
+      if (d >= r) continue;
+      hit = true;
+      if (d > 1e-6) { p.x += dx / d * (r - d); p.y += dy / d * (r - d); }
+      else {
+        const l = p.x - tx, rr = tx + 1 - p.x, u = p.y - ty, dn = ty + 1 - p.y, mn = Math.min(l, rr, u, dn);
+        if (mn === l) p.x = tx - r; else if (mn === rr) p.x = tx + 1 + r; else if (mn === u) p.y = ty - r; else p.y = ty + 1 + r;
+      }
+    }
+    if (!hit) break;
+  }
+}
+function slideMove(g: Game, p: { x: number; y: number }, vx: number, vy: number, dt: number, r: number): void {
+  const n = Math.max(1, Math.ceil(Math.hypot(vx, vy) * dt / 0.08));
+  for (let i = 0; i < n; i++) { p.x += vx * dt / n; p.y += vy * dt / n; pushOut(g, p, r); }
+}
+// nudge the player into a corridor/doorway lane when pushing into a wall almost aligned with an opening
+function laneAssist(g: Game, p: { x: number; y: number }, mx: number, my: number, step: number): void {
+  const hor = Math.abs(mx) > Math.abs(my) * 1.8, ver = Math.abs(my) > Math.abs(mx) * 1.8;
+  if (!hor && !ver) return;
+  const s = Math.sign(hor ? mx : my), along = hor ? p.x : p.y, across = hor ? p.y : p.x;
+  const ahead = Math.floor(along + s * (PR + 0.1)), here = Math.floor(along);
+  let best = -1, bd = 9;
+  for (const c of [Math.floor(across) - 1, Math.floor(across), Math.floor(across) + 1]) {
+    const open = hor ? !solidT(g, ahead, c) && !solidT(g, here, c) : !solidT(g, c, ahead) && !solidT(g, c, here);
+    if (!open) continue;
+    const d = Math.abs(c + 0.5 - across);
+    if (d < bd && d < 0.95) { bd = d; best = c; }
+  }
+  if (best < 0 || bd < 0.01) return;
+  const mv = Math.min(bd, step) * Math.sign(best + 0.5 - across);
+  if (hor) p.y += mv; else p.x += mv;
+  pushOut(g, p, PR);
+}
+function los(g: Game, ax: number, ay: number, bx: number, by: number): boolean {
+  const d = Math.hypot(bx - ax, by - ay), n = Math.ceil(d / 0.25);
+  for (let i = 1; i < n; i++) { const t = i / n; if (solidT(g, Math.floor(ax + (bx - ax) * t), Math.floor(ay + (by - ay) * t))) return false; }
+  return true;
+}
+let FLOW: { map: number[][]; x: number; y: number; d: Int16Array } | null = null;
+function flowField(g: Game): Int16Array {
+  if (FLOW && FLOW.map === g.map && FLOW.x === g.px && FLOW.y === g.py) return FLOW.d;
+  const d = new Int16Array(W * H).fill(-1);
+  const q: number[] = [g.py * W + g.px]; d[q[0]] = 0;
+  for (let h = 0; h < q.length; h++) {
+    const i = q[h], x = i % W, y = (i - x) / W;
+    for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) {
+      const nx = x + ox, ny = y + oy;
+      if (solidT(g, nx, ny) || d[ny * W + nx] >= 0) continue;
+      d[ny * W + nx] = d[i] + 1; q.push(ny * W + nx);
+    }
+  }
+  FLOW = { map: g.map, x: g.px, y: g.py, d };
+  return d;
+}
+function nearMerchant(g: Game, rad = 0.8): boolean {
+  const x = g.wx ?? g.px + 0.5, y = g.wy ?? g.py + 0.5;
+  for (let ty = g.py - 1; ty <= g.py + 1; ty++) for (let tx = g.px - 1; tx <= g.px + 1; tx++) {
+    if (tx >= 0 && ty >= 0 && tx < W && ty < H && g.map[ty][tx] === 4 && Math.hypot(x - tx - 0.5, y - ty - 0.5) < rad) return true;
+  }
+  return false;
+}
+function touchTiles(g: Game, p: { x: number; y: number }, I: Inp): boolean {
+  let nearShop = false;
+  for (let ty = g.py - 1; ty <= g.py + 1; ty++) for (let tx = g.px - 1; tx <= g.px + 1; tx++) {
+    if (tx < 0 || ty < 0 || tx >= W || ty >= H) continue;
+    const tile = g.map[ty][tx]; if (tile < 2) continue;
+    const d = Math.hypot(p.x - tx - 0.5, p.y - ty - 0.5);
+    if (tile === 4) {
+      if (d < 0.8) nearShop = true;
+      if (d < 0.5 && !I.shopL) { I.shopL = true; g.screen = "shop"; g.sel = -1; log(g, "💰 The merchant steps aside and grins: \"Take a look!\""); return true; }
+      continue;
+    }
+    if (tile === 3 && d < 0.65) {
+      g.map[ty][tx] = 1;
+      const gold = goldGain(g, (10 + tierOf(g.floor) * 8) * (0.7 + Math.random() * 0.6));
+      const inv = makeInst(rollItem(g.floor, g.floor >= 5 ? 1 : 0, g.cls, "any"), g.floor, true); addItem(g, inv);
+      log(g, `📦 Chest: +${gold}g and ${instIcon(inv)} ${instName(inv)}${inv.ident ? ` (${RAR[IT[inv.id].r]})` : ""}`, "loot");
+    }
+    if (tile === 5 && d < 0.55) {
+      g.map[ty][tx] = 1; I.slowT = 2;
+      for (const mm of g.mons) if (Math.hypot(mm.x - tx, mm.y - ty) <= 6) mm.awake = true;
+      log(g, "🕸️ You tear through sticky webbing — entangled and slowed! The warren's dwellers close in.", "bad"); addFx(g, "WEBBED", "bad", "p");
+    }
+    if (tile === 6 && d < 0.55) {
+      g.map[ty][tx] = 1;
+      const dm = Math.max(1, Math.round(full(g).maxHp * 0.08));
+      g.hp = Math.max(1, g.hp - dm); g.hurtTs = Date.now();
+      for (const mm of g.mons) if (Math.abs(mm.x - tx) + Math.abs(mm.y - ty) <= 7) mm.awake = true;
+      log(g, `🔮 A grave rune flares: -${dm} HP, and the dead stir nearby!`, "bad"); addFx(g, `-${dm}`, "bad", "p");
+    }
+    if (tile === 2 && d < 0.42) { descend(g); return true; }
+  }
+  if (!nearShop) I.shopL = false;
+  return false;
+}
+function mapMonsters(g: Game, dt: number, p: { x: number; y: number }): boolean {
+  let ch = false, fld: Int16Array | null = null;
+  for (const m of g.mons) {
+    if (m.fx === undefined || m.fy === undefined || Math.floor(m.fx) !== m.x || Math.floor(m.fy) !== m.y) { m.fx = m.x + 0.5; m.fy = m.y + 0.5; }
+    if (m.stun > 0) { m.stun = Math.max(0, m.stun - dt * 2); continue; }
+    const d = Math.hypot(p.x - m.fx, p.y - m.fy);
+    if (d < PR + MR + 0.05) { startCombat(g, m); return true; }
+    if (m.boss) continue;
+    if (!m.awake) { if (d <= 4) m.awake = true; else continue; }
+    if (d > 14) continue;
+    let tx = p.x, ty = p.y;
+    if (!los(g, m.fx, m.fy, p.x, p.y)) {
+      fld = fld ?? flowField(g);
+      let bv = fld[m.y * W + m.x];
+      if (bv < 0) continue;
+      for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) {
+        const nx = m.x + ox, ny = m.y + oy;
+        if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+        const v = fld[ny * W + nx];
+        if (v >= 0 && v < bv) { bv = v; tx = nx + 0.5; ty = ny + 0.5; }
+      }
+    }
+    const ex = tx - m.fx, ey = ty - m.fy, el = Math.hypot(ex, ey) || 1, sp = mSpd(m);
+    const q = { x: m.fx, y: m.fy };
+    slideMove(g, q, ex / el * sp, ey / el * sp, dt, MR);
+    for (const o of g.mons) {
+      if (o === m || o.fx === undefined || o.fy === undefined) continue;
+      const sx = q.x - o.fx, sy = q.y - o.fy, sd = Math.hypot(sx, sy);
+      if (sd > 1e-4 && sd < MR * 2) { q.x += sx / sd * (MR * 2 - sd) * 0.5; q.y += sy / sd * (MR * 2 - sd) * 0.5; }
+    }
+    pushOut(g, q, MR);
+    m.fx = q.x; m.fy = q.y; m.x = Math.floor(q.x); m.y = Math.floor(q.y); ch = true;
+  }
+  return ch;
+}
 function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   if (g.screen !== "map") return false;
   let ch = false;
-  I.stepT = Math.max(0, I.stepT - dt);
-  const ax = Math.abs(mx) > 0.38 ? Math.sign(mx) : 0, ay = Math.abs(my) > 0.38 ? Math.sign(my) : 0;
-  if ((ax !== 0 || ay !== 0) && I.stepT <= 0) {
-    I.stepT = 0.16;
-    const ox = g.px, oy = g.py;
-    const first: [number, number] = ax !== 0 && ay !== 0 ? (I.alt ? [ax, 0] : [0, ay]) : [ax, ay];
-    I.alt = !I.alt;
-    move(g, first[0], first[1]);
-    if (g.screen === "map" && g.px === ox && g.py === oy && ax !== 0 && ay !== 0) move(g, first[0] !== 0 ? 0 : ax, first[0] !== 0 ? ay : 0);
+  if (g.wx === undefined || g.wy === undefined || Math.floor(g.wx) !== g.px || Math.floor(g.wy) !== g.py) { g.wx = g.px + 0.5; g.wy = g.py + 0.5; ch = true; }
+  const p = { x: g.wx, y: g.wy };
+  I.slowT = Math.max(0, I.slowT - dt);
+  const mag = Math.hypot(mx, my);
+  if (mag > 0.15) {
+    const k = Math.min(1, mag) / mag, sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1);
+    const ox = p.x, oy = p.y;
+    slideMove(g, p, mx * k * sp, my * k * sp, dt, PR);
+    const got = ((p.x - ox) * mx + (p.y - oy) * my) / mag;
+    if (got < sp * Math.min(1, mag) * dt * 0.6) laneAssist(g, p, mx, my, sp * dt);
     ch = true;
-    if (g.screen !== "map") return true;
   }
-  I.monT -= dt;
-  if (I.monT <= 0) { I.monT = 0.5; if (g.mons.some((m: MapMon) => m.awake || m.stun > 0 || Math.abs(m.x - g.px) + Math.abs(m.y - g.py) <= 5)) { monstersAct(g); ch = true; } }
+  g.wx = p.x; g.wy = p.y;
+  const tx = Math.floor(p.x), ty = Math.floor(p.y);
+  if (tx !== g.px || ty !== g.py) { g.px = tx; g.py = ty; g.turns++; reveal(g); }
+  if (touchTiles(g, p, I)) return true;
+  if (mapMonsters(g, dt, p)) ch = true;
+  if (g.screen !== "map") return true;
   I.regT += dt;
   if (I.regT >= 1.5) { I.regT = 0; const f = full(g); if (g.hp < f.maxHp || g.mp < f.maxMp) { rest(g); ch = true; } }
   return ch;
@@ -1285,7 +1430,7 @@ function useConsumable(g: Game, inv: Inv): ActRes {
       let ok = false;
       for (const [dx, dy] of dirs) {
         const x = g.sx + dx, y = g.sy + dy;
-        if (g.map[y][x] === 1 && !g.mons.some((m: MapMon) => m.x === x && m.y === y)) { g.px = x; g.py = y; ok = true; break; }
+        if (g.map[y][x] === 1 && !g.mons.some((m: MapMon) => m.x === x && m.y === y)) { g.px = x; g.py = y; g.wx = x + 0.5; g.wy = y + 0.5; ok = true; break; }
       }
       if (!ok) { log(g, "The scroll fizzles — try again later."); return "none"; }
       reveal(g); log(g, "🌀 You are whisked across the floor!", "good");
@@ -1345,56 +1490,6 @@ function combatAct(g: Game, kind: string, arg: string): void {
   if (g.screen === "combat") checkWin(g);
 }
 
-function monstersAct(g: Game): void {
-  for (const m of g.mons) {
-    if (m.boss) continue;
-    if (m.stun > 0) { m.stun--; continue; }
-    const dx = g.px - m.x, dy = g.py - m.y; const d = Math.abs(dx) + Math.abs(dy);
-    if (!m.awake) { if (d <= 4) m.awake = true; else continue; }
-    if (d > 14) continue;
-    const sx = Math.sign(dx), sy = Math.sign(dy);
-    const opts: [number, number][] = Math.abs(dx) >= Math.abs(dy) ? [[sx, 0], [0, sy]] : [[0, sy], [sx, 0]];
-    for (const [ox, oy] of opts) {
-      if (ox === 0 && oy === 0) continue;
-      const nx = m.x + ox, ny = m.y + oy;
-      if (nx === g.px && ny === g.py) { startCombat(g, m); return; }
-      const tile = g.map[ny][nx];
-      if ((tile === 1 || tile === 2 || tile === 5 || tile === 6) && !g.mons.some((o: MapMon) => o.x === nx && o.y === ny)) { m.x = nx; m.y = ny; break; }
-    }
-  }
-}
-function move(g: Game, dx: number, dy: number): void {
-  if (g.screen !== "map") return;
-  const nx = g.px + dx, ny = g.py + dy;
-  if (nx < 0 || ny < 0 || nx >= W || ny >= H) return;
-  const tile = g.map[ny][nx];
-  if (tile === 0) return;
-  const m = g.mons.find((o: MapMon) => o.x === nx && o.y === ny);
-  if (m) { startCombat(g, m); return; }
-  if (tile === 4) { g.px = nx; g.py = ny; g.turns++; reveal(g); g.screen = "shop"; g.sel = -1; log(g, "💰 The merchant steps aside and grins: \"Take a look!\""); return; }
-  g.px = nx; g.py = ny; g.turns++;
-  if (tile === 5) {
-    g.map[ny][nx] = 1; reveal(g);
-    log(g, "🕸️ You tear through sticky webbing — entangled! The warren's dwellers close in.", "bad"); addFx(g, "WEBBED", "bad", "p");
-    monstersAct(g);
-    if (g.screen !== "map") return;
-  }
-  if (tile === 6) {
-    g.map[ny][nx] = 1;
-    const d = Math.max(1, Math.round(full(g).maxHp * 0.08));
-    g.hp = Math.max(1, g.hp - d); g.hurtTs = Date.now();
-    for (const mm of g.mons) if (Math.abs(mm.x - nx) + Math.abs(mm.y - ny) <= 7) mm.awake = true;
-    log(g, `🔮 A grave rune flares: -${d} HP, and the dead stir nearby!`, "bad"); addFx(g, `-${d}`, "bad", "p");
-  }
-  if (tile === 3) {
-    g.map[ny][nx] = 1;
-    const gold = goldGain(g, (10 + tierOf(g.floor) * 8) * (0.7 + Math.random() * 0.6));
-    const inv = makeInst(rollItem(g.floor, g.floor >= 5 ? 1 : 0, g.cls, "any"), g.floor, true); addItem(g, inv);
-    log(g, `📦 Chest: +${gold}g and ${instIcon(inv)} ${instName(inv)}${inv.ident ? ` (${RAR[IT[inv.id].r]})` : ""}`, "loot");
-  }
-  if (tile === 2) { descend(g); return; }
-  reveal(g);
-}
 function rest(g: Game): void {
   if (g.screen !== "map") return;
   const f = full(g);
@@ -1424,7 +1519,7 @@ function unequip(g: Game, slot: GearSlot): void {
 
 const HELP: [string, string][] = [
   ["🕹️ Controls (touch)", "Touch and drag anywhere on the LEFT half of the screen to spawn a floating joystick; hold it to keep moving (analog, 8 directions). Action buttons sit on the right: ⚔️ Attack (hold to keep swinging), your 3 abilities with cooldown rings, 💨 Dodge roll, 🎒 Item and 🏃 Flee. Menus, the bag and shops are normal taps. Works in portrait and landscape. You regenerate slowly while exploring."],
-  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving). Combat: Space or J = attack (hold), Enter = attack once, 1/2/3 = abilities, Shift or K = dodge roll, I = item menu, F = flee, Tab or Q/E = switch target. Map: I or B = bag, Enter/Space/E = trade when standing on a merchant, C = codex, H = help. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc on the map or in combat opens the exit prompt (the game pauses)."],
+  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving). Combat: Space or J = attack (hold), Enter = attack once, 1/2/3 = abilities, Shift or K = dodge roll, I = item menu, F = flee, Tab or Q/E = switch target. Map: movement is free and analog (you glide along walls), I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc on the map or in combat opens the exit prompt (the game pauses)."],
   ["🎮 Gamepad", "Left stick or D-pad moves. Combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, LB/L1 switch target, View/Select item menu. Map: A trade with a merchant, Y bag, X codex, View/Select help. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options pauses (exit prompt)."],
   ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant, 🔽 stairs take you down. Bosses guard the stairs on every 5th floor."],
   ["⚔️ Combat", "Real-time. Enemies chase you and attack on their own timers. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep; bosses drop acid pools, shadow flame and the Echo Lord's CATACLYSM ring. Standing still gets you killed. Your attack auto-targets the nearest foe in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Abilities cost MP and have cooldowns. Burn, poison, buffs and pets tick every 1.5 s. The game pauses whenever a menu, shop or prompt is open, or the app is in the background."],
@@ -1821,9 +1916,10 @@ function validRun(x: unknown): Game | null {
   if (!Array.isArray(g.seen) || g.seen.length !== H || !g.seen.every((r: unknown) => Array.isArray(r) && r.length === W)) return null;
   if (g.px < 0 || g.py < 0 || g.px >= W || g.py >= H || g.sx < 1 || g.sy < 1 || g.sx >= W - 1 || g.sy >= H - 1 || g.map[g.py][g.px] === 0) return null;
   if (!Array.isArray(g.inv) || !isObj(g.eq) || !Array.isArray(g.mons)) return null;
+  if (typeof g.wx !== "number" || typeof g.wy !== "number" || !isFinite(g.wx) || !isFinite(g.wy) || Math.floor(g.wx) !== g.px || Math.floor(g.wy) !== g.py) { g.wx = g.px + 0.5; g.wy = g.py + 0.5; }
   g.inv = g.inv.filter((i: Inv) => okInv(i)).map(normInv).slice(0, MAXINV);
   for (const k of GEAR) { const v = g.eq[k]; if (v === undefined) continue; if (!okInv(v) || IT[v.id].slot !== k) delete g.eq[k]; else g.eq[k] = normInv(v); }
-  g.mons = g.mons.filter((mm: MapMon) => isObj(mm) && num(mm.x) && num(mm.y) && num(mm.id) && (mm.boss === true || !!MON[mm.t])).map((mm: MapMon) => ({ ...mm, stun: num(mm.stun) ? mm.stun : 0, awake: mm.awake === true }));
+  g.mons = g.mons.filter((mm: MapMon) => isObj(mm) && num(mm.x) && num(mm.y) && num(mm.id) && (mm.boss === true || !!MON[mm.t])).map((mm: MapMon) => ({ ...mm, stun: num(mm.stun) ? mm.stun : 0, awake: mm.awake === true, fx: typeof mm.fx === "number" && Math.floor(mm.fx) === mm.x ? mm.fx : mm.x + 0.5, fy: typeof mm.fy === "number" && Math.floor(mm.fy) === mm.y ? mm.fy : mm.y + 0.5 }));
   g.shop = Array.isArray(g.shop) ? g.shop.filter((i: Inv) => okInv(i)).map(normInv) : [];
   g.log = Array.isArray(g.log) ? g.log.filter((l: LogL) => isObj(l) && typeof l.t === "string").slice(0, 60) : [];
   g.perks = Array.isArray(g.perks) ? g.perks.filter((p: unknown): p is string => typeof p === "string") : [];
@@ -1851,7 +1947,7 @@ function validRun(x: unknown): Game | null {
     else { c.itemOpen = c.itemOpen === true; if (!num(c.target)) c.target = 0; if (!num(c.turn)) c.turn = 0; if (!num(c.phase)) c.phase = 1; c.grace = 1.5; c.tele = Array.isArray(c.tele) ? c.tele : []; c.proj = Array.isArray(c.proj) ? c.proj : []; c.shots = []; }
   } else if (g.prev !== "combat") g.combat = null;
   if (g.prev === "combat" && (!isObj(g.combat) || !Array.isArray(g.combat.enemies))) { g.combat = null; g.prev = "map"; }
-  if (g.screen === "shop" && g.map[g.py][g.px] !== 4 && g.shop.length === 0) g.screen = "map";
+  if (g.screen === "shop" && !nearMerchant(g) && g.shop.length === 0) g.screen = "map";
   return g;
 }
 function parseRun(s: string | null): Game | null {
@@ -1919,7 +2015,7 @@ export default function DungeonOfEchoes() {
   const [codeText, setCodeText] = useState<string>("");
   const [imp, setImp] = useState<string>("");
   const [msg, setMsg] = useState<string>("");
-  const inp = useRef<Inp>({ jx: 0, jy: 0, kx: 0, ky: 0, gx: 0, gy: 0, atk: false, katk: false, gatk: false, stepT: 0, monT: 0.5, regT: 0, alt: false, saveT: 0, rT: 0 });
+  const inp = useRef<Inp>({ jx: 0, jy: 0, kx: 0, ky: 0, gx: 0, gy: 0, atk: false, katk: false, gatk: false, stepT: 0, monT: 0.5, regT: 0, alt: false, saveT: 0, rT: 0, slowT: 0, shopL: false });
   const tickRef = useRef<(dt: number) => void>(() => undefined);
   const padRef = useRef<(dt: number) => void>(() => undefined);
   const keyRef = useRef<(e: KeyboardEvent, down: boolean) => void>(() => undefined);
@@ -2246,7 +2342,7 @@ export default function DungeonOfEchoes() {
   };
   const mvVec = (): [number, number] => { const I = inp.current; let x = I.jx + I.kx + I.gx, y = I.jy + I.ky + I.gy; const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; } return [x, y]; };
   const dodge = (): void => { const [x, y] = mvVec(); run((gg: Game) => rtDodge(gg, x, y)); };
-  const interact = (): void => run((gg: Game) => { if (gg.screen === "map" && gg.map[gg.py][gg.px] === 4) { gg.screen = "shop"; gg.sel = -1; } });
+  const interact = (): void => run((gg: Game) => { if (gg.screen === "map" && nearMerchant(gg)) { gg.screen = "shop"; gg.sel = -1; inp.current.shopL = true; } });
   const openBag = (): void => run((gg: Game) => {
     if (gg.screen === "map") { gg.screen = "inventory"; gg.sel = -1; }
     else if (gg.screen === "inventory") { gg.screen = "map"; gg.sel = -1; }
@@ -2355,7 +2451,9 @@ export default function DungeonOfEchoes() {
     if (!gg || exitAsk || sheet || document.hidden) return;
     const [mx, my] = mvVec();
     if (gg.screen === "map") {
-      if (rtMap(gg, dt, mx, my, I)) { if ((gg.screen as Screen) === "combat") rtInit(gg); refresh(); }
+      const chg = rtMap(gg, dt, mx, my, I);
+      if ((gg.screen as Screen) !== "map") { if ((gg.screen as Screen) === "combat") rtInit(gg); I.rT = 0; refresh(); }
+      else if (chg) { I.rT += dt; if (I.rT >= 0.03) { I.rT = 0; refresh(); } }
     } else if (gg.screen === "combat" && gg.combat && !gg.combat.itemOpen) {
       rtStep(gg, dt, mx, my, I.atk || I.katk || I.gatk);
       I.rT += dt; if (I.rT >= 0.033 || gg.screen !== "combat") { I.rT = 0; refresh(); }
@@ -2659,7 +2757,7 @@ export default function DungeonOfEchoes() {
           <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end", gap: 4 }}><div style={{ width: 104, height: 104 }}>{spr(g.cls, 104)}</div><div style={{ width: 96, height: 96 }}>{remSvg("lord")}</div></div>
           <div style={{ fontSize: 26, fontWeight: 800 }}>Victory!</div>
           <div style={{ fontSize: 14 }}>The Echo Lord is silenced. The dungeon falls quiet.</div>
-          <div style={small}>{CLS[g.cls].name} · Level {g.lvl} · {g.kills} kills · {g.turns} steps</div>
+          <div style={small}>{CLS[g.cls].name} · Level {g.lvl} · {g.kills} kills · {g.turns} tiles walked</div>
         </div>
         <div style={card}><div style={{ fontWeight: 700 }}>∞ Try Endless</div><div style={small}>Infinite floors, a boss every 5, tokens every 10 floors for permanent class upgrades.</div></div>
         {btn("Back to title", toTitle, { tone: "primary", tall: true })}
@@ -2935,13 +3033,13 @@ export default function DungeonOfEchoes() {
   }
 
   // ---------- MAP ----------
-  const monAt: Record<string, MapMon> = {};
-  for (const mm of g.mons) monAt[`${mm.x},${mm.y}`] = mm;
   const remAt = new Map<number, string>();
   for (const r of g.rem ?? []) { const [a, b] = r.split(":"); remAt.set(Number(a), b); }
   const bio: Biome = g.biome ?? biomeOf(g.floor);
+  const pfx = g.wx ?? g.px + 0.5, pfy = g.wy ?? g.py + 0.5;
+  const VT = 11, VH = 6;
   const cells: ReactNode[] = [];
-  for (let vy = -5; vy <= 5; vy++) for (let vx = -5; vx <= 5; vx++) {
+  for (let vy = -VH; vy <= VH; vy++) for (let vx = -VH; vx <= VH; vx++) {
     const x = g.px + vx, y = g.py + vy;
     let bg = "#0b0a0f", glyph: ReactNode = "", gore = "", under: ReactNode = null;
     if (x >= 0 && y >= 0 && x < W && y < H && g.seen[y][x]) {
@@ -2976,18 +3074,30 @@ export default function DungeonOfEchoes() {
         else if (tile === 1 && hw % 23 === 0) under = <div style={{ position: "absolute", inset: "6%", opacity: propOp }}>{spr(bio === "warren" ? "eggs" : "tomb", "100%")}</div>;
         else if (tile === 1 && hw % 29 === 0) under = <div style={{ position: "absolute", inset: "6%", opacity: propOp }}>{spr(bio === "warren" ? "cocoon" : "bonepile", "100%")}</div>;
         if (tile === 2) glyph = spr("stairs", "100%"); else if (tile === 3) glyph = spr("chest", "100%"); else if (tile === 4) glyph = spr("gold", "100%");
-        const mm = monAt[`${x},${y}`];
-        if (mm && vis) glyph = spr(mm.boss ? (mm.t === "lord" ? "lord" : "brood") : mm.t, "100%", mm.boss ? { filter: "drop-shadow(0 0 3px rgba(200,0,0,.8))" } : undefined);
-        if (mm && mm.boss && !vis) glyph = spr(mm.t === "lord" ? "lord" : "brood", "100%", { filter: "brightness(0)", opacity: 0.55 });
       }
     }
-    if (vx === 0 && vy === 0) { glyph = spr(g.cls, "100%"); bg = "#4a3826"; gore = "radial-gradient(circle, rgba(255,170,70,.4), transparent 72%)"; }
-    cells.push(<div key={`${vx},${vy}`} style={{ position: "relative", overflow: "hidden", aspectRatio: "1", backgroundColor: bg, backgroundImage: gore || undefined, borderRadius: 2 }}>{under}{glyph ? <div style={{ position: "absolute", inset: "4%", display: "flex", alignItems: "center", justifyContent: "center" }}>{glyph}</div> : null}</div>);
+    cells.push(<div key={`${x},${y}`} style={{ position: "relative", overflow: "hidden", backgroundColor: bg, backgroundImage: gore || undefined, boxShadow: "inset 0 0 0 0.5px rgba(0,0,0,.55)" }}>{under}{glyph ? <div style={{ position: "absolute", inset: "4%", display: "flex", alignItems: "center", justifyContent: "center" }}>{glyph}</div> : null}</div>);
   }
-  const onMerchant = g.map[g.py][g.px] === 4;
+  // world (tile units) -> % of the square view; the camera is centered on the player's exact position
+  const vPct = (w: number, c: number): string => `${((w - (c - VT / 2)) / VT) * 100}%`;
+  const tilePct = `${100 / VT}%`;
+  const ents: ReactNode[] = [];
+  for (const mm of g.mons) {
+    const mfx = mm.fx ?? mm.x + 0.5, mfy = mm.fy ?? mm.y + 0.5;
+    if (Math.abs(mfx - pfx) > VH + 0.5 || Math.abs(mfy - pfy) > VH + 0.5 || !g.seen[mm.y]?.[mm.x]) continue;
+    const ddx = mm.x - g.px, ddy = mm.y - g.py;
+    const vis = ddx * ddx + ddy * ddy <= R * R + 1;
+    if (!vis && !mm.boss) continue;
+    const sty: CSSProperties | undefined = mm.boss ? (vis ? { filter: "drop-shadow(0 0 3px rgba(200,0,0,.8))" } : { filter: "brightness(0)", opacity: 0.55 }) : mm.stun > 0 ? { opacity: 0.6 } : undefined;
+    ents.push(<div key={`m${mm.id}`} style={{ position: "absolute", left: vPct(mfx, pfx), top: vPct(mfy, pfy), width: tilePct, height: tilePct, transform: "translate(-50%,-50%)", pointerEvents: "none" }}>{spr(mm.boss ? (mm.t === "lord" ? "lord" : "brood") : mm.t, "100%", sty)}</div>);
+  }
+  const onMerchant = nearMerchant(g);
   const mapView = (): ReactNode => (
-      <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", width: "100%" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(11, 1fr)", gap: 1, background: bio === "warren" ? "#0a0d08" : "#0b0810", padding: 3, borderRadius: 10, width: "100%", boxSizing: "border-box" }}>{cells}</div>
+      <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", width: "100%", aspectRatio: "1", background: bio === "warren" ? "#0a0d08" : "#0b0810" }}>
+        <div style={{ position: "absolute", left: vPct(g.px - VH, pfx), top: vPct(g.py - VH, pfy), width: `${(2 * VH + 1) / VT * 100}%`, height: `${(2 * VH + 1) / VT * 100}%`, display: "grid", gridTemplateColumns: `repeat(${2 * VH + 1}, 1fr)`, gridTemplateRows: `repeat(${2 * VH + 1}, 1fr)` }}>{cells}</div>
+        {ents}
+        <div style={{ position: "absolute", left: "50%", top: "50%", width: `${180 / VT}%`, height: `${180 / VT}%`, transform: "translate(-50%,-50%)", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,170,70,.38), transparent 68%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", left: "50%", top: "50%", width: tilePct, height: tilePct, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 2px rgba(0,0,0,.9))" }}>{spr(g.cls, "100%")}</div>
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
           {bio === "warren"
             ? [0, 1, 2, 3, 4, 5, 6, 7].map((i: number) => <span key={i} style={{ position: "absolute", left: `${(i * 37 + 8) % 92}%`, top: `${60 + (i * 23) % 35}%`, width: 3 + (i % 3), height: 3 + (i % 3), borderRadius: "50%", background: i % 3 === 0 ? "rgba(230,230,240,.7)" : "rgba(160,255,90,.7)", opacity: 0, animation: `doeDrift ${5 + (i % 4)}s linear ${i * 0.7}s infinite` }} />)
@@ -3015,7 +3125,7 @@ export default function DungeonOfEchoes() {
         </div>
   );
   const legend = (
-          <div style={{ ...small, fontSize: 11 }}><b>{BIOME[bio].name}</b> · {bio === "warren" ? "🕸️ webs entangle (enemies get a free move)" : "🔮 runes drain 8% HP and wake the dead"} · 🔽 stairs · 📦 chest · 💰 merchant (walk onto it){g.floor % 5 === 0 ? ` · ${bossKind(g.floor) === "lord" ? "Echo Lord" : "Broodmother"} guards the stairs` : ""}{g.mode === "endless" ? " · ☠️ permadeath" : ""}{g.perks.length ? ` · ${g.perks.length} capstone${g.perks.length > 1 ? "s" : ""}` : ""} · monsters roam in real time</div>
+          <div style={{ ...small, fontSize: 11 }}><b>{BIOME[bio].name}</b> · {bio === "warren" ? "🕸️ webs slow you and wake the warren" : "🔮 runes drain 8% HP and wake the dead"} · 🔽 stairs · 📦 chest · 💰 merchant (walk onto it){g.floor % 5 === 0 ? ` · ${bossKind(g.floor) === "lord" ? "Echo Lord" : "Broodmother"} guards the stairs` : ""}{g.mode === "endless" ? " · ☠️ permadeath" : ""}{g.perks.length ? ` · ${g.perks.length} capstone${g.perks.length > 1 ? "s" : ""}` : ""} · monsters roam in real time</div>
   );
   return playLayout(g, mapView, 1, mapActions, legend);
 }

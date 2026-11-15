@@ -7,7 +7,7 @@ A dark-fantasy, real-time dungeon crawler RPG that runs in the browser and insta
 - **Endless mode:** infinite floors, a boss every 5, permadeath, tokens and per-class upgrade trees
 - **Loot:** 80+ items, sets, legendaries, cursed and unidentified gear, plus an item codex
 - **Real-time combat:** wind-up telegraphs, projectiles, boss AoE and dodge rolls
-- **Controls:** floating touch joystick and action buttons, keyboard (WASD/arrows) and gamepad
+- **Controls:** free analog movement (glide along walls) with a floating touch joystick, keyboard (WASD/arrows) or gamepad stick, plus action buttons
 - **Layouts:** works in portrait and landscape and respects notches/safe areas
 - **Saves:** autosaves to localStorage, with save codes to move progress between devices
 
