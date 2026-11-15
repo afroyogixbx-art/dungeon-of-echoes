@@ -1499,7 +1499,7 @@ function drawMini(cv: HTMLCanvasElement, g: Game, big: boolean): void {
     const v = g.map[y][x];
     if (v === 2) { c.fillStyle = "#6dffa0"; c.fillRect((x + 0.1) * s, (y + 0.1) * s, s * 0.8, s * 0.8); c.strokeStyle = "#0a2a14"; c.lineWidth = Math.max(1, s * 0.12); c.strokeRect((x + 0.1) * s, (y + 0.1) * s, s * 0.8, s * 0.8); }
     else if (v === 4) dot(x + 0.5, y + 0.5, "#ffcc4d", 0.48);
-    else if (v === 3 && big) dot(x + 0.5, y + 0.5, "#c98a3a", 0.3);
+    else if (v === 3) dot(x + 0.5, y + 0.5, "#c98a3a", big ? 0.3 : 0.36);
   }
   for (const m of g.mons) {
     if (!g.seen[m.y]?.[m.x]) continue;
@@ -2070,6 +2070,7 @@ const SPR: Record<string, () => ReactNode> = {
     <circle cx="8" cy="14" r="2" fill="#b84aff" opacity={0.6} /><circle cx="5" cy="24" r="1.4" fill="#b84aff" opacity={0.45} /><circle cx="60" cy="40" r="1.6" fill="#b84aff" opacity={0.45} /></g>),
   stairs: () => (<g><rect x="6" y="6" width="52" height="52" rx="4" fill="#0a0806" /><rect x="9" y="10" width="46" height="9" fill="#5a5048" /><rect x="13" y="21" width="38" height="9" fill="#463e38" /><rect x="17" y="32" width="30" height="9" fill="#322c28" /><rect x="21" y="43" width="22" height="9" fill="#201c1a" /><circle cx="32" cy="50" r="10" fill="#b84aff" opacity={0.22} /></g>),
   chest: () => (<g>{shd(22)}<rect x="10" y="26" width="44" height="28" rx="2" fill="#4a2e18" stroke="#2a1a0c" strokeWidth="1.5" /><path d="M10 26 Q32 10 54 26 Z" fill="#5a3a1e" stroke="#2a1a0c" strokeWidth="1.5" /><rect x="10" y="30" width="44" height="3" fill="#6a6e78" /><rect x="18" y="19" width="3" height="35" fill="#6a6e78" /><rect x="43" y="19" width="3" height="35" fill="#6a6e78" /><rect x="29" y="30" width="6" height="8" rx="1" fill="#c9a23a" />{blot(40, 42, 2)}</g>),
+  merchant: () => (<g><ellipse cx="32" cy="58" rx="20" ry="4" fill="rgba(0,0,0,.45)" /><ellipse cx="16" cy="55" rx="9" ry="3.2" fill="#8a6010" /><ellipse cx="16" cy="52.5" rx="7" ry="2.6" fill="#e0b03a" stroke="#8a6010" strokeWidth="0.8" /><ellipse cx="19" cy="49.5" rx="5" ry="2" fill="#f0c84a" stroke="#8a6010" strokeWidth="0.8" /><path d="M20 57 L24 30 Q32 22 40 30 L44 57 Z" fill="#3a2a4a" stroke="#1a1020" strokeWidth="1.2" /><path d="M24 40 L40 40 L41 46 L23 46 Z" fill="#6a4a2a" /><circle cx="32" cy="43" r="1.6" fill="#e0b03a" /><path d="M22 31 Q32 8 42 31 Q37 27 32 27 Q27 27 22 31 Z" fill="#4a3460" stroke="#1a1020" strokeWidth="1.2" /><ellipse cx="32" cy="29" rx="6.5" ry="5" fill="#120a16" /><circle cx="29.6" cy="29" r="1.1" fill="#ffd77a" /><circle cx="34.4" cy="29" r="1.1" fill="#ffd77a" /><path d="M41 38 L49 36" stroke="#2a1a10" strokeWidth="2" strokeLinecap="round" /><line x1="49" y1="36" x2="49" y2="40" stroke="#2a1a10" strokeWidth="1" /><circle cx="49" cy="45" r="7" fill="rgba(255,190,90,.35)" /><rect x="46" y="40" width="6" height="8" rx="1.5" fill="#ffd77a" stroke="#6a4a10" strokeWidth="1" /><rect x="47.5" y="41.5" width="3" height="5" rx="1" fill="#fff4c0" /></g>),
   gold: () => (<g><ellipse cx="32" cy="50" rx="18" ry="6" fill="#6a4a10" /><ellipse cx="32" cy="46" rx="14" ry="6" fill="#b8861e" /><ellipse cx="26" cy="40" rx="7" ry="3" fill="#e0b03a" stroke="#8a6010" /><ellipse cx="38" cy="38" rx="7" ry="3" fill="#e0b03a" stroke="#8a6010" /><ellipse cx="32" cy="33" rx="7" ry="3" fill="#f0c84a" stroke="#8a6010" /><circle cx="35" cy="32" r="1.2" fill="#fff" opacity={0.8} /></g>),
   torch: () => (<g><rect x="30" y="30" width="4" height="18" fill="#3a2a1a" /><rect x="26" y="28" width="12" height="4" fill="#4a4e58" /><circle cx="32" cy="20" r="16" fill="#ff8a1a" opacity={0.22} /><path d="M32 28 Q24 20 30 10 Q31 16 34 14 Q40 20 32 28 Z" fill="#ff8a1a" /><path d="M32 27 Q28 22 31 16 Q33 20 34 19 Q36 23 32 27 Z" fill="#ffe08a" /></g>),
   web: () => (<g><g stroke="#d8d4e0" strokeWidth="1" fill="none" opacity={0.75}><path d="M4 4 L60 60 M60 4 L4 60 M32 2 L32 62 M2 32 L62 32" /><circle cx="32" cy="32" r="8" /><circle cx="32" cy="32" r="16" /><circle cx="32" cy="32" r="25" /></g><circle cx="21" cy="23" r="2.4" fill="#d8d4e0" opacity={0.7} />{blot(40, 40, 1.2)}</g>),
@@ -2307,7 +2308,8 @@ export default function DungeonOfEchoes() {
   const padRef = useRef<(dt: number) => void>(() => undefined);
   const keyRef = useRef<(e: KeyboardEvent, down: boolean) => void>(() => undefined);
   const padSt = useRef<{ prev: boolean[]; dir: string; rep: number }>({ prev: [], dir: "", rep: 0 });
-  const joyRef = useRef<{ id: number; ox: number; oy: number }>({ id: -1, ox: 0, oy: 0 });
+  const joyRef = useRef<{ id: number; ox: number; oy: number; t: number; el: HTMLElement | null }>({ id: -1, ox: 0, oy: 0, t: 0, el: null });
+  const livePtr = useRef<Set<number>>(new Set<number>());
   const joyBase = useRef<HTMLDivElement | null>(null);
   const joyKnob = useRef<HTMLDivElement | null>(null);
   const mapCv = useRef<HTMLCanvasElement | null>(null);
@@ -2414,6 +2416,52 @@ export default function DungeonOfEchoes() {
     return () => window.clearTimeout(id);
   });
   useEffect(() => { drawRef.current(true); });
+  // ---- held-input safety: the joystick and held keys must never outlive the screen they started on ----
+  const resetJoy = (): void => {
+    const J = joyRef.current;
+    if (J.el && J.id !== -1) { try { if (J.el.hasPointerCapture(J.id)) J.el.releasePointerCapture(J.id); } catch (err) { void err; } }
+    joyRef.current = { id: -1, ox: 0, oy: 0, t: 0, el: null };
+    const I = inp.current; I.jx = 0; I.jy = 0;
+    const b = joyBase.current; if (b) b.style.display = "none";
+    const kn = joyKnob.current; if (kn) kn.style.transform = "translate(-50%, -50%)";
+  };
+  const resetHeld = (): void => {
+    resetJoy();
+    const I = inp.current; HELD.clear();
+    I.kx = 0; I.ky = 0; I.gx = 0; I.gy = 0; I.katk = false; I.atk = false; I.gatk = false; I.vx = 0; I.vy = 0; I.idleT = 1;
+  };
+  const resetRef = useRef<() => void>(resetHeld); resetRef.current = resetHeld;
+  const joyResetRef = useRef<() => void>(resetJoy); joyResetRef.current = resetJoy;
+  const gNow = G.current;
+  const modeKey = `${ui}|${gNow ? gNow.screen : "-"}|${gNow && gNow.combat && gNow.combat.itemOpen ? 1 : 0}|${sheet ? 1 : 0}|${exitAsk ? 1 : 0}|${bigMap ? 1 : 0}`;
+  // any screen, overlay, modal, shop or map change drops every held input (touch, keys, pad)
+  useEffect(() => { resetRef.current(); }, [modeKey]);
+  useEffect(() => {
+    // window-level, capture phase: a release that lands on an overlay (or after the joystick's element unmounted) still ends the drag
+    const up = (e: PointerEvent): void => { livePtr.current.delete(e.pointerId); if (joyRef.current.id === e.pointerId) joyResetRef.current(); };
+    const down = (e: PointerEvent): void => { livePtr.current.add(e.pointerId); };
+    const tEnd = (e: TouchEvent): void => { if (e.touches.length === 0) { livePtr.current.clear(); if (joyRef.current.id !== -1) joyResetRef.current(); } };
+    const all = (): void => { livePtr.current.clear(); resetRef.current(); };
+    const vis = (): void => { if (document.visibilityState !== "visible") all(); };
+    window.addEventListener("pointerdown", down, true);
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", up, true);
+    window.addEventListener("touchend", tEnd, true);
+    window.addEventListener("touchcancel", tEnd, true);
+    window.addEventListener("blur", all);
+    window.addEventListener("pagehide", all);
+    document.addEventListener("visibilitychange", vis);
+    return () => {
+      window.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", up, true);
+      window.removeEventListener("touchend", tEnd, true);
+      window.removeEventListener("touchcancel", tEnd, true);
+      window.removeEventListener("blur", all);
+      window.removeEventListener("pagehide", all);
+      document.removeEventListener("visibilitychange", vis);
+    };
+  }, []);
   useEffect(() => { const gg = G.current; const cv = bigCv.current; if (bigMap && gg && cv) drawMini(cv, gg, true); }, [bigMap, vp]);
 
   const col = (c: string): string => c.startsWith("#") ? c : c === "bad" ? t.text.danger : c === "heal" ? t.text.success : c === "loot" ? t.text.warning : c === "good" ? t.text.accent : c === "dmg" ? t.text.primary : t.text.secondary;
@@ -2576,17 +2624,29 @@ export default function DungeonOfEchoes() {
       </div>
     </div>
   ) : null;
+  const joyStart = (el: HTMLElement, pointerId: number, x: number, y: number): void => {
+    // a new touch always takes over; whatever the old one was doing is dropped
+    if (joyRef.current.id !== -1) resetJoy();
+    joyRef.current = { id: pointerId, ox: x, oy: y, t: performance.now(), el };
+    try { el.setPointerCapture(pointerId); } catch (err) { void err; }
+    const b = joyBase.current; if (b) { b.style.display = "block"; b.style.left = `${x}px`; b.style.top = `${y}px`; }
+    const kn = joyKnob.current; if (kn) kn.style.transform = "translate(-50%, -50%)";
+  };
   const joyDown = (e: { clientX: number; clientY: number; pointerId: number; target: EventTarget | null; currentTarget: HTMLDivElement }): void => {
     const tg = e.target as HTMLElement | null;
     if (tg && typeof tg.closest === "function" && tg.closest("button, textarea, input, a, [data-noj]")) return;
-    if (e.clientX > window.innerWidth / 2 || joyRef.current.id !== -1) return;
-    joyRef.current = { id: e.pointerId, ox: e.clientX, oy: e.clientY };
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { void err; }
-    const b = joyBase.current; if (b) { b.style.display = "block"; b.style.left = `${e.clientX}px`; b.style.top = `${e.clientY}px`; }
-    const kn = joyKnob.current; if (kn) kn.style.transform = "translate(-50%, -50%)";
+    if (e.clientX > window.innerWidth / 2) return;
+    joyStart(e.currentTarget, e.pointerId, e.clientX, e.clientY);
   };
-  const joyMove = (e: { clientX: number; clientY: number; pointerId: number }): void => {
+  const joyMove = (e: { clientX: number; clientY: number; pointerId: number; pointerType: string; buttons: number; target: EventTarget | null; currentTarget: HTMLDivElement }): void => {
+    if (joyRef.current.id === -1 && (e.pointerType === "touch" || (e.buttons & 1) === 1) && e.clientX <= window.innerWidth / 2 && isPlay()) {
+      // a finger that is still down after a reset (screen change, watchdog) picks the joystick straight back up
+      const tg = e.target as HTMLElement | null;
+      if (!(tg && typeof tg.closest === "function" && tg.closest("button, textarea, input, a, [data-noj]"))) joyStart(e.currentTarget, e.pointerId, e.clientX, e.clientY);
+      return;
+    }
     const J = joyRef.current; if (J.id !== e.pointerId) return;
+    J.t = performance.now();
     let dx = e.clientX - J.ox, dy = e.clientY - J.oy; const R0 = 46; const m = Math.hypot(dx, dy);
     if (m > R0) {
       // the base follows the finger, so reversing direction never has to travel back through the centre
@@ -2598,12 +2658,8 @@ export default function DungeonOfEchoes() {
     const b = joyBase.current; if (b && b.style.display !== "block") { b.style.display = "block"; b.style.left = `${J.ox}px`; b.style.top = `${J.oy}px`; }
     const kn = joyKnob.current; if (kn) kn.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
   };
-  const joyUp = (e: { pointerId: number }): void => {
-    if (joyRef.current.id !== e.pointerId) return;
-    joyRef.current = { id: -1, ox: 0, oy: 0 }; inp.current.jx = 0; inp.current.jy = 0;
-    const b = joyBase.current; if (b) b.style.display = "none";
-  };
-  const joyH = { onPointerDown: joyDown, onPointerMove: joyMove, onPointerUp: joyUp, onPointerCancel: joyUp };
+  const joyUp = (e: { pointerId: number }): void => { if (joyRef.current.id === e.pointerId) resetJoy(); };
+  const joyH = { onPointerDown: joyDown, onPointerMove: joyMove, onPointerUp: joyUp, onPointerCancel: joyUp, onLostPointerCapture: joyUp };
   const joyEl = (
     <div ref={joyBase} style={{ display: "none", position: "fixed", width: 104, height: 104, marginLeft: -52, marginTop: -52, borderRadius: "50%", border: "2px solid rgba(255,220,160,.45)", background: "radial-gradient(circle, rgba(255,200,120,.12), rgba(0,0,0,.3))", pointerEvents: "none", zIndex: 40 }}>
       <div ref={joyKnob} style={{ position: "absolute", left: "50%", top: "50%", width: 48, height: 48, borderRadius: "50%", background: "radial-gradient(circle at 40% 35%, #f3d9a6, #8a5a2a)", boxShadow: "0 0 12px rgba(255,180,90,.6)", transform: "translate(-50%, -50%)" }} />
@@ -2632,7 +2688,7 @@ export default function DungeonOfEchoes() {
       </div>
     </div>
   ) : null;
-  const style = <div style={{ display: "contents" }}>{exitModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}"}</style></div>;
+  const style = <div style={{ display: "contents" }}>{exitModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5%)}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}"}</style></div>;
   const back = (): void => { if (g) run((gg: Game) => { gg.screen = gg.prev; }); else setUi("title"); };
   // ---------- INPUT: keyboard, gamepad, real-time loop ----------
   const isPlay = (): boolean => { const gg = G.current; return !!gg && !exitAsk && !sheet && !bigMap && (gg.screen === "map" || (gg.screen === "combat" && !!gg.combat && !gg.combat.itemOpen)); };
@@ -2791,6 +2847,14 @@ export default function DungeonOfEchoes() {
     }
   };
   tickRef.current = (dt: number): void => {
+    {
+      // joystick watchdog: drop a drag that went silent for 1 s and can no longer be live
+      const J = joyRef.current;
+      if (J.id !== -1) {
+        const silent = performance.now() - J.t > 1000;
+        if (!isPlay() || (silent && (!J.el || !J.el.isConnected || !livePtr.current.has(J.id) || document.visibilityState !== "visible"))) resetJoy();
+      }
+    }
     const gg = G.current; const I = inp.current;
     if (!gg || exitAsk || sheet || bigMap || document.hidden) return;
     const [mx, my] = mvVec();
@@ -3389,7 +3453,12 @@ export default function DungeonOfEchoes() {
     if (!isObj && !rk) continue;
     const lit = litT(g, x, y);
     if (rk) objs.push(<div key={`r${x},${y}`} style={{ ...tPos(x, y), opacity: lit ? 1 : 0.5 }}>{remSvg(rk)}</div>);
-    if (isObj) objs.push(<div key={`o${x},${y}`} style={{ ...tPos(x, y), padding: "4%", boxSizing: "border-box", filter: lit ? "drop-shadow(0 2px 2px rgba(0,0,0,.7))" : "brightness(.5)" }}>{spr(v === 2 ? "stairs" : v === 3 ? "chest" : "gold", "100%")}</div>);
+    if (isObj) objs.push(
+      <div key={`o${x},${y}`} data-obj={v === 2 ? "stairs" : v === 3 ? "chest" : "merchant"} style={tPos(x, y)}>
+        {v === 4 && lit ? <div style={{ position: "absolute", left: "-35%", top: "-35%", width: "170%", height: "170%", borderRadius: "50%", background: "radial-gradient(circle, rgba(255,190,90,.28), rgba(255,160,60,0) 65%)", animation: "doeFlick 1.8s ease-in-out infinite" }} /> : null}
+        <div style={{ position: "absolute", inset: v === 4 ? "-6%" : "5%", filter: lit ? "drop-shadow(0 2px 2px rgba(0,0,0,.7))" : "brightness(.55)", animation: v === 4 ? "doeBob 2.4s ease-in-out infinite" : undefined }}>{spr(v === 2 ? "stairs" : v === 3 ? "chest" : "merchant", "100%")}</div>
+      </div>
+    );
   }
   for (const mm of g.mons) {
     const mfx = mm.fx ?? mm.x + 0.5, mfy = mm.fy ?? mm.y + 0.5;
