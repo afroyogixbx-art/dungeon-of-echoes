@@ -39,7 +39,7 @@ interface Game {
   inv: Inv[]; eq: Partial<Record<GearSlot, Inv>>; floor: number; map: number[][]; seen: boolean[][];
   px: number; py: number; wx?: number; wy?: number; mons: MapMon[]; sx: number; sy: number; log: LogL[]; combat: Combat | null;
   cds: Record<string, number>; buffs: Buffs; perks: string[]; bonus: Stats; goldMult: number; inAb: boolean;
-  usedUndying: boolean; usedShadow: boolean; usedPhoenix: boolean; shop: Inv[];
+  usedUndying: boolean; usedShadow: boolean; usedPhoenix: boolean; shop: Inv[]; stock?: number[];
   offers: Perk[]; kills: number; sel: number; fx: Fx[]; turns: number; tokensEarned: number; stains?: number[]; rem?: string[]; hurtTs?: number; usedRes?: boolean; biome?: Biome; bannerTs?: number; qs?: string;
 }
 
@@ -465,6 +465,25 @@ function makeInst(id: string, f: number, roll: boolean): Inv {
   const ident = !roll || it.slot === "consumable" || Math.random() >= hideP;
   return { uid: UID++, id, ident, bon: roll ? rollBonus(it, f) : {}, freed: false };
 }
+// limited shop stock: gear is one-of-a-kind, common consumables 3, uncommon 2, rarer ones 1
+function stockOf(inv: Inv): number { const it = IT[inv.id]; return it.slot !== "consumable" || it.r >= 3 ? 1 : it.r <= 1 ? 3 : 2; }
+// shop premium (Epic/Legendary) odds scale with floor/depth: chance of a 1st premium slot,
+// a 2nd only if the 1st hit (same chance again), hard cap 2, never two of the same item
+function premiumChance(f: number): number { return Math.min(0.5, Math.max(0.03, 0.03 + 0.035 * (f - 2))); }
+function legendShare(f: number): number { return Math.min(0.4, Math.max(0.1, 0.1 + 0.03 * (f - 2))); }
+const SHOP_PREMIUM_MAX = 2;
+function rollPremium(f: number, cls: ClassId, taken: string[]): string | null {
+  const t = tierOf(f);
+  const cons = Math.random() < 0.3;
+  for (let r = Math.random() < legendShare(f) ? 4 : 3; r >= 3; r--) {
+    let c = ITEMS.filter((i: ItemT) => i.r === r && i.minF <= t && !i.cursed && cons === (i.slot === "consumable") && !taken.includes(i.id));
+    if (c.length === 0) continue;
+    const mine = c.filter((i: ItemT) => !i.cls || i.cls.includes(cls));
+    if (mine.length && Math.random() < 0.6) c = mine;
+    return pick(c).id;
+  }
+  return null;
+}
 function addItem(g: Game, inv: Inv): void {
   if (g.inv.length >= MAXINV) { const p = sellOf(inv); g.gold += p; gain(g, `Bag full: sold ${instName(inv)} +${p} gold`, GOLDC); return; }
   if (inv.ident) discover(inv.id);
@@ -516,10 +535,10 @@ function rollRarity(t: number, minR: number): number {
   for (let i = 0; i < 5; i++) { r -= w[i]; if (r <= 0) return i; }
   return 4;
 }
-function rollItem(f: number, minR: number, cls: ClassId, kind: "any" | "gear" | "cons"): string {
+function rollItem(f: number, minR: number, cls: ClassId, kind: "any" | "gear" | "cons", maxR = 4): string {
   const t = tierOf(f);
   const want = kind === "any" ? (Math.random() < 0.45 ? "cons" : "gear") : kind;
-  for (let r = rollRarity(t, minR); r >= 0; r--) {
+  for (let r = Math.min(maxR, rollRarity(t, minR)); r >= 0; r--) {
     const c = ITEMS.filter((i: ItemT) => i.r === r && i.minF <= t && (want === "cons") === (i.slot === "consumable"));
     if (c.length === 0) continue;
     let it = pick(c);
@@ -607,7 +626,7 @@ function genFloor(g: Game): void {
     }
     return null;
   };
-  g.shop = [];
+  g.shop = []; g.stock = [];
   if (g.floor % 2 === 0 && g.floor % 10 !== 0) {
     let s: { x: number; y: number } | null = null;
     for (let tries = 0; tries < 120 && !s; tries++) {
@@ -626,8 +645,15 @@ function genFloor(g: Game): void {
       map[s.y][s.x] = 4;
       const cons = shuffle(ITEMS.filter((i: ItemT) => i.slot === "consumable" && i.r <= 2 && i.minF <= tierOf(g.floor))).slice(0, 5);
       for (const c of cons) g.shop.push(makeInst(c.id, g.floor, false));
-      for (let k = 0; k < 4; k++) { const id = rollItem(g.floor, k === 0 ? 2 : 1, g.cls, "gear"); if (!IT[id].cursed) { const inv = makeInst(id, g.floor, true); inv.ident = true; g.shop.push(inv); } }
-      if (Math.random() < 0.5) g.shop.push(makeInst(rollItem(g.floor + 2, 3, g.cls, "cons"), g.floor, false));
+      // regular wares top out at Rare; Epic/Legendary only come from the capped premium rolls below
+      for (let k = 0; k < 4; k++) { const id = rollItem(g.floor, k === 0 ? 2 : 1, g.cls, "gear", 2); if (!IT[id].cursed) { const inv = makeInst(id, g.floor, true); inv.ident = true; g.shop.push(inv); } }
+      const pc = premiumChance(g.floor), taken: string[] = [];
+      for (let k = 0; k < SHOP_PREMIUM_MAX && Math.random() < pc; k++) {
+        const id = rollPremium(g.floor, g.cls, taken); if (!id) break;
+        taken.push(id);
+        const inv = makeInst(id, g.floor, IT[id].slot !== "consumable"); inv.ident = true; g.shop.push(inv);
+      }
+      g.stock = g.shop.map(stockOf);
     }
   }
   const chests = Math.min(8, 4 + Math.floor(g.floor / 3));
@@ -654,7 +680,7 @@ function newGame(cls: ClassId, mode: Mode): Game {
   const g: Game = {
     screen: "map", prev: "map", mode, cls, lvl: 1, xp: 0, hp: 1, mp: 1, gold: 30, inv: [], eq: {}, floor: 1, map: [], seen: [], px: 0, py: 0, mons: [], sx: 0, sy: 0,
     log: [], combat: null, cds: {}, buffs: freshBuffs(), perks: [], bonus: {}, goldMult: 1, inAb: false, usedUndying: false, usedShadow: false, usedPhoenix: false,
-    shop: [], offers: [], kills: 0, sel: -1, fx: [], turns: 0, tokensEarned: 0,
+    shop: [], stock: [], offers: [], kills: 0, sel: -1, fx: [], turns: 0, tokensEarned: 0,
   };
   g.eq.weapon = makeInst(c.start[0], 1, false);
   g.eq.armor = makeInst(c.start[1], 1, false);
@@ -1915,7 +1941,7 @@ const HELP: [string, string][] = [
   ["🕹️ Controls (touch)", "Touch and drag anywhere on the LEFT half of the screen to spawn a floating joystick; hold it to keep moving (analog, 8 directions). Out of combat the right side holds 🎒 Bag, 📖 Codex, ❓ Help, 🏠 and 💾. When a fight starts the same view swaps to combat controls: ⚔️ Attack (hold to keep swinging), your 3 abilities with cooldown rings, 💨 Dodge roll and a 🧪 potion quick-slot showing how many you carry. Tap an enemy to target it. Tap the minimap (top-right of the dungeon view) for the full map, which pauses the game. Item pickups float above your hero. Works in portrait and landscape."],
   ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving, you glide along walls). Exploring: M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. In combat: Space or J = attack (hold), Enter = attack once, 1/2/3 = abilities, Shift or K = dodge roll, R or 4 = quick-slot potion, Tab or Q/E = switch target. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc during play opens the exit prompt (the game pauses; confirming saves and exits) — even mid-fight."],
   ["🎮 Gamepad", "Left stick or D-pad moves. Exploring: A/✕ trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. In combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, LB/L1 switch target, View/Select quick-slot potion. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options pauses (exit prompt), also mid-fight."],
-  ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant, 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You regenerate slowly while no monster is chasing you."],
+  ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant (stock is limited: each piece of gear sells once, potions and scrolls 1–3 each, then the slot shows SOLD OUT; leaving or reloading doesn't restock — the next merchant floor has fresh wares; Epic/Legendary wares are rare early, more common deeper, at most 2 per shop), 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You regenerate slowly while no monster is chasing you."],
   ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. A Smoke Bomb or Shadowmeld breaks off a fight instantly (not against bosses)."],
   ["🔒 Combat lockout", "While any monster is fighting you, the bag, codex, help, full map, save-code screen, title button, merchants and the stairs are locked (greyed out; pressing them shows “In combat”). You can still move, attack, use abilities, dodge, switch targets and drink from the 🧪 quick-slot (your first healing potion, or any combat consumable you mark with ☆ Quick-slot in the bag). The minimap stays visible. The exit prompt (Esc / Start / back) always works: it pauses, and confirming saves your fight and exits. About 1.5 s after the last foe falls or gives up you'll see “Combat over” and everything unlocks."],
   ["☠️ Bosses", "The Broodmother (Floor 5) and the Echo Lord (Floor 10) wake when you step into their lair and fight you right there: acid pools, shadow flame and the Echo Lord's CATACLYSM ring land on the map, and spiderlings or Echo Shades crawl out around the boss. The stairs only appear once the boss is dead. Run too far and the boss returns to its lair and recovers fully — no chipping it down from range."],
@@ -2317,7 +2343,14 @@ function validRun(x: unknown): Game | null {
   g.inv = g.inv.filter((i: Inv) => okInv(i)).map(normInv).slice(0, MAXINV);
   for (const k of GEAR) { const v = g.eq[k]; if (v === undefined) continue; if (!okInv(v) || IT[v.id].slot !== k) delete g.eq[k]; else g.eq[k] = normInv(v); }
   g.mons = g.mons.filter((mm: MapMon) => isObj(mm) && num(mm.x) && num(mm.y) && num(mm.id) && (mm.boss === true || !!MON[mm.t])).map((mm: MapMon) => ({ ...mm, stun: num(mm.stun) ? mm.stun : 0, awake: mm.awake === true, fx: typeof mm.fx === "number" && Math.floor(mm.fx) === mm.x ? mm.fx : mm.x + 0.5, fy: typeof mm.fy === "number" && Math.floor(mm.fy) === mm.y ? mm.fy : mm.y + 0.5 }));
-  g.shop = Array.isArray(g.shop) ? g.shop.filter((i: Inv) => okInv(i)).map(normInv) : [];
+  { // keep stock aligned with the shop list; old saves (no stock) get the default limited stock
+    const rawShop: unknown[] = Array.isArray(g.shop) ? g.shop : [], rawStock: unknown[] = Array.isArray(g.stock) ? g.stock : [];
+    const shop: Inv[] = [], stock: number[] = [];
+    const prem: string[] = [];
+    rawShop.forEach((i: unknown, k: number) => { if (!okInv(i)) return; const inv = normInv(i as Inv); const v = rawStock[k];
+      if (IT[inv.id].r >= 3) { if (prem.length >= SHOP_PREMIUM_MAX || prem.includes(inv.id)) return; prem.push(inv.id); } shop.push(inv); stock.push(typeof v === "number" && isFinite(v) ? Math.max(0, Math.min(stockOf(inv), Math.floor(v))) : stockOf(inv)); });
+    g.shop = shop; g.stock = stock;
+  }
   g.log = Array.isArray(g.log) ? g.log.filter((l: LogL) => isObj(l) && typeof l.t === "string").slice(0, 60) : [];
   g.perks = Array.isArray(g.perks) ? g.perks.filter((p: unknown): p is string => typeof p === "string") : [];
   g.bonus = isObj(g.bonus) ? g.bonus : {};
@@ -3329,21 +3362,27 @@ export default function DungeonOfEchoes() {
         <div style={row}><div style={{ fontSize: 20, fontWeight: 800, flex: "1 1 auto" }}>💰 Merchant</div>{btn("Leave", () => run((gg: Game) => { gg.screen = "map"; }))}</div>
         <div style={cols}><div style={colS}>
         <div style={head}>FOR SALE</div>
-        {g.shop.map((inv: Inv, i: number) => (
-          <div key={inv.uid} style={{ ...card, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-            <div style={{ flex: "1 1 180px", minWidth: 0 }}>{instDetail(inv, g)}</div>
-            {btn(`Buy ${priceOf(inv)}g`, () => run((gg: Game) => {
+        {g.shop.map((inv: Inv, i: number) => {
+          const left = g.stock?.[i] ?? 0, out = left <= 0, consumable = IT[inv.id].slot === "consumable";
+          return (
+          <div key={inv.uid} data-shop={i} data-sold={out ? "1" : "0"} style={{ ...card, position: "relative", display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", background: out ? "rgba(255,255,255,.02)" : card.background }}>
+            <div style={{ flex: "1 1 180px", minWidth: 0, opacity: out ? 0.45 : 1, filter: out ? "grayscale(1)" : undefined }}>{instDetail(inv, g)}{consumable && !out && <div style={{ fontSize: 12, color: t.text.secondary, marginTop: 2 }}>{left} left in stock</div>}</div>
+            {out
+              ? <div style={{ padding: "6px 12px", border: "2px solid #c0392b", color: "#e74c3c", borderRadius: 6, fontWeight: 900, letterSpacing: 2, transform: "rotate(-8deg)", fontSize: 14 }}>SOLD OUT</div>
+              : btn(`Buy ${priceOf(inv)}g`, () => run((gg: Game) => {
+              const st = gg.stock ?? (gg.stock = gg.shop.map(stockOf));
+              if ((st[i] ?? 0) <= 0) { log(gg, "Sold out."); return; }
               const p = priceOf(inv);
               if (gg.gold < p) { log(gg, "Not enough gold."); return; }
               if (gg.inv.length >= MAXINV) { log(gg, "Your bag is full."); return; }
               gg.gold -= p;
-              const consumable = IT[inv.id].slot === "consumable";
-              addItem(gg, consumable ? makeInst(inv.id, gg.floor, false) : inv);
-              log(gg, `Bought ${instName(inv)}.`, "loot");
-              if (!consumable) gg.shop.splice(i, 1);
+              st[i] = st[i] - 1;
+              addItem(gg, consumable ? makeInst(inv.id, gg.floor, false) : { ...inv, bon: { ...inv.bon }, uid: UID++ });
+              log(gg, `Bought ${instName(inv)}.${st[i] <= 0 ? " (sold out)" : ""}`, "loot");
             }), { disabled: g.gold < priceOf(inv), tone: "accent" })}
           </div>
-        ))}
+          );
+        })}
         {(unid.length > 0 || cursedOn) && <div style={head}>SERVICES</div>}
         {cursedOn && (
           <div style={{ ...card, ...row }}>
