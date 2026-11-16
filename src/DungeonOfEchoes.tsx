@@ -551,10 +551,10 @@ const MONS: MonT[] = [
   { id: "wyvern", name: "Wyvern", icon: "🐉", hp: 60, atk: 15, def: 7, dodge: 15, xp: 42, gold: 22, b: "swift", lo: 5, hi: 999 },
   { id: "shade", name: "Echo Shade", icon: "", hp: 34, atk: 12, def: 2, dodge: 20, xp: 22, gold: 11, b: "drainer", undead: true, lo: 3, hi: 999, bio: "crypt" },
   // ranged attackers, introduced gradually (ff = first floor they can appear on)
-  { id: "garcher", name: "Goblin Archer", icon: "🏹", hp: 18, atk: 7, def: 1, dodge: 10, xp: 10, gold: 6, b: "archer", lo: 1, hi: 3, ff: 2, w: 2 },
-  { id: "spitter", name: "Acid Spitter", icon: "🐸", hp: 26, atk: 8, def: 2, dodge: 5, xp: 14, gold: 7, b: "spitter", lo: 2, hi: 4, ff: 3, w: 2 },
-  { id: "sarcher", name: "Skeleton Archer", icon: "💀", hp: 30, atk: 11, def: 3, dodge: 5, xp: 20, gold: 11, b: "archer", undead: true, lo: 3, hi: 999, ff: 6, w: 2 },
-  { id: "hexer", name: "Hex Cultist", icon: "🧙", hp: 34, atk: 12, def: 3, dodge: 8, xp: 24, gold: 13, b: "hexer", lo: 4, hi: 999, ff: 7, w: 2 },
+  { id: "garcher", name: "Goblin Archer", icon: "🏹", hp: 18, atk: 7, def: 1, dodge: 10, xp: 10, gold: 6, b: "archer", lo: 1, hi: 3, ff: 2, w: 4 },
+  { id: "spitter", name: "Acid Spitter", icon: "🐸", hp: 26, atk: 8, def: 2, dodge: 5, xp: 14, gold: 7, b: "spitter", lo: 2, hi: 4, ff: 3, w: 4 },
+  { id: "sarcher", name: "Skeleton Archer", icon: "💀", hp: 30, atk: 11, def: 3, dodge: 5, xp: 20, gold: 11, b: "archer", undead: true, lo: 3, hi: 999, ff: 6, w: 4 },
+  { id: "hexer", name: "Hex Cultist", icon: "🧙", hp: 34, atk: 12, def: 3, dodge: 8, xp: 24, gold: 13, b: "hexer", lo: 4, hi: 999, ff: 7, w: 4 },
 ];
 const MON: Record<string, MonT> = {};
 for (const m of MONS) MON[m.id] = m;
@@ -736,10 +736,10 @@ function wpick(c: ItemT[], cls: ClassId): ItemT {
 }
 // ---- chance-based loot table (gold is rolled separately and is unchanged) ----
 const LOOT: Record<string, { p: number; minR: number; p2: number }> = {
-  mob: { p: 0.24, minR: 0, p2: 0 },      // ordinary monster: 24% one item
-  elite: { p: 0.7, minR: 1, p2: 0.25 },   // elite: 70% one item (Uncommon+), 25% a second
-  chest: { p: 0.85, minR: 0, p2: 0.12 },  // chest: 85% one item (Uncommon+ from floor 5), 12% a second piece of gear
-  boss: { p: 1, minR: 3, p2: 0.5 },       // boss: 2 Epic+ gear + Identify scroll, 50% an extra Rare+ item
+  mob: { p: 0.18, minR: 0, p2: 0 },       // ordinary monster: 18% one item (was 24%)
+  elite: { p: 0.525, minR: 1, p2: 0.1875 }, // elite: 52.5% one item (Uncommon+), 18.75% a second (was 70% / 25%)
+  chest: { p: 0.6375, minR: 0, p2: 0.09 }, // chest: 63.75% one item (Uncommon+ from floor 5), 9% a second (was 85% / 12%)
+  boss: { p: 1, minR: 3, p2: 0.5 },       // boss: 2 Epic+ gear + Identify scroll, 50% an extra Rare+ item (unchanged)
 };
 function lootRoll(g: Game, src: string): Inv[] {
   const L = LOOT[src]; const out: Inv[] = [];
@@ -2362,7 +2362,7 @@ const HELP: [string, string][] = [
   ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
   ["✨ Abilities", "Each class has 3 abilities that cost MP and have cooldowns. MP regenerates every turn. Warriors gain MP when hit; Mages restore MP with staff strikes; Ranger wolves attack on their own."],
-  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 4, elites about 3 in 4, chests most of the time and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls random affixes (✦ lines: crit, lifesteal, thorns, fire/ice/holy/poison, HP, DEF…), larger on deeper floors and rarer items; hover/long-press an affix to see its range. Some gear is class-only. Sets: Ironclad, Shadowstalker, Arcanist, plus one 4-piece set per class — Warlord's Panoply (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud (Rogue), Lightbringer's Vestiture (Cleric) and Beastmaster's Garb (Ranger) — with 2/3/4-piece bonuses shown on the item and in the bag."],
+  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls random affixes (✦ lines: crit, lifesteal, thorns, fire/ice/holy/poison, HP, DEF…), larger on deeper floors and rarer items; hover/long-press an affix to see its range. Some gear is class-only. Sets: Ironclad, Shadowstalker, Arcanist, plus one 4-piece set per class — Warlord's Panoply (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud (Rogue), Lightbringer's Vestiture (Cleric) and Beastmaster's Garb (Ranger) — with 2/3/4-piece bonuses shown on the item and in the bag."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
   ["💰 Merchant", "Buy potions, scrolls and gear, sell loot, identify items, and lift curses. Merchants appear on even floors."],
