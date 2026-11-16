@@ -2379,19 +2379,19 @@ function placeHero(g: Game, I: Inp): void {
   HERO_AN.prev = now;
   const vm = Math.hypot(I.vx, I.vy);
   HERO_AN.moving = vm > 0.35;
-  if (HERO_AN.moving) {
-    HERO_AN.walkT += dt;
-    if (I.vx > 0.15) HERO_AN.face = 1; else if (I.vx < -0.15) HERO_AN.face = -1;
-  }
+  const horiz = HERO_AN.moving && Math.abs(I.vx) > 0.15;
+  if (HERO_AN.moving) HERO_AN.walkT += dt;
+  if (horiz) HERO_AN.face = I.vx > 0 ? 1 : -1;
   const bob = HERO_AN.moving ? Math.sin(HERO_AN.walkT * 11) * 6 : Math.sin(now / 520) * 1.6;
-  const lean = HERO_AN.moving ? HERO_AN.face * 7 : 0;
+  // lean is in unflipped local space; scale(face) then makes it lean into the walk
+  const lean = horiz ? 7 : 0;
   const squash = HERO_AN.moving ? 1 + Math.sin(HERO_AN.walkT * 22) * 0.05 : 1 + Math.sin(now / 520) * 0.02;
   let rot = lean, ox = 0, oy = bob;
   const kind = HERO_AN.kind, age = now - HERO_AN.atkTs, dur = atkDur(kind);
   const t = HERO_AN.atkTs > 0 && age < dur ? age / dur : -1;
   if (t >= 0) {
     const swing = Math.sin(t * Math.PI);
-    if (kind === "slash" || kind === "mace") rot += swing * (kind === "mace" ? 18 : 14) * HERO_AN.face;
+    if (kind === "slash" || kind === "mace") rot += swing * (kind === "mace" ? 18 : 14);
     else if (kind === "staff" || kind === "thrust") { ox += Math.cos(HERO_AN.ang) * swing * 12; oy += Math.sin(HERO_AN.ang) * swing * 10; }
     else if (kind === "bow") { const pull = t < 0.4 ? t / 0.4 : Math.max(0, 1 - (t - 0.4) / 0.6); ox -= Math.cos(HERO_AN.ang) * pull * 8; }
   }
@@ -2447,7 +2447,7 @@ function placePets(we: HTMLElement, g: Game): void {
     const dt = Math.min(0.05, (now - (st.prev || now)) / 1000); st.prev = now;
     const dx = p.x - st.x, dy = p.y - st.y; st.x = p.x; st.y = p.y;
     const moving = Math.hypot(dx, dy) > 0.0008;
-    if (dx > 0.0005) st.face = 1; else if (dx < -0.0005) st.face = -1;
+    if (dx > 0.02) st.face = 1; else if (dx < -0.02) st.face = -1;
     st.walk += dt;
     const inner = el.querySelector("[data-pet-an]") as HTMLElement | null;
     const fx = el.querySelector("[data-pet-fx]") as SVGElement | null;
@@ -5019,7 +5019,8 @@ export default function DungeonOfEchoes() {
         <div data-hero="1" style={{ position: "absolute", left: "50%", top: "50%", width: tileW, height: tileH, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 3px rgba(0,0,0,.9))", opacity: c && (c.iT ?? 0) > 0 ? 0.55 : 1, zIndex: 4, overflow: "visible" }}>
           <div data-hero-an="1" style={{ position: "absolute", inset: 0, transformOrigin: "50% 70%" }}>
             {spr(g.cls, "100%")}
-            <svg data-hero-fx="1" viewBox="-32 -32 64 64" style={{ position: "absolute", left: "-50%", top: "-50%", width: "200%", height: "200%", overflow: "visible", pointerEvents: "none" }}>
+          </div>
+          <svg data-hero-fx="1" viewBox="-32 -32 64 64" style={{ position: "absolute", left: "-50%", top: "-50%", width: "200%", height: "200%", overflow: "visible", pointerEvents: "none" }}>
               <g data-fx="slash" style={{ opacity: 0, transformOrigin: "0 4px" }}>
                 <path d="M8 -18 A28 28 0 0 1 22 16" fill="none" stroke="rgba(255,240,210,.95)" strokeWidth="2.4" strokeLinecap="round" />
                 <path d="M4 -16 A24 24 0 0 1 18 12" fill="none" stroke="rgba(255,220,140,.55)" strokeWidth="6" strokeLinecap="round" />
@@ -5043,7 +5044,6 @@ export default function DungeonOfEchoes() {
                 <polygon points="22,-4 30,0 22,4" fill="#d8e6ff" />
               </g>
             </svg>
-          </div>
           {livePulses(nowMs).map((p: PulseFx) => {
             if (p.k === "smash") {
               const u = Math.min(1, (nowMs - p.ts) / 440), d = (0.5 + 2.4 * 2 * u) * tilePx;
