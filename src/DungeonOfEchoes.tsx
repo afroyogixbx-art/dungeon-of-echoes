@@ -2309,16 +2309,163 @@ function syncPets(g: Game, heal = false): void {
   g.pets = out;
 }
 function revivePets(g: Game): void { for (const p of g.pets ?? []) if (p.ko > 0 || p.hp <= 0) { p.ko = 0; p.hp = Math.max(1, Math.round(p.max * 0.5)); log(g, `${PETS[p.k].icon} Your ${PETS[p.k].name} recovers.`, "good"); } }
-// out of combat: pets trail behind the hero
+// smarter pet pathing (module state, not saved): A* around walls/hazards, LOS corner-cuts, smooth steering
+interface PetNav { k: string; path: [number, number][]; gx: number; gy: number; repathT: number; stuckT: number; lastX: number; lastY: number; vx: number; vy: number; prog: number; progT: number }
+const PET_NAV: PetNav[] = [];
+function petNav(i: number, p: Pet): PetNav {
+  let st = PET_NAV[i];
+  if (!st || st.k !== p.k) { st = { k: p.k, path: [], gx: p.x, gy: p.y, repathT: 0, stuckT: 0, lastX: p.x, lastY: p.y, vx: 0, vy: 0, prog: 0, progT: 0 }; PET_NAV[i] = st; }
+  return st;
+}
+function petWalkable(g: Game, x: number, y: number): boolean { return !solidT(g, x, y); }
+function petCost(g: Game, x: number, y: number): number { const t = g.map[y][x]; return (t === 5 || t === 6) ? 8 : 1; }
+function petNearestOpen(g: Game, x: number, y: number): [number, number] {
+  x = clampN(Math.floor(x), 0, W - 1); y = clampN(Math.floor(y), 0, H - 1);
+  if (petWalkable(g, x, y)) return [x, y];
+  for (let r = 1; r <= 6; r++) for (let oy = -r; oy <= r; oy++) for (let ox = -r; ox <= r; ox++) {
+    const nx = x + ox, ny = y + oy; if (petWalkable(g, nx, ny)) return [nx, ny];
+  }
+  return [x, y];
+}
+function petLineHazard(g: Game, ax: number, ay: number, bx: number, by: number): boolean {
+  const d = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.ceil(d / 0.25));
+  for (let i = 1; i < n; i++) {
+    const t = i / n, x = Math.floor(ax + (bx - ax) * t), y = Math.floor(ay + (by - ay) * t);
+    if (x < 0 || y < 0 || x >= W || y >= H) continue;
+    const tile = g.map[y][x]; if (tile === 5 || tile === 6) return true;
+  }
+  return false;
+}
+function petAStar(g: Game, ax: number, ay: number, bx: number, by: number): [number, number][] | null {
+  const [sx, sy] = petNearestOpen(g, ax, ay), [gx, gy] = petNearestOpen(g, bx, by);
+  if (sx === gx && sy === gy) return [[gx + 0.5, gy + 0.5]];
+  const N = W * H, start = sy * W + sx, goal = gy * W + gx;
+  const gS = new Float32Array(N).fill(1e9); gS[start] = 0;
+  const came = new Int32Array(N).fill(-1); const closed = new Uint8Array(N);
+  const open: number[] = [start];
+  const heur = (i: number): number => { const x = i % W, y = (i - x) / W; return Math.abs(x - gx) + Math.abs(y - gy); };
+  while (open.length) {
+    let bi = 0, bv = gS[open[0]] + heur(open[0]);
+    for (let i = 1; i < open.length; i++) { const v = gS[open[i]] + heur(open[i]); if (v < bv) { bv = v; bi = i; } }
+    const cur = open[bi]; open[bi] = open[open.length - 1]; open.pop();
+    if (closed[cur]) continue; if (cur === goal) break; closed[cur] = 1;
+    const cx = cur % W, cy = (cur - cx) / W;
+    for (const [ox, oy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as [number, number][]) {
+      const nx = cx + ox, ny = cy + oy; if (!petWalkable(g, nx, ny)) continue;
+      const ni = ny * W + nx, ng = gS[cur] + petCost(g, nx, ny); if (ng >= gS[ni]) continue;
+      gS[ni] = ng; came[ni] = cur; open.push(ni);
+    }
+  }
+  if (gS[goal] >= 1e8) return null;
+  const tiles: [number, number][] = [];
+  for (let i = goal; i >= 0; i = came[i]) { tiles.push([i % W, (i - (i % W)) / W]); if (i === start) break; }
+  tiles.reverse();
+  return tiles.map(([x, y]) => [x + 0.5, y + 0.5] as [number, number]);
+}
+function petPull(g: Game, px: number, py: number, path: [number, number][]): [number, number] {
+  if (path.length === 0) return [px, py];
+  let best = path[0], bi = 0;
+  for (let i = 0; i < path.length; i++) {
+    if (los(g, px, py, path[i][0], path[i][1]) && !petLineHazard(g, px, py, path[i][0], path[i][1])) { best = path[i]; bi = i; }
+    else if (i > bi) break;
+  }
+  return best;
+}
+function petSteer(st: PetNav, px: number, py: number, hx: number, hy: number, spd: number, dt: number): void {
+  const ACC = 32, ROT = 14;
+  const dx = hx - px, dy = hy - py, dist = Math.hypot(dx, dy);
+  const ts = dist < 0.16 ? 0 : Math.min(spd, dist < 0.5 ? spd * (dist / 0.5) : spd);
+  const tx = dist > 1e-4 ? dx / dist * ts : 0, ty = dist > 1e-4 ? dy / dist * ts : 0;
+  const cs = Math.hypot(st.vx, st.vy), want = Math.hypot(tx, ty);
+  if (want < 1e-3) { const ns = Math.max(0, cs - ACC * dt); if (cs > 0) { st.vx *= ns / cs; st.vy *= ns / cs; } else { st.vx = 0; st.vy = 0; } return; }
+  const ns = cs < want ? Math.min(want, cs + ACC * dt) : Math.max(want, cs - ACC * dt);
+  if (cs < 0.25) { st.vx = (tx / want) * ns; st.vy = (ty / want) * ns; return; }
+  const ca = Math.atan2(st.vy, st.vx), ta = Math.atan2(ty, tx);
+  let da = ta - ca; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
+  const turn = ROT * dt, na = Math.abs(da) <= turn ? ta : ca + Math.sign(da) * turn;
+  st.vx = Math.cos(na) * ns; st.vy = Math.sin(na) * ns;
+}
+function petPoof(g: Game, p: Pet, i: number, x: number, y: number): void {
+  addFx(g, "💨", "sys", "pt" + i); p.x = x; p.y = y;
+  const st = petNav(i, p); st.path = []; st.stuckT = 0; st.vx = 0; st.vy = 0; st.lastX = x; st.lastY = y; st.prog = 0; st.progT = 0;
+  const an = PET_AN[i]; if (an) { an.x = x; an.y = y; }
+  log(g, `${PETS[p.k].icon} Your ${PETS[p.k].name} poofs back to your side.`, "sys");
+}
+function petTrail(g: Game, i: number, n: number): [number, number] {
+  const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5, back = FACE + Math.PI;
+  const spread = (i - (n - 1) / 2) * 0.62, dist = 1.05 + Math.min(i, 2) * 0.12;
+  let x = px + Math.cos(back) * dist + Math.cos(back + Math.PI / 2) * spread;
+  let y = py + Math.sin(back) * dist + Math.sin(back + Math.PI / 2) * spread;
+  if (solidT(g, Math.floor(x), Math.floor(y))) { const o = petNearestOpen(g, x, y); x = o[0] + 0.5; y = o[1] + 0.5; }
+  return [x, y];
+}
+function petFlank(g: Game, p: Pet, e: Enemy, i: number): [number, number] {
+  const ex = e.x ?? p.x, ey = e.y ?? p.y, px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
+  let dx = px - ex, dy = py - ey, L = Math.hypot(dx, dy) || 1; dx /= L; dy /= L;
+  const side = i % 2 === 0 ? 1 : -1, ring = Math.max(0.7, PETS[p.k].reach * 0.85), out = 1 + Math.floor(i / 2) * 0.4;
+  let x = ex - dy * side * ring * out, y = ey + dx * side * ring * out;
+  if (solidT(g, Math.floor(x), Math.floor(y)) || !los(g, x, y, ex, ey)) {
+    x = ex + dx * ring; y = ey + dy * ring;
+    if (solidT(g, Math.floor(x), Math.floor(y))) { const o = petNearestOpen(g, x, y); x = o[0] + 0.5; y = o[1] + 0.5; }
+  }
+  return [x, y];
+}
+function petStandoff(g: Game, p: Pet, e: Enemy): [number, number] {
+  const ex = e.x ?? p.x, ey = e.y ?? p.y, evx = p.x - ex, evy = p.y - ey, el = Math.hypot(evx, evy) || 1, prefer = 2.7;
+  const hintX = ex + evx / el * prefer, hintY = ey + evy / el * prefer;
+  let best: [number, number] | null = null, bd = 1e9;
+  for (let y = Math.floor(ey - 4); y <= Math.floor(ey + 4); y++) for (let x = Math.floor(ex - 4); x <= Math.floor(ex + 4); x++) {
+    if (!petWalkable(g, x, y) || petCost(g, x, y) > 1) continue;
+    const cx = x + 0.5, cy = y + 0.5, d = Math.hypot(cx - ex, cy - ey);
+    if (d < 2.15 || d > 3.2 || !los(g, cx, cy, ex, ey)) continue;
+    const s = Math.hypot(cx - p.x, cy - p.y) + Math.hypot(cx - hintX, cy - hintY) * 0.45;
+    if (s < bd) { bd = s; best = [cx, cy]; }
+  }
+  return best ?? [hintX, hintY];
+}
+function petDrive(g: Game, p: Pet, i: number, destX: number, destY: number, dt: number, spd: number, arrived = 0.2): void {
+  const st = petNav(i, p), dist = Math.hypot(destX - p.x, destY - p.y);
+  st.repathT = Math.max(0, st.repathT - dt);
+  let hx = destX, hy = destY;
+  const clear = los(g, p.x, p.y, destX, destY) && !petLineHazard(g, p.x, p.y, destX, destY);
+  if (dist > arrived && !clear) {
+    if (st.stuckT > 0.4 || st.repathT <= 0 || st.path.length === 0 || Math.hypot(destX - st.gx, destY - st.gy) > 0.7) {
+      const path = petAStar(g, p.x, p.y, destX, destY);
+      if (path && path.length) { st.path = path; st.gx = destX; st.gy = destY; }
+      st.repathT = 0.2;
+    }
+    const wp = petPull(g, p.x, p.y, st.path); hx = wp[0]; hy = wp[1];
+  }
+  petSteer(st, p.x, p.y, hx, hy, spd, dt);
+  const q = { x: p.x, y: p.y }; slideMove(g, q, st.vx, st.vy, dt, 0.25); p.x = q.x; p.y = q.y;
+  const others = g.pets ?? [];
+  for (const o of others) {
+    if (o === p) continue; const sx = p.x - o.x, sy = p.y - o.y, sd = Math.hypot(sx, sy);
+    if (sd > 1e-4 && sd < 0.42) { p.x += sx / sd * (0.42 - sd) * 0.5; p.y += sy / sd * (0.42 - sd) * 0.5; }
+  }
+  pushOut(g, p, 0.25);
+  const moved = Math.hypot(p.x - st.lastX, p.y - st.lastY); st.lastX = p.x; st.lastY = p.y;
+  st.prog += moved; st.progT += dt;
+  if (st.progT >= 0.35) {
+    if (dist > arrived + 0.12 && st.prog < 0.16) st.stuckT += st.progT; else st.stuckT = Math.max(0, st.stuckT - st.progT);
+    st.prog = 0; st.progT = 0;
+  }
+}
+
+// out of combat: pets trail behind the hero, pathing around walls and hazards
 function petsFollow(g: Game, dt: number): void {
-  const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
-  (g.pets ?? []).forEach((p: Pet, i: number) => {
-    const a = 2.2 + i * 1.3, sx = px + Math.cos(a) * 0.85, sy = py + Math.sin(a) * 0.85;
-    const d = Math.hypot(sx - p.x, sy - p.y);
-    if (Math.hypot(px - p.x, py - p.y) > 7 || !isFinite(p.x) || !isFinite(p.y)) { p.x = px; p.y = py; return; }
-    if (d < 0.15) return;
-    const T = PETS[p.k]; const v = Math.min(T.spd, d * 5); const q = { x: p.x, y: p.y };
-    slideMove(g, q, (sx - p.x) / d * v, (sy - p.y) / d * v, dt, 0.25); p.x = q.x; p.y = q.y;
+  const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5, pets = g.pets ?? [];
+  pets.forEach((p: Pet, i: number) => {
+    if (p.ko > 0) return;
+    if (!isFinite(p.x) || !isFinite(p.y)) { p.x = px; p.y = py; return; }
+    const dHero = Math.hypot(px - p.x, py - p.y);
+    const [tx, ty] = petTrail(g, i, pets.length);
+    if (dHero > 13) { petPoof(g, p, i, tx, ty); return; }
+    let spd = PETS[p.k].spd;
+    if (dHero > 2.4) spd *= 1.35;
+    if (dHero > 4.2) spd *= 1.22;
+    petDrive(g, p, i, tx, ty, dt, spd, 0.18);
+    if (petNav(i, p).stuckT > 1.15) petPoof(g, p, i, tx, ty);
   });
 }
 function hurtPet(g: Game, p: Pet, raw: number): number {
@@ -2353,14 +2500,27 @@ function petStep(g: Game, dt: number): void {
       e = undefined; let bd = 8;
       for (const x of c.enemies) { if (x.dead || x.hp <= 0) continue; const d = dist(x); if (d < bd && los(g, p.x, p.y, x.x ?? 0, x.y ?? 0)) { bd = d; e = x; } }
     }
+    const i = pets.indexOf(p);
     let tx = px, ty = py, stop = false;
     if (e) {
       const d = dist(e), see = los(g, p.x, p.y, e.x ?? 0, e.y ?? 0);
-      if (see && d <= T.reach + 0.35) { stop = d <= T.reach; if (p.cd <= 0) petAttack(g, p, e, f); }
-      if (see) { tx = e.x ?? px; ty = e.y ?? py; }
-    } else if (Math.hypot(px - p.x, py - p.y) < 1.1) stop = true;
-    if (!stop) { const vx = tx - p.x, vy = ty - p.y, vl = Math.hypot(vx, vy) || 1; if (vl > 0.05) { const q = { x: p.x, y: p.y }; slideMove(g, q, vx / vl * T.spd, vy / vl * T.spd, dt, 0.25); p.x = q.x; p.y = q.y; } }
-    if (Math.hypot(px - p.x, py - p.y) > 10) { p.x = px; p.y = py; }
+      if (p.k === "imp") {
+        if (see && d <= T.reach && p.cd <= 0) petAttack(g, p, e, f);
+        if (see && d >= 2.15 && d <= 3.2) stop = true;
+        else { const st = petStandoff(g, p, e); tx = st[0]; ty = st[1]; }
+      } else {
+        if (see && d <= T.reach + 0.2) { if (p.cd <= 0 && d <= T.reach) petAttack(g, p, e, f); if (d <= T.reach) stop = true; }
+        if (!stop) { const fl = petFlank(g, p, e, i); tx = fl[0]; ty = fl[1]; }
+      }
+    } else if (Math.hypot(px - p.x, py - p.y) < 1.15) stop = true;
+    else { const tr = petTrail(g, i, pets.length); tx = tr[0]; ty = tr[1]; }
+    if (!stop) {
+      let spd = T.spd;
+      if (Math.hypot(px - p.x, py - p.y) > 3) spd *= 1.3;
+      petDrive(g, p, i, tx, ty, dt, spd, p.k === "imp" ? 0.28 : 0.2);
+    }
+    const dHero = Math.hypot(px - p.x, py - p.y);
+    if (dHero > 13 || petNav(i, p).stuckT > 1.15) petPoof(g, p, i, px, py);
   }
 }
 function endRound(g: Game): void {
@@ -2645,7 +2805,7 @@ const HELP: [string, string][] = [
   ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Ranged foes keep their distance: 🏹 archers show a red aim line before loosing a fast arrow, 🐸 Acid Spitters mark a green ring where their acid glob will land, and 🧙 Hex Cultists send a slow purple bolt that hexes you (−25% damage for 4 s). Their aim locks when the wind-up starts, so step aside. ★ Elite monsters (gold glow) are tougher and drop better loot. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. A Smoke Bomb or Shadowmeld breaks off a fight instantly (not against bosses)."],
   ["🔒 Combat lockout", "While any monster is fighting you, the bag, codex, help, full map, save-code screen, title button, merchants and the stairs are locked (greyed out; pressing them shows “In combat”). You can still move, attack, use abilities, dodge, switch targets and drink from the 🧪 quick-slot (your first healing potion, or any combat consumable you mark with ☆ Quick-slot in the bag). The minimap stays visible. The exit prompt (Esc / Start / back) always works: it pauses, and confirming saves your fight and exits. About 1.5 s after the last foe falls or gives up you'll see “Combat over” and everything unlocks."],
   ["☠️ Bosses", "The Broodmother (Floor 5) and the Echo Lord (Floor 10) wake when you step into their lair and fight you right there: acid pools, shadow flame and the Echo Lord's CATACLYSM ring land on the map, and spiderlings or Echo Shades crawl out around the boss. The stairs only appear once the boss is dead. Run too far and the boss returns to its lair and recovers fully — no chipping it down from range."],
-  ["🐾 Pets", "Rangers start with a Wolf (plus a Hawk with Pack Leader). Anyone can gain a charm pet from a Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil or Bone Hound Totem (one charm pet at a time). Pets run at enemies on the map and attack on their own (lunge + claw marks; the Imp throws fire bolts). Enemies attack pets that get closer than you — Bone Hounds draw extra attention. A pet at 0 HP is knocked out 💫 for 12 s, then gets back up at 40%; every knocked-out pet recovers at 50% when the fight ends. Pets heal slowly while exploring; a Pet Treat fully heals and revives them."],
+  ["🐾 Pets", "Rangers start with a Wolf (plus a Hawk with Pack Leader). Anyone can gain a charm pet from a Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil or Bone Hound Totem (one charm pet at a time). Pets path around walls and hazards, trail behind you and catch up if you pull ahead; if they get stuck they re-path, then poof to your side. In a fight they close along that path: melee pets flank, and the Imp keeps a ranged standoff with line of sight before throwing fire bolts. Enemies attack pets that get closer than you — Bone Hounds draw extra attention. A pet at 0 HP is knocked out 💫 for 12 s, then gets back up at 40%; every knocked-out pet recovers at 50% when the fight ends. Pets heal slowly while exploring; a Pet Treat fully heals and revives them."],
   ["✨ Starting perk", "Every new run (Story and Endless) opens with a choice of 3 random Common perks. The roll is saved, so reloading won't change it."],
   ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
