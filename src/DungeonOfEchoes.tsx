@@ -3867,15 +3867,32 @@ export default function DungeonOfEchoes() {
           <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: 0.5 }}>Dungeon of Echoes</div>
           <div style={small}>Ten floors. A Broodmother. The Echo Lord. Endless depths beyond.</div>
         </div>
-        {saved && (
-          <div style={{ ...card, ...row, border: `2px solid ${t.border.focus}` }}>
-            <div style={{ flex: "1 1 160px", minWidth: 0 }}>
-              <div style={{ fontWeight: 700 }}>💾 Saved run</div>
-              <div style={{ ...small, display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" }}><span style={{ display: "inline-block", width: 22, height: 22 }}>{spr(saved.cls, 22)}</span> {CLS[saved.cls].name} · {saved.mode === "story" ? `Story floor ${saved.floor}/${STORY_END}` : `Endless depth ${saved.floor}`} · Lv {saved.lvl} · {saved.gold}g</div>
+        {(() => {
+          const prestige = (m as Meta & { prestige?: number }).prestige ?? 0;
+          const cell = (label: string, value: ReactNode): ReactNode => (
+            <div style={{ textAlign: "center", flex: "1 1 72px", minWidth: 68 }}>
+              <div style={{ fontSize: 11, letterSpacing: 1.4, textTransform: "uppercase", color: "#ffe08a", fontWeight: 800 }}>{label}</div>
+              <div style={{ fontSize: "clamp(22px, 6vw, 32px)", fontWeight: 900, color: "#fff8e8", lineHeight: 1.05, textShadow: "0 1px 0 #000, 0 0 8px rgba(0,0,0,.65)", fontVariantNumeric: "tabular-nums" }}>{value}</div>
             </div>
-            {btn("▶ Continue", () => { const gg = parseRun(rawRun()); if (gg) { G.current = gg; log(gg, "💾 Run loaded. Welcome back!", "good"); LAST_SAVE = saveRun(gg); setConfirm(null); refresh(); } }, { tone: "primary", tall: true })}
-          </div>
-        )}
+          );
+          return (
+            <div data-runpanel="1" style={{ ...card, background: "linear-gradient(180deg, #2a1a12, #100c14)", border: "2px solid #e8c35a", boxShadow: "0 0 0 1px #000, 0 8px 28px rgba(0,0,0,.6)", display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, padding: "14px 14px 12px" }}>
+              <div style={{ flex: "1 1 150px", minWidth: 0 }}>
+                <div style={{ fontSize: 13, letterSpacing: 2.2, textTransform: "uppercase", color: "#ffe08a", fontWeight: 800 }}>{saved ? (saved.mode === "story" ? "Floor" : "Depth") : "Best depth"}</div>
+                <div style={{ fontSize: "clamp(52px, 14vw, 80px)", fontWeight: 900, color: "#fff6dc", lineHeight: 0.88, textShadow: "0 2px 0 #000, 0 0 22px rgba(232,195,90,.5)", fontVariantNumeric: "tabular-nums" }}>{saved ? saved.floor : (m.best || "—")}</div>
+                {saved
+                  ? <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, fontSize: 16, fontWeight: 800, color: "#fff8e8" }}><span style={{ display: "inline-block", width: 32, height: 32, flex: "0 0 auto" }}>{spr(saved.cls, 32)}</span>{CLS[saved.cls].name} · {saved.mode === "story" ? "Story" : "Endless"}</div>
+                  : <div style={{ marginTop: 6, fontSize: 15, fontWeight: 800, color: "#ffe6b0" }}>No run in progress</div>}
+              </div>
+              <div style={{ display: "flex", flex: "2 1 240px", alignItems: "center", justifyContent: "space-around", gap: 8, flexWrap: "wrap" }}>
+                {saved ? cell("Level", `Lv ${saved.lvl}`) : null}
+                {cell("Prestige", `⭐ ${prestige}`)}
+                {cell("Best depth", m.best || "—")}
+              </div>
+              {saved && <div style={{ flex: "0 1 auto", marginLeft: "auto" }}>{btn("▶ Continue", () => { const gg = parseRun(rawRun()); if (gg) { G.current = gg; log(gg, "💾 Run loaded. Welcome back!", "good"); LAST_SAVE = saveRun(gg); setConfirm(null); refresh(); } }, { tone: "primary", tall: true })}</div>}
+            </div>
+          );
+        })()}
         {btn(<span>📋 Paste save code<br /><span style={{ fontSize: 11, fontWeight: 400 }}>Restore a run or backup from your clipboard</span></span>, () => {
           const openBox = (txt: string, note: string): void => { setImp(txt); setMsg(note); setImpFocus(true); setCodeText(""); setConfirm(null); setUi("save"); };
           const tryImport = (txt: string): void => {
