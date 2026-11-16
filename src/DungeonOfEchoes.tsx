@@ -12,7 +12,7 @@ type Ui = "title" | "help" | "tree" | "codex" | "save";
 type Mode = "story" | "endless";
 type ActRes = "none" | "turn" | "end";
 
-interface ItemT { id: string; name: string; icon: string; slot: Slot; r: number; minF: number; price: number; st?: Stats; cls?: ClassId[]; sp?: string; desc?: string; fx?: string; pw?: number; set?: string; cursed?: boolean; curse?: string; pet?: string; ff?: number; mpreg?: number; }
+interface ItemT { id: string; name: string; icon: string; slot: Slot; r: number; minF: number; price: number; st?: Stats; cls?: ClassId[]; sp?: string; desc?: string; fx?: string; pw?: number; set?: string; cursed?: boolean; curse?: string; pet?: string; ff?: number; mpreg?: number; uranges?: Partial<Record<StatKey, [number, number]>>; }
 interface SetT { name: string; n: number; b2: Stats; bf: Stats; sp: string; desc: string; b3?: Stats; cls?: ClassId; }
 interface Ab { id: string; name: string; icon: string; mp: number; cd: number; desc: string; }
 interface Base { hp: number; mp: number; atk: number; def: number; crit: number; dodge: number; }
@@ -22,12 +22,12 @@ interface MonT { id: string; name: string; icon: string; hp: number; atk: number
 interface Room { x: number; y: number; w: number; h: number; }
 interface MapMon { id: number; x: number; y: number; t: string; boss: boolean; awake: boolean; stun: number; fx?: number; fy?: number; hp?: number; max?: number; hx?: number; hy?: number; el?: boolean; }
 interface Enemy { uid: number; spr?: string; name: string; icon: string; hp: number; max: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; bk: string; undead: boolean; boss: boolean; stun: number; burnT: number; burnD: number; poisT: number; poisD: number; dead: boolean; x?: number; y?: number; atkT?: number; wind?: number; wm?: number; wk?: string; rt?: boolean; mid?: number; hx?: number; hy?: number; lost?: number; minion?: boolean; mt?: string; away?: boolean; dt0?: number; elite?: boolean; tpk?: string; ax?: number; ay?: number; }
-interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number; elapsed?: number; boss: boolean; phase: number; charging: boolean; itemOpen: boolean; px?: number; py?: number; proj?: Proj[]; tele?: Tele[]; shots?: Shot[]; atkCd?: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; iT?: number; tick?: number; grace?: number; bossT?: number; fleeCd?: number; v2?: boolean; calm?: number; upg?: boolean; vault?: boolean; opened?: boolean; }
+interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number; elapsed?: number; boss: boolean; phase: number; charging: boolean; itemOpen: boolean; px?: number; py?: number; proj?: Proj[]; tele?: Tele[]; shots?: Shot[]; atkCd?: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; iT?: number; tick?: number; grace?: number; bossT?: number; fleeCd?: number; v2?: boolean; calm?: number; upg?: boolean; vault?: boolean; opened?: boolean; curseAcc?: number; }
 interface Proj { id: number; x: number; y: number; vx: number; vy: number; dmg: number; from: number; life: number; c: string; k?: string; }
 interface Tele { id: number; x: number; y: number; r: number; t: number; max: number; dmg: number; from: number; kind: string; }
 interface Shot { id: number; x1: number; y1: number; x2: number; y2: number; ts: number; c: string; }
 interface Inp { jx: number; jy: number; kx: number; ky: number; gx: number; gy: number; atk: boolean; katk: boolean; gatk: boolean; stepT: number; monT: number; regT: number; alt: boolean; saveT: number; rT: number; slowT: number; shopL: boolean; vx: number; vy: number; idleT: number; }
-interface Buffs { rage: number; holy: number; evade: number; shield: number; frenzy: number; fury: number; iron: number; defend: boolean; defendT?: number; dotT: number; dotD: number; hex?: number; }
+interface Buffs { rage: number; holy: number; evade: number; shield: number; frenzy: number; fury: number; iron: number; defend: boolean; defendT?: number; dotT: number; dotD: number; hex?: number; veil?: number; }
 // companions that fight on the map
 interface Pet { k: string; hp: number; max: number; x: number; y: number; ko: number; cd: number; aT?: number; tx?: number; ty?: number; }
 interface PetT { name: string; icon: string; hpF: number; mult: number; spd: number; reach: number; rate: number; desc: string; }
@@ -227,6 +227,84 @@ const ITEMS: ItemT[] = [
   I("c_pet_owl", "Spirit Owl Feather", "🦉", "consumable", 1, 1, 70, undefined, { fx: "pet", pet: "owl", desc: "Gain a Spirit Owl: quick strikes that can stun." }),
   I("c_pet_imp", "Imp Sigil", "😈", "consumable", 2, 2, 120, undefined, { fx: "pet", pet: "imp", desc: "Gain a Fire Imp: hurls fire bolts from range and sets foes ablaze." }),
   I("c_pet_hound", "Bone Hound Totem", "🐕", "consumable", 2, 3, 130, undefined, { fx: "pet", pet: "hound", desc: "Gain a Bone Hound: a sturdy guardian that draws enemy attacks." }),
+  // ---- expansion: new bases, mid/deep sets, uniques and curses ----
+  I("w_pike", "Militia Pike", "🔱", "weapon", 0, 1, 22, { atk: 4 }, { cls: ["warrior"] }),
+  I("w_club", "Knotted Club", "🔨", "weapon", 0, 1, 18, { atk: 5 }, { cls: ["warrior"] }),
+  I("w_wand0", "Spark Wand", "✨", "weapon", 0, 1, 22, { atk: 3, mp: 12 }, { cls: ["mage"] }),
+  I("w_hatchet", "Woodsman's Hatchet", "🪓", "weapon", 1, 1, 55, { atk: 6, crit: 3 }, { cls: ["warrior"] }),
+  I("w_dirk", "Iron Dirk", "🔪", "weapon", 1, 1, 55, { atk: 5, crit: 6 }, { cls: ["rogue"] }),
+  I("w_recur", "Recurve Bow", "🏹", "weapon", 1, 1, 55, { atk: 6, crit: 5 }, { cls: ["ranger"] }),
+  I("w_gladius", "Steel Gladius", "🗡️", "weapon", 2, 2, 140, { atk: 11 }),
+  I("w_halberd", "Iron Halberd", "🔱", "weapon", 2, 2, 150, { atk: 12, def: 2 }, { cls: ["warrior"] }),
+  I("w_waraxe", "Crescent Axe", "🪓", "weapon", 2, 2, 150, { atk: 13, crit: 4 }, { cls: ["warrior"] }),
+  I("w_runewand", "Runed Wand", "✨", "weapon", 2, 2, 145, { atk: 8, mp: 28, fire: 4 }, { cls: ["mage"] }),
+  I("w_boar", "Boar Spear", "🔱", "weapon", 2, 2, 145, { atk: 11, crit: 4 }, { cls: ["warrior", "ranger"] }),
+  I("w_star", "Morning Star", "🔨", "weapon", 3, 3, 320, { atk: 15, holy: 6 }, { cls: ["warrior", "cleric"] }),
+  I("w_stiletto", "Stiletto", "🔪", "weapon", 3, 3, 320, { atk: 13, crit: 16 }, { cls: ["rogue"] }),
+  I("w_compbow", "Composite Bow", "🏹", "weapon", 3, 3, 320, { atk: 15, crit: 12 }, { cls: ["ranger"] }),
+  I("w_bstaff", "Battlestaff", "🪄", "weapon", 3, 3, 320, { atk: 14, mp: 35, def: 3 }, { cls: MC }),
+  I("w_flamberge", "Flamberge", "⚔️", "weapon", 3, 4, 400, { atk: 20, crit: 6 }, { cls: ["warrior"] }),
+  I("w_voidpike", "Void Pike", "🔱", "weapon", 3, 5, 440, { atk: 22 }, { cls: ["warrior"] }),
+  I("w_doomhammer", "Doom Hammer", "🔨", "weapon", 3, 5, 450, { atk: 23, def: 5 }, { cls: ["warrior"] }),
+  I("w_eclipse", "Eclipse Bow", "🏹", "weapon", 3, 5, 440, { atk: 21, crit: 14 }, { cls: ["ranger"] }),
+  I("w_lichwand", "Lich Wand", "✨", "weapon", 3, 5, 440, { atk: 16, mp: 50, poison: 8 }, { cls: ["mage"] }),
+  I("w_ashstaff", "Ashen Staff", "🪄", "weapon", 3, 6, 500, { atk: 18, mp: 55, fire: 10 }, { cls: MC }),
+  I("w_endblade", "Echoing Longsword", "🗡️", "weapon", 3, 7, 560, { atk: 26, crit: 8 }),
+  I("a_hide", "Hide Jerkin", "👕", "armor", 0, 1, 18, { def: 4, hp: 8 }),
+  I("a_scale", "Scale Vest", "🛡️", "armor", 1, 1, 55, { def: 7, hp: 12 }),
+  I("a_studded", "Studded Leather", "🦺", "armor", 2, 2, 145, { def: 11, dodge: 3 }),
+  I("a_splint", "Splint Mail", "🛡️", "armor", 2, 2, 155, { def: 15, hp: 25 }, { cls: ["warrior", "cleric"] }),
+  I("a_silkweave", "Silkweave Robes", "👘", "armor", 2, 2, 145, { def: 6, mp: 35 }, { cls: MC }),
+  I("a_wyrm", "Wyrmhide Coat", "🐲", "armor", 3, 3, 330, { def: 18, hp: 35, poison: 4 }),
+  I("a_mirror", "Mirror Mail", "🛡️", "armor", 3, 4, 400, { def: 17, th: 12 }),
+  I("a_voidmail", "Void-Touched Mail", "🛡️", "armor", 3, 5, 450, { def: 20, hp: 50, dodge: 4 }),
+  I("a_titanhide", "Titanhide Harness", "🛡️", "armor", 3, 6, 500, { def: 22, hp: 55 }),
+  I("a_echoplate", "Echoplate Cuirass", "🛡️", "armor", 3, 7, 560, { def: 24, hp: 70 }),
+  I("h_coif", "Mail Coif", "⛑️", "helmet", 1, 1, 45, { def: 3, hp: 10 }),
+  I("h_barbute", "Barbute", "🪖", "helmet", 2, 2, 140, { def: 6, hp: 18 }, { cls: ["warrior", "cleric"] }),
+  I("h_cowl", "Adept's Cowl", "🎩", "helmet", 2, 2, 135, { mp: 22, dodge: 3 }, { cls: MC }),
+  I("h_bascinet", "Bascinet", "⛑️", "helmet", 3, 3, 300, { def: 9, hp: 22 }),
+  I("h_mask", "Assassin's Mask", "🎭", "helmet", 3, 4, 380, { crit: 8, dodge: 5 }, { cls: ["rogue"] }),
+  I("h_voidcrown", "Void Circlet", "💠", "helmet", 3, 5, 430, { def: 8, mp: 40, atk: 4 }),
+  I("h_endless", "Helm of the Deep", "🪖", "helmet", 3, 6, 490, { def: 10, hp: 35, mp: 30 }),
+  I("h_echohood", "Echo Hood", "🎭", "helmet", 3, 7, 540, { dodge: 8, crit: 8, hp: 20 }),
+  I("r_iron", "Iron Band", "💍", "ring", 0, 1, 15, { def: 1, hp: 8 }),
+  I("r_sage", "Sage Loop", "💍", "ring", 1, 1, 50, { mp: 18, atk: 1 }),
+  I("r_serpent", "Serpent Ring", "💍", "ring", 2, 2, 135, { poison: 5, dodge: 3 }),
+  I("r_titan", "Titan's Band", "💍", "ring", 3, 3, 300, { hp: 40, def: 4 }),
+  I("r_storm", "Storm Signet", "💍", "ring", 3, 4, 380, { atk: 5, ice: 5, fire: 5 }),
+  I("r_abyss", "Abyssal Ring", "💍", "ring", 3, 5, 430, { ls: 6, atk: 6 }),
+  I("r_echo", "Echo Band", "💍", "ring", 3, 6, 490, { crit: 8, mp: 30, atk: 5 }),
+  I("m_pebble", "Stone Charm", "🪨", "amulet", 0, 1, 14, { def: 2 }),
+  I("m_amber", "Amber Pendant", "📿", "amulet", 1, 1, 50, { hp: 20, atk: 2 }),
+  I("m_anvil", "Anvil Talisman", "📿", "amulet", 2, 2, 135, { def: 5, hp: 25 }),
+  I("m_moon", "Moon Pendant", "🌙", "amulet", 2, 2, 135, { mp: 28, ice: 4 }),
+  I("m_wyrm", "Wyrm's Eye", "🐲", "amulet", 3, 3, 300, { fire: 8, hp: 30 }),
+  I("m_abyss", "Abyss Locket", "🖤", "amulet", 3, 5, 430, { atk: 7, ls: 5 }),
+  I("m_endless", "Amulet of the Deep", "💎", "amulet", 3, 6, 500, { hp: 70, def: 6, mp: 30 }),
+  I("s_grv_a", "Gravebloom Shroud", "🧥", "armor", 3, 3, 300, { def: 11, hp: 25, poison: 3 }, { set: "grave", ff: 6 }),
+  I("s_grv_h", "Gravebloom Cowl", "🎭", "helmet", 3, 3, 280, { def: 5, poison: 4, hp: 15 }, { set: "grave", ff: 6 }),
+  I("s_grv_r", "Gravebloom Band", "💍", "ring", 3, 3, 280, { poison: 5, atk: 3 }, { set: "grave", ff: 6 }),
+  I("s_grv_m", "Gravebloom Amulet", "📿", "amulet", 3, 3, 280, { hp: 25, poison: 4 }, { set: "grave", ff: 6 }),
+  I("s_rme_w", "Rimeward Blade", "⚔️", "weapon", 3, 5, 420, { atk: 18, ice: 6 }, { set: "rime", ff: 10 }),
+  I("s_rme_a", "Rimeward Mail", "🛡️", "armor", 3, 5, 420, { def: 16, hp: 30, ice: 3 }, { set: "rime", ff: 10 }),
+  I("s_rme_h", "Rimeward Helm", "⛑️", "helmet", 3, 5, 400, { def: 7, hp: 20, ice: 3 }, { set: "rime", ff: 10 }),
+  I("s_rme_m", "Rimeward Talisman", "❄️", "amulet", 3, 5, 400, { ice: 6, def: 4 }, { set: "rime", ff: 10 }),
+  I("s_ash_h", "Ashen Circlet", "💠", "helmet", 3, 6, 430, { mp: 30, fire: 4, atk: 3 }, { set: "ashen", ff: 14 }),
+  I("s_ash_r", "Ashen Signet", "💍", "ring", 3, 6, 430, { fire: 6, mp: 20 }, { set: "ashen", ff: 14 }),
+  I("s_ash_m", "Ashen Amulet", "🔥", "amulet", 3, 6, 430, { fire: 6, atk: 4 }, { set: "ashen", ff: 14 }),
+  I("w_kiss", "Reaper's Kiss", "🔪", "weapon", 4, 4, 900, undefined, { cls: ["rogue"], sp: "reapSoul", desc: "Kills restore 8% HP and 10% MP.", uranges: { atk: [22, 28], crit: [16, 24] } }),
+  I("w_worldender", "Worldender", "🪓", "weapon", 4, 6, 1100, undefined, { cls: ["warrior"], sp: "cleaveHit", desc: "Basic attacks also cleave a nearby foe for 50%.", uranges: { atk: [28, 36], crit: [6, 10] } }),
+  I("w_starlance", "Starlance", "🔱", "weapon", 4, 5, 1000, undefined, { cls: ["warrior", "ranger"], sp: "skyfall", desc: "Your first hit in a fight deals 175%.", uranges: { atk: [24, 30], holy: [8, 14] } }),
+  I("w_soulwand", "Soulfire Wand", "✨", "weapon", 4, 5, 1000, undefined, { cls: ["mage"], sp: "soulburn", desc: "Ability hits ignite the target and restore 10 MP.", uranges: { atk: [16, 22], mp: [50, 70], fire: [10, 16] } }),
+  I("a_gloom", "Gloomhide Carapace", "🧥", "armor", 4, 5, 1000, undefined, { sp: "shadowVeil", desc: "After you are hit, gain +20% dodge for 3 s.", uranges: { def: [22, 28], hp: [50, 80], dodge: [4, 8] } }),
+  I("h_oracle", "Oracle's Diadem", "👑", "helmet", 4, 5, 1000, undefined, { cls: MC, sp: "insight", desc: "Abilities deal 20% more damage.", uranges: { def: [6, 10], mp: [50, 70], atk: [4, 8] } }),
+  I("r_twin", "Twin Serpent Ring", "💍", "ring", 4, 4, 900, undefined, { sp: "critPoison", desc: "Critical hits inflict heavy poison.", uranges: { poison: [8, 14], ls: [6, 10], atk: [5, 9] } }),
+  I("x_cinder", "Cinderstride Raiment", "🧥", "armor", 3, 3, 420, { def: 16, dodge: 12, atk: 8 }, { cursed: true, curse: "c_burn", desc: "Curse: burn 3% of max HP every 2 s in combat." }),
+  I("x_glutton", "Helm of the Glutton", "🪖", "helmet", 3, 3, 420, { hp: 90, def: 10 }, { cursed: true, curse: "c_slow", desc: "Curse: you move 30% slower." }),
+  I("x_glass", "Glassfang", "🗡️", "weapon", 3, 4, 480, { atk: 28, crit: 22 }, { cursed: true, curse: "c_brittle", desc: "Curse: your DEF is halved." }),
+  I("x_pendulum", "Pendulum Amulet", "⏳", "amulet", 3, 4, 480, { atk: 10, mp: 50, crit: 8 }, { cursed: true, curse: "c_lag", desc: "Curse: ability cooldowns last 50% longer." }),
+  I("x_living", "Ring of Living Lightning", "⚡", "ring", 4, 5, 650, { atk: 10, crit: 12, fire: 8 }, { cursed: true, curse: "c_manatick", sp: "chainShock", desc: "Attacks arc lightning to all other foes for 35%. Curse: lose 8% of max MP every 2 s in combat." }),
 ];
 const IT: Record<string, ItemT> = {};
 for (const it of ITEMS) IT[it.id] = it;
@@ -247,6 +325,9 @@ const SETS: Record<string, SetT> = {
   gloam: { name: "Gloamrunner's Kit", cls: "rogue", n: 4, b2: { dodge: 6 }, b3: { crit: 6, atk: 4 }, bf: { dodge: 4 }, sp: "opener", desc: "2 pc: +6% dodge · 3 pc: +6% crit, +4 ATK · 4 pc: +4% dodge and your first hit in a fight deals 150%" },
   oath: { name: "Oathkeeper's Sacrament", cls: "cleric", n: 4, b2: { holy: 6 }, b3: { hp: 40, def: 6 }, bf: { mp: 25 }, sp: "lifeTap", desc: "2 pc: +6 holy · 3 pc: +40 HP, +6 DEF · 4 pc: +25 MP and 8% of damage dealt is returned as healing" },
   wind: { name: "Windstrider's Leaguer", cls: "ranger", n: 4, b2: { crit: 6 }, b3: { atk: 5, dodge: 5 }, bf: { crit: 4 }, sp: "pierce", desc: "2 pc: +6% crit · 3 pc: +5 ATK, +5% dodge · 4 pc: +4% crit and basic attacks also pierce a nearby foe for 40%" },
+  grave: { name: "Gravebloom Vestments", n: 4, b2: { poison: 6 }, b3: { hp: 30, atk: 4 }, bf: { poison: 5 }, sp: "graveRot", desc: "2 pc: +6 poison · 3 pc: +30 HP, +4 ATK · 4 pc: +5 poison and attacks inflict a heavier rot" },
+  rime: { name: "Rimeward Pall", n: 4, b2: { ice: 6 }, b3: { def: 6, hp: 20 }, bf: { ice: 5 }, sp: "freezeHit", desc: "2 pc: +6 ice · 3 pc: +6 DEF, +20 HP · 4 pc: +5 ice and attacks have a 25% chance to freeze" },
+  ashen: { name: "Ashen Covenant", n: 3, b2: { mp: 30, fire: 4 }, bf: { atk: 6 }, sp: "flameHit", desc: "2 pc: +30 MP, +4 fire · 3 pc: +6 ATK and attacks can ignite foes" },
 };
 const PETS: Record<string, PetT> = {
   wolf: { name: "Wolf", icon: "🐺", hpF: 0.5, mult: 0.45, spd: 4.4, reach: 0.95, rate: 1.5, desc: "bites hard" },
@@ -673,6 +754,7 @@ function tickScrollBuffs(g: Game, dt: number): void {
   if (b.frenzy > 0) b.frenzy = Math.max(0, b.frenzy - dt);
   if ((b.defendT ?? 0) > 0) b.defendT = Math.max(0, (b.defendT ?? 0) - dt);
   b.defend = (b.defendT ?? 0) > 0;
+  if ((b.veil ?? 0) > 0) b.veil = Math.max(0, (b.veil ?? 0) - dt);
 }
 function fmtBuff(n: number): string { return n >= 10 ? `${Math.ceil(n)}s` : `${Math.max(0.1, n).toFixed(1)}s`; }
 function log(g: Game, t: string, c: string = "sys"): void { g.log.unshift({ t, c, ts: Date.now() }); if (g.log.length > 60) g.log.pop(); }
@@ -683,8 +765,10 @@ function gain(g: Game, text: string, color: string): void { addFx(g, text, color
 function rarCol(inv: Inv): string { return inv.ident ? RCOL[IT[inv.id].r] : "#d8cfc0"; }
 
 // ---- item instances ----
-const NOUN: Record<string, string> = { "🪄": "Staff", "🏹": "Bow", "🔪": "Dagger", "🪓": "Axe", "🔨": "Mace", "🔱": "Scepter" };
+const NOUN: Record<string, string> = { "🪄": "Staff", "🏹": "Bow", "🔪": "Dagger", "🪓": "Axe", "🔨": "Mace", "🔱": "Scepter", "✨": "Wand" };
 function nounOf(it: ItemT): string {
+  if (/spear|pike|lance|halberd/i.test(it.name)) return "Spear";
+  if (/wand/i.test(it.name)) return "Wand";
   const m: Record<Slot, string> = { weapon: NOUN[it.icon] ?? "Sword", armor: "Armor", helmet: "Helm", ring: "Ring", amulet: "Amulet", consumable: "Item" };
   return m[it.slot];
 }
@@ -849,7 +933,7 @@ function instName(inv: Inv): string {
   const it = IT[inv.id];
   if (!inv.ident) return `Unidentified ${nounOf(it)} ???`;
   if (inv.aname) return inv.aname;
-  const affs = inv.affs ?? [];
+  const affs = (inv.affs ?? []).filter((a: RolledAff) => a.tier > 0);
   const pre = affs.find((a: RolledAff) => a.pre);
   const suf = affs.find((a: RolledAff) => !a.pre);
   if (pre || suf) return [pre?.name, it.name, suf?.name].filter(Boolean).join(" ");
@@ -867,8 +951,23 @@ function makeInst(id: string, f: number, roll: boolean, src?: string): Inv {
   const hideP = it.cursed ? 0.9 : HIDE[it.r];
   const ident = src === "shop" || !roll || it.slot === "consumable" || Math.random() >= hideP;
   const ilvl = itemLevel(f, src);
-  if (!roll || it.slot === "consumable" || (it.r >= 4 && !it.set)) {
+  if (!roll || it.slot === "consumable") {
     return { uid: UID++, id, ident, bon: {}, freed: false, ilvl };
+  }
+  if (it.r >= 4 && !it.set) {
+    const bon: Stats = {};
+    const affs: RolledAff[] = [];
+    const ur = it.uranges;
+    if (ur) {
+      for (const k of Object.keys(ur) as StatKey[]) {
+        const pair = ur[k]; if (!pair) continue;
+        const [lo, hi] = pair;
+        const v = lo + rnd(Math.max(1, hi - lo + 1));
+        bon[k] = v;
+        affs.push({ id: "u_" + k, pre: false, tier: 0, stat: k, v, name: "Unique", lo, hi });
+      }
+    }
+    return { uid: UID++, id, ident, bon, freed: false, ilvl, affs: affs.length ? affs : undefined };
   }
   const { bon, affs, mpreg } = rollAffixes(it, ilvl);
   const aname = it.r >= 2 && !it.set && affs.length > 0 ? rareName(UID, it.id) : undefined;
@@ -955,6 +1054,8 @@ function full(g: Game): Full {
   if (g.perks.includes("eagleeye")) f.crit += 20;
   if (g.perks.includes("deathmark")) f.crit += 10;
   if (f.curses.includes("c_frail")) f.maxHp *= 0.7;
+  if (f.curses.includes("c_brittle")) f.def *= 0.5;
+  if ((g.buffs.veil ?? 0) > 0) f.dodge += 20;
   f.maxHp = Math.max(10, Math.round(f.maxHp)); f.maxMp = Math.max(0, Math.round(f.maxMp)); f.atk = Math.max(1, Math.round(f.atk)); f.def = Math.max(0, Math.round(f.def));
   f.crit = Math.max(0, Math.min(75, Math.round(f.crit))); f.dodge = Math.max(0, Math.min(50, Math.round(f.dodge))); f.ls = Math.max(0, Math.min(40, f.ls)); f.th = Math.max(0, Math.min(60, f.th));
   return f;
@@ -1289,11 +1390,15 @@ function hitEnemy(g: Game, e: Enemy, mult: number, forceCrit: boolean, label: st
   if (g.inAb && f.sp.includes("arcanist")) d *= 1.2;
   if (f.sp.includes("execute") && e.max > 0 && e.hp / e.max <= 0.4) d *= 1.25;
   if (f.sp.includes("opener") && g.combat && !g.combat.opened) d *= 1.5;
+  if (f.sp.includes("skyfall") && g.combat && !g.combat.opened) d *= 1.75;
+  if (g.inAb && f.sp.includes("insight")) d *= 1.2;
   const dmg = Math.max(1, Math.round(d));
   e.hp -= dmg;
   if (f.sp.includes("opener") && g.combat) g.combat.opened = true;
   if (f.sp.includes("lifeTap")) healPlayer(g, Math.max(1, Math.round(dmg * 0.08)), false);
   if (f.sp.includes("flameHit") && e.hp > 0 && Math.random() < 0.25) { e.burnT = Math.max(e.burnT, 3); e.burnD = Math.max(e.burnD, Math.max(3, Math.round(f.atk * 0.2))); }
+  if (f.sp.includes("soulburn") && g.inAb) { g.mp = Math.min(f.maxMp, g.mp + 10); if (e.hp > 0) { e.burnT = Math.max(e.burnT, 3); e.burnD = Math.max(e.burnD, Math.max(3, Math.round(f.atk * 0.25))); } }
+  if (f.sp.includes("graveRot") && e.hp > 0) { e.poisT = Math.max(e.poisT, 4); e.poisD = Math.max(e.poisD, Math.max(f.poison, Math.round(f.atk * 0.25))); }
   log(g, `${label} → ${e.name}: ${dmg}${crit ? " CRIT! 🩸 Blood sprays!" : ""}`, "dmg");
   addFx(g, `-${dmg}${crit ? "!" : ""}`, crit ? "loot" : "dmg", "e" + e.uid);
   if (f.ls > 0) healPlayer(g, Math.max(1, Math.round(dmg * f.ls / 100)), false);
@@ -1338,6 +1443,7 @@ function damagePlayer(g: Game, e: Enemy, raw: number, magic: boolean, verb: stri
   log(g, `${e.name} ${verb} you for ${d}.`, "bad");
   addFx(g, `-${d}`, "bad", "p");
   if (d > 0) g.hurtTs = Date.now();
+  if (d > 0 && f.sp.includes("shadowVeil")) b.veil = 3;
   const th = f.th / 100 + (f.sp.includes("thorns") ? 0.25 : 0) + (f.sp.includes("thorns15") ? 0.15 : 0) + (g.perks.includes("juggernaut") ? 0.35 : 0);
   if (th > 0 && e.hp > 0) { const r = Math.max(1, Math.round(total * th)); e.hp -= r; log(g, `Thorns reflect ${r} to ${e.name}.`, "dmg"); }
   if (g.cls === "warrior") g.mp = Math.min(f.maxMp, g.mp + 2);
@@ -1351,6 +1457,7 @@ function resolveDeaths(g: Game): void {
     if (e.dead || e.hp > 0) continue;
     e.dead = true; e.hp = 0; e.wind = 0; e.wk = ""; e.dt0 = Date.now(); g.kills++;
     if (full(g).sp.includes("bloodlust")) { const h = healPlayer(g, Math.max(1, Math.round(full(g).maxHp * 0.08)), false); if (h > 0) { log(g, `🩸 Bloodlust heals ${h}.`, "heal"); addFx(g, `+${h}`, "heal", "p"); } }
+    if (full(g).sp.includes("reapSoul")) { const F = full(g); const h = healPlayer(g, Math.max(1, Math.round(F.maxHp * 0.08)), false); const m = Math.max(1, Math.round(F.maxMp * 0.10)); g.mp = Math.min(F.maxMp, g.mp + m); if (h > 0) { log(g, `💀 Reaper's Kiss restores ${h} HP and ${m} MP.`, "heal"); addFx(g, `+${h}`, "heal", "p"); } }
     const gold = goldGain(g, e.gold * (0.8 + Math.random() * 0.4));
     gain(g, `+${e.xp} XP`, XPC); gain(g, `+${gold} gold`, GOLDC);
     gainXp(g, e.xp);
@@ -1690,6 +1797,7 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
   if (atk) { rtAttack(g); if (g.combat !== c || g.screen !== "map") return; }
   petStep(g, dt);
   c.elapsed = (c.elapsed ?? 0) + dt;
+  tickCombatCurses(g, c, dt); if (g.combat !== c || g.screen !== "map") return;
   c.tick = (c.tick ?? 0) + dt;
   if (c.tick >= 1.5) {
     c.tick -= 1.5;
@@ -2396,7 +2504,7 @@ function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   I.slowT = Math.max(0, I.slowT - dt);
   for (const k of Object.keys(g.cds)) if (g.cds[k] > 0) g.cds[k] = Math.max(0, g.cds[k] - dt);
   const cb = g.combat;
-  const sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1) * (cb ? 1 + Math.min(50, full(g).dodge) / 250 : 1);
+  const sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1) * (full(g).curses.includes("c_slow") ? 0.7 : 1) * (cb ? 1 + Math.min(50, full(g).dodge) / 250 : 1);
   const mag = Math.hypot(mx, my);
   let tvx = 0, tvy = 0;
   if (cb && (cb.dashT ?? 0) > 0) {
@@ -2686,6 +2794,26 @@ function petStep(g: Game, dt: number): void {
     if (dHero > 13 || petNav(i, p).stuckT > 1.15) petPoof(g, p, i, px, py);
   }
 }
+function tickCombatCurses(g: Game, c: Combat, dt: number): void {
+  const f = full(g);
+  if (!f.curses.includes("c_burn") && !f.curses.includes("c_manatick")) return;
+  c.curseAcc = (c.curseAcc ?? 0) + dt;
+  while ((c.curseAcc ?? 0) >= 2) {
+    c.curseAcc = (c.curseAcc ?? 0) - 2;
+    if (f.curses.includes("c_burn")) {
+      const d = Math.max(1, Math.round(f.maxHp * 0.03));
+      g.hp -= d;
+      log(g, `🔥 Cinderstride burns you for ${d}.`, "bad");
+      addFx(g, `-${d}`, "bad", "p");
+      lethal(g); if (g.hp <= 0) { die(g); return; }
+    }
+    if (f.curses.includes("c_manatick")) {
+      const m = Math.max(1, Math.round(f.maxMp * 0.08));
+      g.mp = Math.max(0, g.mp - m);
+      log(g, `⚡ Living Lightning drains ${m} MP.`, "bad");
+    }
+  }
+}
 function endRound(g: Game): void {
   const c = g.combat; if (!c) return;
   const b = g.buffs;
@@ -2711,7 +2839,7 @@ function abCost(g: Game, ab: Ab): number {
   if (g.perks.includes("arcanebattery")) m *= 0.85;
   return Math.round(ab.mp * m);
 }
-function abCd(g: Game, ab: Ab): number { return Math.max(0, ab.cd - (full(g).sp.includes("cdr") ? 1.5 : 0) - (g.perks.includes("archmage") ? 1.5 : 0)); }
+function abCd(g: Game, ab: Ab): number { const f = full(g); const base = Math.max(0, ab.cd - (f.sp.includes("cdr") ? 1.5 : 0) - (g.perks.includes("archmage") ? 1.5 : 0)); return f.curses.includes("c_lag") ? base * 1.5 : base; }
 function runAbility(g: Game, id: string, label: string): void {
   const c = g.combat; if (!c) return;
   const f = full(g); const b = g.buffs; const t = tgt(c);
@@ -2890,9 +3018,9 @@ function doAction(g: Game, kind: string, arg: string): ActRes {
     if (f.sp.includes("doubleStrike") && t.hp > 0 && Math.random() < 0.2) hitEnemy(g, t, 1, false, "⚔️ Echo Blade");
     if (f.sp.includes("freezeHit") && t.hp > 0 && Math.random() < 0.25) stunE(g, t, 1.5);
     if (f.sp.includes("chainShock")) for (const e of alive(c)) if (e !== t) { const d = Math.max(1, Math.round(f.atk * 0.35 * 60 / (60 + e.def))); e.hp -= d; addFx(g, `-${d}`, "dmg", "e" + e.uid); log(g, `⚡ Lightning arcs to ${e.name} for ${d}.`, "dmg"); }
-    if (f.sp.includes("pierce")) {
+    if (f.sp.includes("pierce") || f.sp.includes("cleaveHit")) {
       const others = alive(c).filter((e: Enemy) => e !== t && eDist(c, e) <= 3.2).sort((a: Enemy, b: Enemy) => eDist(c, a) - eDist(c, b));
-      if (others[0]) hitEnemy(g, others[0], 0.4, false, "🏹 Pierce");
+      if (others[0]) hitEnemy(g, others[0], f.sp.includes("cleaveHit") ? 0.5 : 0.4, false, f.sp.includes("cleaveHit") ? "🪓 Cleave" : "🏹 Pierce");
     }
     return "turn";
   }
@@ -2975,7 +3103,7 @@ const HELP: [string, string][] = [
   ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
   ["✨ Abilities", "Each class starts with only a basic attack. Class abilities unlock as you level: the first at level 3, then 6, 9 and (if a class has a fourth) 12. Locked buttons show a lock and the required level, and a banner announces “New ability unlocked” when one opens. Warriors learn Shield Bash, a frontal-cone Cleave, Battle Cry, then Smash (a circular shockwave). Clerics learn Heal, Smite, Holy Shield, then the same Smash. Mage, Rogue and Ranger keep their three class abilities. Abilities cost MP and have cooldowns in seconds — each button shows a sweep and the time left. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
-  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its name, roll, and range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag."],
+  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its name, roll, and range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Later general sets, rarer than the earlier ones: Gravebloom Vestments (from floor 6), Rimeward Pall (from floor 10), and Ashen Covenant (from floor 14, Endless). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag. The dungeon holds 67 weapons, 42 armor, 37 helmets, 34 rings and 33 amulets, including 73 set pieces across 19 sets, 24 legendaries (uniques), and 11 cursed items."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
   ["💰 Merchant", "Buy potions, scrolls and gear, sell loot, identify items, and lift curses. Merchants appear on even floors."],
