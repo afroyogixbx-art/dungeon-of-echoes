@@ -2868,7 +2868,7 @@ export default function DungeonOfEchoes() {
     try { const gg = parseRun(rawRun()); if (gg) { G.current = gg; LAST_SAVE = saveRun(gg); return "💾 Resumed where you left off"; } } catch (e) { void e; }
     return "";
   });
-  const [, setTick] = useState<number>(0);
+  const [tick, setTick] = useState<number>(0);
   const [exitAsk, setExitAsk] = useState<boolean>(false);
   const [impFocus, setImpFocus] = useState<boolean>(false);
   const [sheet, setSheet] = useState<{ code: string; exit: boolean } | null>(null);
@@ -2898,6 +2898,7 @@ export default function DungeonOfEchoes() {
   const worldEl = useRef<HTMLDivElement | null>(null);
   const miniCv = useRef<HTMLCanvasElement | null>(null);
   const bigCv = useRef<HTMLCanvasElement | null>(null);
+  const detRef = useRef<HTMLDivElement | null>(null);
   const miniT = useRef<number>(0);
   const drawRef = useRef<(force: boolean) => void>(() => undefined);
   const [bigMap, setBigMap] = useState<boolean>(false);
@@ -2905,6 +2906,19 @@ export default function DungeonOfEchoes() {
   const refresh = useCallback((): void => setTick((n: number) => n + 1), []);
   const run = useCallback((fn: (g: Game) => void): void => { const g = G.current; if (!g) return; fn(g); LAST_SAVE = saveRun(g); refresh(); }, [refresh]);
   const toTitle = (): void => { if (G.current) LAST_SAVE = saveRun(G.current); G.current = null; setConfirm(null); setUi("title"); refresh(); };
+
+  useEffect(() => {
+    const gg = G.current;
+    const el = detRef.current;
+    if (!gg || gg.screen !== "inventory" || gg.sel < 0 || !el) return;
+    const id = window.requestAnimationFrame(() => {
+      const r = el.getBoundingClientRect(), pad = 16;
+      if (r.bottom > window.innerHeight - pad || r.top < pad) {
+        el.scrollIntoView({ behavior: "smooth", block: r.bottom > window.innerHeight - pad ? "end" : "nearest" });
+      }
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [tick]);
 
   useEffect(() => {
     let alive = true;
@@ -3894,11 +3908,28 @@ export default function DungeonOfEchoes() {
 
   // ---------- INVENTORY ----------
   if (g.screen === "inventory") {
-    const selInv = g.inv.find((i: Inv) => i.uid === g.sel);
-    const selSlot = GEAR.find((k: GearSlot) => g.eq[k]?.uid === g.sel);
-    const selEq = selSlot ? g.eq[selSlot] : undefined;
-    const sel = selInv ?? selEq;
     const sc = setCounts(g);
+    const toggleSel = (uid: number): void => run((gg: Game) => { gg.sel = gg.sel === uid ? -1 : uid; });
+    const itemPanel = (sel: Inv, from: "inv" | "eq", slot?: GearSlot): ReactNode => {
+      const selInv = from === "inv" ? sel : undefined;
+      const selSlot = from === "eq" ? slot : undefined;
+      return (
+        <div ref={detRef} data-itempanel={sel.uid} style={{ gridColumn: "1 / -1", ...card, display: "flex", flexDirection: "column", gap: 8, border: `2px solid ${sel.ident ? RCOL[IT[sel.id].r] : t.border.strong}` }}>
+          {instDetail(sel, g)}
+          <div style={row}>
+            {selSlot && btn(locked(sel) ? "🔒 Cursed" : "Unequip", () => run((gg: Game) => { unequip(gg, selSlot); if (!gg.eq[selSlot]) gg.sel = -1; }), { grow: true, disabled: locked(sel) })}
+            {selInv && IT[selInv.id].slot !== "consumable" && btn(selInv.ident ? "Equip" : "Equip (reveal)", () => run((gg: Game) => { equip(gg, selInv.uid); }), { tone: "primary", grow: true })}
+            {selInv && IT[selInv.id].slot === "consumable" && btn("Use", () => run((gg: Game) => { const r = useConsumable(gg, selInv); if (r === "turn") gg.sel = -1; }), { tone: "primary", grow: true })}
+            {selInv && ["heal", "both", "mana", "cleanse", "bomb", "frost", "fury", "iron"].includes(IT[selInv.id].fx ?? "") && btn(g.qs === selInv.id ? "★ Quick-slot" : "☆ Quick-slot", () => run((gg: Game) => { gg.qs = gg.qs === selInv.id ? undefined : selInv.id; log(gg, gg.qs ? `${IT[selInv.id].icon} ${IT[selInv.id].name} set as your combat quick-slot (R / 4 / Select).` : "Quick-slot reset to your first healing potion."); }), { grow: true, key: "qs" })}
+            {selInv && btn("Drop", () => run((gg: Game) => { gg.inv = gg.inv.filter((x: Inv) => x.uid !== selInv.uid); log(gg, `Dropped ${instName(selInv)}.`); gg.sel = -1; }), { tone: "danger", grow: true })}
+          </div>
+          {selInv && IT[selInv.id].slot !== "consumable" && (() => {
+            const cur = g.eq[IT[selInv.id].slot as GearSlot];
+            return cur ? <div style={small}>Currently worn: {instName(cur)}{locked(cur) ? " (cursed, locked)" : ""}</div> : null;
+          })()}
+        </div>
+      );
+    };
     return (
       <div style={root}>{style}
         {hud}
@@ -3929,43 +3960,33 @@ export default function DungeonOfEchoes() {
         )}
         {Object.keys(sc).filter((s: string) => sc[s] >= 1 && SETS[s]).map((s: string) => <div key={s}>{setLines(s, sc[s])}</div>)}
         <div style={head}>EQUIPPED</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(90px, 1fr))", gap: 6 }}>
           {GEAR.map((k: GearSlot) => {
-            const it = g.eq[k];
+            const it = g.eq[k]; const on = !!(it && g.sel === it.uid);
             return (
-              <button key={k} onClick={() => run((gg: Game) => { gg.sel = it ? it.uid : -1; })} style={{ flex: "1 1 90px", minWidth: 0, minHeight: 64, backgroundColor: it && g.sel === it.uid ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: it && k !== "ring" && k !== "amulet" ? bloodBg(it.uid) : undefined, border: `2px solid ${it ? RCOL[IT[it.id].r] : t.border.default}`, borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 4, cursor: "pointer" }}>
-                <div style={{ fontSize: 22, filter: it && k === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{it ? IT[it.id].icon : SLOT_ICON[k]}{it && locked(it) ? "🔒" : ""}</div>
-                <div style={{ fontSize: 11, color: t.text.secondary }}>{it ? instName(it) : `No ${SLOT_NAME[k].toLowerCase()}`}</div>
-              </button>
+              <div key={k} style={{ display: "contents" }}>
+                <button onClick={() => it ? toggleSel(it.uid) : run((gg: Game) => { gg.sel = -1; })} style={{ minWidth: 0, minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: it && k !== "ring" && k !== "amulet" ? bloodBg(it.uid) : undefined, border: `2px solid ${it ? RCOL[IT[it.id].r] : t.border.default}`, borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 4, cursor: "pointer" }}>
+                  <div style={{ fontSize: 22, filter: it && k === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{it ? IT[it.id].icon : SLOT_ICON[k]}{it && locked(it) ? "🔒" : ""}</div>
+                  <div style={{ fontSize: 11, color: t.text.secondary }}>{it ? instName(it) : `No ${SLOT_NAME[k].toLowerCase()}`}</div>
+                </button>
+                {on && it ? itemPanel(it, "eq", k) : null}
+              </div>
             );
           })}
         </div>
-        {sel && (
-          <div style={{ ...card, display: "flex", flexDirection: "column", gap: 8, border: `2px solid ${sel.ident ? RCOL[IT[sel.id].r] : t.border.strong}` }}>
-            {instDetail(sel, g)}
-            <div style={row}>
-              {selSlot && btn(locked(sel) ? "🔒 Cursed" : "Unequip", () => run((gg: Game) => { unequip(gg, selSlot); if (!gg.eq[selSlot]) gg.sel = -1; }), { grow: true, disabled: locked(sel) })}
-              {selInv && IT[selInv.id].slot !== "consumable" && btn(selInv.ident ? "Equip" : "Equip (reveal)", () => run((gg: Game) => { equip(gg, selInv.uid); }), { tone: "primary", grow: true })}
-              {selInv && IT[selInv.id].slot === "consumable" && btn("Use", () => run((gg: Game) => { const r = useConsumable(gg, selInv); if (r === "turn") gg.sel = -1; }), { tone: "primary", grow: true })}
-              {selInv && ["heal", "both", "mana", "cleanse", "bomb", "frost", "fury", "iron"].includes(IT[selInv.id].fx ?? "") && btn(g.qs === selInv.id ? "★ Quick-slot" : "☆ Quick-slot", () => run((gg: Game) => { gg.qs = gg.qs === selInv.id ? undefined : selInv.id; log(gg, gg.qs ? `${IT[selInv.id].icon} ${IT[selInv.id].name} set as your combat quick-slot (R / 4 / Select).` : "Quick-slot reset to your first healing potion."); }), { grow: true, key: "qs" })}
-              {selInv && btn("Drop", () => run((gg: Game) => { gg.inv = gg.inv.filter((x: Inv) => x.uid !== selInv.uid); log(gg, `Dropped ${instName(selInv)}.`); gg.sel = -1; }), { tone: "danger", grow: true })}
-            </div>
-            {selInv && IT[selInv.id].slot !== "consumable" && (() => {
-              const cur = g.eq[IT[selInv.id].slot as GearSlot];
-              return cur ? <div style={small}>Currently worn: {instName(cur)}{locked(cur) ? " (cursed, locked)" : ""}</div> : null;
-            })()}
-          </div>
-        )}
         </div><div style={colS}>
         <div style={head}>BAG ({g.inv.length}/{MAXINV})</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 6 }}>
           {g.inv.map((it: Inv) => {
             const tt = IT[it.id]; const on = g.sel === it.uid;
             return (
-              <button key={it.uid} onClick={() => run((gg: Game) => { gg.sel = it.uid; })} style={{ minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: tt.slot === "weapon" || tt.slot === "armor" || tt.slot === "helmet" ? bloodBg(it.uid) : undefined, border: `2px ${it.ident ? "solid" : "dashed"} ${it.ident ? RCOL[tt.r] : t.border.strong}`, borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 2, cursor: "pointer", minWidth: 0 }}>
-                <div style={{ fontSize: 24, filter: tt.slot === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{instIcon(it)}</div>
-                <div style={{ fontSize: 9, color: t.text.secondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.ident ? tt.name : "???"}</div>
-              </button>
+              <div key={it.uid} style={{ display: "contents" }}>
+                <button onClick={() => toggleSel(it.uid)} style={{ minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: tt.slot === "weapon" || tt.slot === "armor" || tt.slot === "helmet" ? bloodBg(it.uid) : undefined, border: `2px ${it.ident ? "solid" : "dashed"} ${it.ident ? RCOL[tt.r] : t.border.strong}`, borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 2, cursor: "pointer", minWidth: 0 }}>
+                  <div style={{ fontSize: 24, filter: tt.slot === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{instIcon(it)}</div>
+                  <div style={{ fontSize: 9, color: t.text.secondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.ident ? tt.name : "???"}</div>
+                </button>
+                {on ? itemPanel(it, "inv") : null}
+              </div>
             );
           })}
         </div>
