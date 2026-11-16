@@ -1304,7 +1304,14 @@ let NAV_T = 0;
 let NOTE_T = 0;
 function combatNote(g: Game, t: string): void { const n = Date.now(); if (n - NOTE_T < 2500) return; NOTE_T = n; log(g, t, "bad"); }
 // speed, reach, wind-up (s), cooldown (s) — speed/reach in old arena units (÷U for tiles)
-const RTB: Record<string, [number, number, number, number]> = { brute: [13, 11, 0.75, 1.9], swift: [21, 9, 0.4, 1.25], tank: [9, 12, 0.85, 2.3], caster: [11, 50, 0.7, 2.3], poisoner: [17, 9, 0.5, 1.6], drainer: [14, 10, 0.6, 1.7], archer: [12, 52, 0.8, 2.4], spitter: [9, 48, 0.95, 3.2], hexer: [10, 52, 0.85, 3.0] };
+const RTB: Record<string, [number, number, number, number]> = { brute: [30, 11, 0.75, 1.9], swift: [35, 9, 0.4, 1.25], tank: [20, 12, 0.85, 2.3], caster: [26, 50, 0.7, 2.3], poisoner: [34, 9, 0.5, 1.6], drainer: [33, 10, 0.6, 1.7], archer: [26, 52, 0.8, 2.4], spitter: [25, 48, 0.95, 3.2], hexer: [25, 52, 0.85, 3.0] };
+const FAST_B = new Set(["swift", "poisoner", "drainer"]);
+function eSpdOf(b: string, elite = false, boss?: string): number {
+  const P0 = boss ? (boss === "lord" ? 28 : 26) : (RTB[b]?.[0] ?? 30);
+  let spd = 0.75 + P0 * 0.085;
+  if (elite && !boss) spd *= 1.08;
+  return spd;
+}
 // ranged foes keep a distance band [min, max] in tiles and fire from up to `fire` tiles
 const RANGED: Record<string, { min: number; max: number; fire: number }> = { caster: { min: 26 / U, max: 44 / U, fire: 62 / U }, archer: { min: 3.5, max: 6, fire: 6.5 }, spitter: { min: 3, max: 5.5, fire: 6 }, hexer: { min: 3.25, max: 5.5, fire: 6.5 } };
 const ARATE: Record<ClassId, number> = { warrior: 0.62, mage: 0.6, rogue: 0.42, cleric: 0.6, ranger: 0.5 };
@@ -1480,10 +1487,17 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
       continue;
     }
     if (e.stun > 0) { e.stun = Math.max(0, e.stun - dt / 1.2); e.wind = 0; e.wk = ""; continue; }
-    const P: [number, number, number, number] = e.boss ? (e.bk === "lord" ? [12, 17, 0.6, 1.5] : [10, 16, 0.7, 1.7]) : (RTB[e.b] ?? RTB.brute);
-    const spd = 0.75 + P[0] * 0.085, reach = P[1] / U;
+    const P: [number, number, number, number] = e.boss ? (e.bk === "lord" ? [28, 17, 0.6, 1.5] : [26, 16, 0.7, 1.7]) : (RTB[e.b] ?? RTB.brute);
+    const spd = eSpdOf(e.b, e.elite === true, e.boss ? e.bk : undefined), reach = P[1] / U;
     if ((e.wind ?? 0) > 0) {
       const w = (e.wind ?? 0) - dt; e.wind = w;
+      // quick types close a short, telegraphed lunge in the last moments of the wind-up (aim is already locked)
+      if (w > 0 && w <= 0.14 && !e.boss && FAST_B.has(e.b)) {
+        const lx = (e.ax ?? px) - ex, ly = (e.ay ?? py) - ey, ll = Math.hypot(lx, ly) || 1;
+        const q = { x: ex, y: ey };
+        slideMove(g, q, (lx / ll) * spd * 1.25, (ly / ll) * spd * 1.25, dt, MR);
+        e.x = q.x; e.y = q.y;
+      }
       if (w <= 0) { e.wind = 0; rtResolve(g, e, see ? d : 99, reach); if (g.hp <= 0) { die(g); return; } if (g.combat !== c) return; }
       continue;
     }
@@ -1553,7 +1567,7 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
 }
 // ----- free (sub-tile) map movement -----
 const PR = 0.3, MR = 0.3, MAP_SPD = 3.25;
-function mSpd(m: MapMon): number { const b = MON[m.t]?.b; return 0.75 + (b && RTB[b] ? RTB[b][0] : 13) * 0.085; }
+function mSpd(m: MapMon): number { const b = MON[m.t]?.b ?? "brute"; return eSpdOf(b, m.el === true, m.boss ? (m.t === "lord" || m.t === "brood" ? m.t : undefined) : undefined); }
 function solidT(g: Game, x: number, y: number): boolean { return x < 0 || y < 0 || x >= W || y >= H || g.map[y][x] === 0; }
 function pushOut(g: Game, p: { x: number; y: number }, r: number): void {
   for (let it = 0; it < 4; it++) {
