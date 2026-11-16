@@ -22,12 +22,12 @@ interface MonT { id: string; name: string; icon: string; hp: number; atk: number
 interface Room { x: number; y: number; w: number; h: number; }
 interface MapMon { id: number; x: number; y: number; t: string; boss: boolean; awake: boolean; stun: number; fx?: number; fy?: number; hp?: number; max?: number; hx?: number; hy?: number; el?: boolean; }
 interface Enemy { uid: number; spr?: string; name: string; icon: string; hp: number; max: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; bk: string; undead: boolean; boss: boolean; stun: number; burnT: number; burnD: number; poisT: number; poisD: number; dead: boolean; x?: number; y?: number; atkT?: number; wind?: number; wm?: number; wk?: string; rt?: boolean; mid?: number; hx?: number; hy?: number; lost?: number; minion?: boolean; mt?: string; away?: boolean; dt0?: number; elite?: boolean; tpk?: string; ax?: number; ay?: number; }
-interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number; boss: boolean; phase: number; charging: boolean; itemOpen: boolean; px?: number; py?: number; proj?: Proj[]; tele?: Tele[]; shots?: Shot[]; atkCd?: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; iT?: number; tick?: number; grace?: number; bossT?: number; fleeCd?: number; v2?: boolean; calm?: number; upg?: boolean; vault?: boolean; opened?: boolean; }
+interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number; elapsed?: number; boss: boolean; phase: number; charging: boolean; itemOpen: boolean; px?: number; py?: number; proj?: Proj[]; tele?: Tele[]; shots?: Shot[]; atkCd?: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; iT?: number; tick?: number; grace?: number; bossT?: number; fleeCd?: number; v2?: boolean; calm?: number; upg?: boolean; vault?: boolean; opened?: boolean; }
 interface Proj { id: number; x: number; y: number; vx: number; vy: number; dmg: number; from: number; life: number; c: string; k?: string; }
 interface Tele { id: number; x: number; y: number; r: number; t: number; max: number; dmg: number; from: number; kind: string; }
 interface Shot { id: number; x1: number; y1: number; x2: number; y2: number; ts: number; c: string; }
 interface Inp { jx: number; jy: number; kx: number; ky: number; gx: number; gy: number; atk: boolean; katk: boolean; gatk: boolean; stepT: number; monT: number; regT: number; alt: boolean; saveT: number; rT: number; slowT: number; shopL: boolean; vx: number; vy: number; idleT: number; }
-interface Buffs { rage: number; holy: number; evade: number; shield: number; frenzy: number; fury: number; iron: number; defend: boolean; dotT: number; dotD: number; hex?: number; }
+interface Buffs { rage: number; holy: number; evade: number; shield: number; frenzy: number; fury: number; iron: number; defend: boolean; defendT?: number; dotT: number; dotD: number; hex?: number; }
 // companions that fight on the map
 interface Pet { k: string; hp: number; max: number; x: number; y: number; ko: number; cd: number; aT?: number; tx?: number; ty?: number; }
 interface PetT { name: string; icon: string; hpF: number; mult: number; spd: number; reach: number; rate: number; desc: string; }
@@ -100,7 +100,7 @@ const ITEMS: ItemT[] = [
   I("h_circlet", "Sage Circlet", "💠", "helmet", 2, 2, 130, { mp: 30, atk: 3 }),
   I("h_arcflow", "Circlet of Living Arcana", "💠", "helmet", 3, 3, 300, { mp: 35, atk: 3 }, { mpreg: 4.0, desc: "♻ Mana regen 4.0/s." }),
   I("h_horned", "Horned Warhelm", "🪖", "helmet", 3, 3, 300, { def: 8, atk: 5, hp: 25 }),
-  I("h_crown", "Crown of Echoes", "👑", "helmet", 4, 4, 800, { def: 10, hp: 40, mp: 40 }, { sp: "cdr", desc: "All ability cooldowns 1 turn shorter." }),
+  I("h_crown", "Crown of Echoes", "👑", "helmet", 4, 4, 800, { def: 10, hp: 40, mp: 40 }, { sp: "cdr", desc: "All ability cooldowns 1.5 s shorter." }),
   I("r_copper", "Copper Ring", "💍", "ring", 0, 1, 15, { atk: 2 }),
   I("r_jade", "Jade Band", "💍", "ring", 1, 1, 50, { hp: 20, def: 2 }),
   I("r_thief", "Thief's Signet", "💍", "ring", 1, 1, 55, { crit: 6, dodge: 3 }, { cls: ["rogue"] }),
@@ -131,7 +131,7 @@ const ITEMS: ItemT[] = [
   I("s_arc_h", "Arcanist's Circlet", "💠", "helmet", 3, 3, 280, { mp: 30, def: 3 }, { set: "arc", cls: MC }),
   I("s_arc_a", "Arcanist's Robe", "👘", "armor", 3, 3, 280, { mp: 35, def: 8 }, { set: "arc", cls: MC }),
   I("s_arc_m", "Arcanist's Pendant", "📿", "amulet", 3, 3, 280, { mp: 25, fire: 4, ice: 4 }, { set: "arc", cls: MC }),
-  I("x_blood", "Bloodthirster", "🩸", "weapon", 4, 3, 500, { atk: 30, ls: 12 }, { cursed: true, curse: "c_bleed", desc: "Curse: lose 5% max HP every combat turn." }),
+  I("x_blood", "Bloodthirster", "🩸", "weapon", 4, 3, 500, { atk: 30, ls: 12 }, { cursed: true, curse: "c_bleed", desc: "Curse: lose 5% max HP every 1.5 s in combat." }),
   I("x_agony", "Blade of Agony", "🗡️", "weapon", 3, 2, 350, { atk: 20, crit: 25 }, { cursed: true, curse: "c_frail", desc: "Curse: max HP reduced by 30%." }),
   I("x_mad", "Crown of Madness", "👑", "helmet", 3, 2, 350, { atk: 14, crit: 20 }, { cursed: true, curse: "c_fragile", desc: "Curse: take 40% more damage." }),
   I("x_leech", "Ring of the Leech King", "💍", "ring", 3, 2, 350, { hp: 80, def: 8 }, { cursed: true, curse: "c_halfheal", desc: "Curse: all healing halved." }),
@@ -257,15 +257,15 @@ const PETS: Record<string, PetT> = {
 
 const CLS: Record<ClassId, ClassT> = {
   warrior: { id: "warrior", name: "Warrior", icon: "🛡️", tag: "Unbreakable frontliner", base: { hp: 120, mp: 30, atk: 12, def: 6, crit: 5, dodge: 3 }, grow: { hp: 14, mp: 3, atk: 2, def: 1.5, crit: 0 }, passive: "Rage: gains 2 MP every time it is struck.", start: ["w_sword", "a_tunic"],
-    abs: [{ id: "bash", name: "Shield Bash", icon: "🛡️", mp: 5, cd: 3, desc: "130% damage and stuns 1 turn." }, { id: "cleave", name: "Cleave", icon: "🪓", mp: 8, cd: 2, desc: "100% damage in a frontal cone." }, { id: "cry", name: "Battle Cry", icon: "📣", mp: 10, cd: 5, desc: "+50% ATK for 3 turns, heal 15%." }, { id: "smash", name: "Smash", icon: "💥", mp: 10, cd: 4, desc: "120% damage in a circle around you, with a shockwave." }] },
+    abs: [{ id: "bash", name: "Shield Bash", icon: "🛡️", mp: 5, cd: 5, desc: "130% damage and stuns for 2 s." }, { id: "cleave", name: "Cleave", icon: "🪓", mp: 8, cd: 6, desc: "100% damage in a frontal cone." }, { id: "cry", name: "Battle Cry", icon: "📣", mp: 10, cd: 12, desc: "+50% ATK for 8 s, heal 15%." }, { id: "smash", name: "Smash", icon: "💥", mp: 10, cd: 12, desc: "120% damage in a circle around you, with a shockwave." }] },
   mage: { id: "mage", name: "Mage", icon: "🧙", tag: "Glass-cannon spellcaster", base: { hp: 70, mp: 80, atk: 11, def: 2, crit: 5, dodge: 5 }, grow: { hp: 7, mp: 10, atk: 2.3, def: 0.7, crit: 0 }, passive: "Staff strikes are weak but restore 6 MP.", start: ["w_staff", "a_robe"],
-    abs: [{ id: "fireball", name: "Fireball", icon: "🔥", mp: 12, cd: 0, desc: "220% fire damage + burn 3 turns." }, { id: "nova", name: "Frost Nova", icon: "❄️", mp: 16, cd: 4, desc: "120% to ALL enemies, freezes 2 turns." }, { id: "arcane", name: "Arcane Shield", icon: "🔮", mp: 10, cd: 5, desc: "Absorb shield worth 40% of max MP." }] },
-  rogue: { id: "rogue", name: "Rogue", icon: "🥷", tag: "Crits, poison and evasion", base: { hp: 85, mp: 35, atk: 11, def: 3, crit: 25, dodge: 15 }, grow: { hp: 9, mp: 4, atk: 2.2, def: 0.8, crit: 0.5 }, passive: "Born lucky: high crit and dodge. Backstab auto-crits on the opening turn or vs stunned foes.", start: ["w_dagger", "a_tunic"],
-    abs: [{ id: "backstab", name: "Backstab", icon: "🗡️", mp: 8, cd: 2, desc: "220% damage; guaranteed crit on turn 1 or vs stunned." }, { id: "poison", name: "Poison Blade", icon: "🧪", mp: 8, cd: 3, desc: "100% damage + strong poison 4 turns." }, { id: "evade", name: "Evade", icon: "💨", mp: 6, cd: 4, desc: "Automatically dodge the next 2 attacks." }] },
+    abs: [{ id: "fireball", name: "Fireball", icon: "🔥", mp: 12, cd: 0, desc: "220% fire damage + burn for 4.5 s." }, { id: "nova", name: "Frost Nova", icon: "❄️", mp: 16, cd: 10, desc: "120% to ALL enemies, freezes for 3 s." }, { id: "arcane", name: "Arcane Shield", icon: "🔮", mp: 10, cd: 14, desc: "Absorb shield worth 40% of max MP." }] },
+  rogue: { id: "rogue", name: "Rogue", icon: "🥷", tag: "Crits, poison and evasion", base: { hp: 85, mp: 35, atk: 11, def: 3, crit: 25, dodge: 15 }, grow: { hp: 9, mp: 4, atk: 2.2, def: 0.8, crit: 0.5 }, passive: "Born lucky: high crit and dodge. Backstab auto-crits in the first 3 s of a fight or vs stunned foes.", start: ["w_dagger", "a_tunic"],
+    abs: [{ id: "backstab", name: "Backstab", icon: "🗡️", mp: 8, cd: 5, desc: "220% damage; guaranteed crit in the first 3 s of a fight or vs stunned." }, { id: "poison", name: "Poison Blade", icon: "🧪", mp: 8, cd: 6, desc: "100% damage + strong poison for 6 s." }, { id: "evade", name: "Evade", icon: "💨", mp: 6, cd: 10, desc: "Automatically dodge the next 2 attacks." }] },
   cleric: { id: "cleric", name: "Cleric", icon: "😇", tag: "Holy healer, undead slayer", base: { hp: 100, mp: 60, atk: 9, def: 5, crit: 5, dodge: 5 }, grow: { hp: 11, mp: 7, atk: 1.7, def: 1.2, crit: 0 }, passive: "Holy power: Smite deals 250% to undead; outlasts anything.", start: ["w_staff", "a_robe"],
-    abs: [{ id: "heal", name: "Heal", icon: "✨", mp: 10, cd: 2, desc: "Restore 35% HP and cleanse poison/burn." }, { id: "smite", name: "Smite", icon: "⚡", mp: 10, cd: 0, desc: "180% holy damage (250% vs undead)." }, { id: "holy", name: "Holy Shield", icon: "🔆", mp: 12, cd: 5, desc: "Halve all damage taken for 3 turns." }, { id: "smash", name: "Smash", icon: "💥", mp: 10, cd: 4, desc: "120% damage in a circle around you, with a shockwave." }] },
+    abs: [{ id: "heal", name: "Heal", icon: "✨", mp: 10, cd: 6, desc: "Restore 35% HP and cleanse poison/burn." }, { id: "smite", name: "Smite", icon: "⚡", mp: 10, cd: 0, desc: "180% holy damage (250% vs undead)." }, { id: "holy", name: "Holy Shield", icon: "🔆", mp: 12, cd: 14, desc: "Halve all damage taken for 6 s." }, { id: "smash", name: "Smash", icon: "💥", mp: 10, cd: 12, desc: "120% damage in a circle around you, with a shockwave." }] },
   ranger: { id: "ranger", name: "Ranger", icon: "🏹", tag: "Archer with a wolf companion", base: { hp: 90, mp: 40, atk: 10, def: 4, crit: 15, dodge: 10 }, grow: { hp: 10, mp: 5, atk: 2, def: 1, crit: 0.3 }, passive: "Wolf companion runs at foes and bites for 45% ATK every 1.5 s.", start: ["w_bow", "a_tunic"],
-    abs: [{ id: "multi", name: "Multi-Shot", icon: "🏹", mp: 10, cd: 2, desc: "4 arrows at random foes, 70% each." }, { id: "trap", name: "Snare Trap", icon: "⛓️", mp: 8, cd: 4, desc: "Stun target 2 turns + bleed." }, { id: "frenzy", name: "Call of the Wild", icon: "📯", mp: 10, cd: 5, desc: "150% shot; pets deal triple for 3 turns." }] },
+    abs: [{ id: "multi", name: "Multi-Shot", icon: "🏹", mp: 10, cd: 5, desc: "4 arrows at random foes, 70% each." }, { id: "trap", name: "Snare Trap", icon: "⛓️", mp: 8, cd: 10, desc: "Stun target for 3 s + bleed for 4.5 s." }, { id: "frenzy", name: "Call of the Wild", icon: "📯", mp: 10, cd: 12, desc: "150% shot; pets deal triple for 8 s." }] },
 };
 const CLASS_IDS: ClassId[] = ["warrior", "mage", "rogue", "cleric", "ranger"];
 
@@ -278,7 +278,7 @@ const CAPS: Record<ClassId, Perk[]> = {
   mage: [
     { id: "chain", name: "Chain Magic", icon: "⚡", tier: 4, rar: "Epic", cls: "mage", desc: "Fireball chains to ALL enemies; Frost Nova deals +50%." },
     { id: "echo", name: "Arcane Echo", icon: "🔁", tier: 4, rar: "Epic", cls: "mage", desc: "Fireball and Frost Nova have a 30% chance to cast twice for free." },
-    { id: "archmage", name: "Archmage", icon: "🌌", tier: 5, rar: "Legendary", cls: "mage", desc: "All spells cost 50% MP and cooldowns are 1 turn shorter." },
+    { id: "archmage", name: "Archmage", icon: "🌌", tier: 5, rar: "Legendary", cls: "mage", desc: "All spells cost 50% MP and cooldowns are 1.5 s shorter." },
   ],
   rogue: [
     { id: "shadowmeld", name: "Shadowmeld", icon: "🌫️", tier: 4, rar: "Epic", cls: "rogue", desc: "Once per floor, turn invisible to skip any non-boss fight." },
@@ -292,7 +292,7 @@ const CAPS: Record<ClassId, Perk[]> = {
     { id: "resurrect", name: "Divine Resurrection", icon: "🕯️", tier: 5, rar: "Legendary", cls: "cleric", desc: "Once per floor, a lethal blow instead revives you at 50% HP." },
   ],
   ranger: [
-    { id: "packleader", name: "Pack Leader", icon: "🪶", tier: 5, rar: "Legendary", cls: "ranger", desc: "Gain a second pet: a Hawk that strikes every turn." },
+    { id: "packleader", name: "Pack Leader", icon: "🪶", tier: 5, rar: "Legendary", cls: "ranger", desc: "Gain a second pet: a Hawk that strikes every 1.4 s." },
     { id: "volley", name: "Arrow Volley", icon: "🌧️", tier: 4, rar: "Epic", cls: "ranger", desc: "Multi-Shot fires 2 arrows at EVERY enemy." },
     { id: "eagleeye", name: "Eagle Eye", icon: "👁️", tier: 4, rar: "Epic", cls: "ranger", desc: "+20% crit; crits ignore enemy defense." },
   ],
@@ -664,8 +664,14 @@ function freshBuffs(): Buffs { return { rage: 0, holy: 0, evade: 0, shield: 0, f
 const FURY_T = 20, IRON_T = 25;
 function keepScrollBuffs(b: Buffs): Buffs { const n = freshBuffs(); n.fury = b.fury; n.iron = b.iron; return n; }
 function tickScrollBuffs(g: Game, dt: number): void {
-  if (g.buffs.fury > 0) g.buffs.fury = Math.max(0, g.buffs.fury - dt);
-  if (g.buffs.iron > 0) g.buffs.iron = Math.max(0, g.buffs.iron - dt);
+  const b = g.buffs;
+  if (b.fury > 0) b.fury = Math.max(0, b.fury - dt);
+  if (b.iron > 0) b.iron = Math.max(0, b.iron - dt);
+  if (b.rage > 0) b.rage = Math.max(0, b.rage - dt);
+  if (b.holy > 0) b.holy = Math.max(0, b.holy - dt);
+  if (b.frenzy > 0) b.frenzy = Math.max(0, b.frenzy - dt);
+  if ((b.defendT ?? 0) > 0) b.defendT = Math.max(0, (b.defendT ?? 0) - dt);
+  b.defend = (b.defendT ?? 0) > 0;
 }
 function fmtBuff(n: number): string { return n >= 10 ? `${Math.ceil(n)}s` : `${Math.max(0.1, n).toFixed(1)}s`; }
 function log(g: Game, t: string, c: string = "sys"): void { g.log.unshift({ t, c, ts: Date.now() }); if (g.log.length > 60) g.log.pop(); }
@@ -1139,7 +1145,7 @@ function hitEnemy(g: Game, e: Enemy, mult: number, forceCrit: boolean, label: st
   addFx(g, `-${dmg}${crit ? "!" : ""}`, crit ? "loot" : "dmg", "e" + e.uid);
   if (f.ls > 0) healPlayer(g, Math.max(1, Math.round(dmg * f.ls / 100)), false);
   if (crit && f.sp.includes("critHeal")) healPlayer(g, Math.round(f.maxHp * 0.05), false);
-  if (f.ice > 0 && e.hp > 0 && Math.random() < 0.1) stunE(g, e, 1);
+  if (f.ice > 0 && e.hp > 0 && Math.random() < 0.1) stunE(g, e, 1.5);
   if (f.poison > 0) { e.poisT = Math.max(e.poisT, 3); e.poisD = Math.max(e.poisD, f.poison); }
   if (g.perks.includes("bleedout")) { e.poisT = Math.max(e.poisT, 3); e.poisD = Math.max(e.poisD, Math.round(f.atk * 0.3)); }
   if (crit && f.sp.includes("critPoison")) { e.poisT = 4; e.poisD = Math.max(e.poisD, Math.round(f.atk * 0.4)); }
@@ -1147,8 +1153,8 @@ function hitEnemy(g: Game, e: Enemy, mult: number, forceCrit: boolean, label: st
 }
 function stunE(g: Game, e: Enemy, n: number): void {
   if (e.hp <= 0) return;
-  if (e.boss) { if (Math.random() < 0.5) { e.stun = Math.max(e.stun, 1); log(g, `${e.name} is staggered!`); } else log(g, `${e.name} resists the stun.`); return; }
-  e.stun = Math.max(e.stun, n); log(g, `${e.name} is stunned/frozen for ${n}.`);
+  if (e.boss) { if (Math.random() < 0.5) { e.stun = Math.max(e.stun, 1.5); log(g, `${e.name} is staggered!`); } else log(g, `${e.name} resists the stun.`); return; }
+  e.stun = Math.max(e.stun, n); log(g, `${e.name} is stunned/frozen for ${n === Math.round(n) ? n : n.toFixed(1)}s.`);
 }
 function damagePlayer(g: Game, e: Enemy, raw: number, magic: boolean, verb: string): number {
   if (g.combat && (g.combat.iT ?? 0) > 0) { addFx(g, "dodge", "sys", "p"); return 0; }
@@ -1228,7 +1234,7 @@ function endCombat(g: Game): void {
   else if (c.upg && g.mode === "endless" && g.offers.length > 0) g.screen = "upgrade";
 }
 function newCombat(): Combat {
-  return { enemies: [], target: 0, monId: -1, turn: 0, boss: false, phase: 1, charging: false, itemOpen: false, proj: [], tele: [], shots: [], grace: 0, bossT: 3, tick: 0, v2: true, calm: 0 };
+  return { enemies: [], target: 0, monId: -1, turn: 0, elapsed: 0, boss: false, phase: 1, charging: false, itemOpen: false, proj: [], tele: [], shots: [], grace: 0, bossT: 3, tick: 0, v2: true, calm: 0 };
 }
 // real-time + difficulty scaling, applied once per enemy
 function rtScale(e: Enemy, f: number): void {
@@ -1257,7 +1263,7 @@ function engage(g: Game, m: MapMon): void {
   if (m.boss) { c.boss = true; c.bossT = 2.5; log(g, `☠️ ${e.name} rises — the way down stays sealed until it falls!`, "bad"); addFx(g, "BOSS!", "bad", "p"); }
   else log(g, fresh ? `⚔️ ${e.name} attacks!` : `⚔️ ${e.name} joins the fight!`, "bad");
   const cur = c.enemies[c.target]; if (!cur || cur.dead) c.target = c.enemies.length - 1;
-  if (fresh && g.perks.includes("shadowstep")) { hitEnemy(g, e, 1.5, true, "🌑 Shadow Step"); if (e.hp > 0) stunE(g, e, 1); resolveDeaths(g); }
+  if (fresh && g.perks.includes("shadowstep")) { hitEnemy(g, e, 1.5, true, "🌑 Shadow Step"); if (e.hp > 0) stunE(g, e, 1.5); resolveDeaths(g); }
   if (fresh && g.perks.includes("huntersmark") && !g.perks.includes("shadowstep")) { hitEnemy(g, e, 1.5, false, "🎯 Hunter's Mark"); resolveDeaths(g); }
 }
 // an engaged enemy loses track of you and becomes a map monster again (damage taken is kept)
@@ -1530,6 +1536,7 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
   c.calm = 0;
   if (atk) { rtAttack(g); if (g.combat !== c || g.screen !== "map") return; }
   petStep(g, dt);
+  c.elapsed = (c.elapsed ?? 0) + dt;
   c.tick = (c.tick ?? 0) + dt;
   if (c.tick >= 1.5) {
     c.tick -= 1.5;
@@ -1554,7 +1561,7 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
       if (!e.minion) log(g, e.boss ? `${e.name} retreats to its lair and recovers.` : `${e.name} loses track of you.`);
       continue;
     }
-    if (e.stun > 0) { e.stun = Math.max(0, e.stun - dt / 1.2); e.wind = 0; e.wk = ""; continue; }
+    if (e.stun > 0) { e.stun = Math.max(0, e.stun - dt); e.wind = 0; e.wk = ""; continue; }
     const P: [number, number, number, number] = e.boss ? (e.bk === "lord" ? [28, 17, 0.6, 1.5] : [26, 16, 0.7, 1.7]) : (RTB[e.b] ?? RTB.brute);
     const spd = eSpdOf(e.b, e.elite === true, e.boss ? e.bk : undefined), reach = P[1] / U;
     if ((e.wind ?? 0) > 0) {
@@ -1748,7 +1755,7 @@ function mapMonsters(g: Game, dt: number, p: { x: number; y: number }): boolean 
   let ch = false, fld: Int16Array | null = null;
   for (const m of [...g.mons]) {
     if (m.fx === undefined || m.fy === undefined || Math.floor(m.fx) !== m.x || Math.floor(m.fy) !== m.y) { m.fx = m.x + 0.5; m.fy = m.y + 0.5; }
-    if (m.stun > 0) { m.stun = Math.max(0, m.stun - dt * 2); continue; }
+    if (m.stun > 0) { m.stun = Math.max(0, m.stun - dt); continue; }
     const d = Math.hypot(p.x - m.fx, p.y - m.fy);
     if (m.hx === undefined || m.hy === undefined) { m.hx = m.fx; m.hy = m.fy; }
     if (d < PR + MR + 0.05) { engage(g, m); ch = true; continue; }
@@ -2487,7 +2494,7 @@ function petAttack(g: Game, p: Pet, e: Enemy, f: Full): void {
   e.hp -= d; addFx(g, `-${d}`, "dmg", "e" + e.uid);
   log(g, `${T.icon} Your ${T.name} ${p.k === "imp" ? "scorches" : "hits"} ${e.name} for ${d}.`, "dmg");
   if (p.k === "imp") { const s = c.shots ?? (c.shots = []); s.push({ id: UID++, x1: p.x, y1: p.y, x2: e.x ?? 0, y2: e.y ?? 0, ts: Date.now(), c: "#ff8a3a" }); if (s.length > 8) s.shift(); if (e.hp > 0) { e.burnT = Math.max(e.burnT, 2); e.burnD = Math.max(e.burnD, Math.round(f.atk * 0.15)); } }
-  if (p.k === "owl" && e.hp > 0 && Math.random() < 0.15) stunE(g, e, 1);
+  if (p.k === "owl" && e.hp > 0 && Math.random() < 0.15) stunE(g, e, 1.5);
 }
 // in combat: each pet picks a foe (yours if close, else the nearest it can see), closes in and attacks on its own timer
 function petStep(g: Game, dt: number): void {
@@ -2538,10 +2545,9 @@ function endRound(g: Game): void {
   const f = full(g);
   if (b.dotT > 0) { g.hp -= b.dotD; b.dotT--; log(g, `You suffer ${b.dotD} damage over time.`, "bad"); lethal(g); if (g.hp <= 0) { die(g); return; } }
   if (f.curses.includes("c_bleed")) { const d = Math.max(1, Math.round(f.maxHp * 0.05)); g.hp -= d; log(g, `🩸 The Bloodthirster drinks ${d} of your HP.`, "bad"); lethal(g); if (g.hp <= 0) { die(g); return; } }
-  b.rage = Math.max(0, b.rage - 1); b.holy = Math.max(0, b.holy - 1); b.frenzy = Math.max(0, b.frenzy - 1); b.defend = false;
   c.turn++;
 }
-function cdSec(g: Game, ab: Ab): number { return Math.max(1, abCd(g, ab) * 1.5 + 0.6); }
+function cdSec(g: Game, ab: Ab): number { return abCd(g, ab); }
 
 function abCost(g: Game, ab: Ab): number {
   const sp = full(g).sp;
@@ -2552,20 +2558,20 @@ function abCost(g: Game, ab: Ab): number {
   if (g.perks.includes("arcanebattery")) m *= 0.85;
   return Math.round(ab.mp * m);
 }
-function abCd(g: Game, ab: Ab): number { return Math.max(0, ab.cd - (full(g).sp.includes("cdr") ? 1 : 0) - (g.perks.includes("archmage") ? 1 : 0)); }
+function abCd(g: Game, ab: Ab): number { return Math.max(0, ab.cd - (full(g).sp.includes("cdr") ? 1.5 : 0) - (g.perks.includes("archmage") ? 1.5 : 0)); }
 function runAbility(g: Game, id: string, label: string): void {
   const c = g.combat; if (!c) return;
   const f = full(g); const b = g.buffs; const t = tgt(c);
   g.inAb = true;
   switch (id) {
-    case "bash": if (t) { hitEnemy(g, t, 1.3, false, label); stunE(g, t, 1); } break;
+    case "bash": if (t) { hitEnemy(g, t, 1.3, false, label); stunE(g, t, 2); } break;
     case "cleave": {
       const ww = g.perks.includes("whirlwind");
       const px = c.px ?? 0, py = c.py ?? 0, reach = (ww ? 34 : 26) / U, half = Math.PI * 50 / 180;
       for (const e of alive(c)) {
         if (!los(g, px, py, e.x ?? 0, e.y ?? 0) || eDist(c, e) > reach) continue;
         if (!ww && !inCone(px, py, FACE, e.x ?? 0, e.y ?? 0, half, reach)) continue;
-        hitEnemy(g, e, ww ? 1.2 : 1.0, false, label); if (ww) stunE(g, e, 1);
+        hitEnemy(g, e, ww ? 1.2 : 1.0, false, label); if (ww) stunE(g, e, 1.5);
       }
       addPulse("cleave", FACE);
       break;
@@ -2579,32 +2585,32 @@ function runAbility(g: Game, id: string, label: string): void {
       addPulse("smash", 0);
       break;
     }
-    case "cry": b.rage = 4; healPlayer(g, Math.round(f.maxHp * 0.15), true); log(g, "📣 Battle Cry! +50% ATK for 3 turns.", "good"); break;
+    case "cry": b.rage = 8; healPlayer(g, Math.round(f.maxHp * 0.15), true); log(g, "📣 Battle Cry! +50% ATK for 8 s.", "good"); break;
     case "fireball": {
       const ts = g.perks.includes("chain") ? alive(c) : t ? [t] : [];
       for (const e of ts) { hitEnemy(g, e, 2.2, false, label); if (e.hp > 0) { e.burnT = 3; e.burnD = Math.max(e.burnD, Math.round(f.atk * 0.3)); } }
       break;
     }
-    case "nova": { const m = g.perks.includes("chain") ? 1.8 : 1.2; for (const e of g.perks.includes("chain") ? alive(c) : nearP(c, 34 / U)) { hitEnemy(g, e, m, false, label); stunE(g, e, 2); } break; }
+    case "nova": { const m = g.perks.includes("chain") ? 1.8 : 1.2; for (const e of g.perks.includes("chain") ? alive(c) : nearP(c, 34 / U)) { hitEnemy(g, e, m, false, label); stunE(g, e, 3); } break; }
     case "arcane": { b.shield += Math.round(f.maxMp * 0.4 + g.lvl * 4); log(g, `🔮 Arcane Shield absorbs the next ${b.shield} damage.`, "good"); break; }
-    case "backstab": if (t) hitEnemy(g, t, 2.2, c.turn === 0 || t.stun > 0, label); break;
+    case "backstab": if (t) hitEnemy(g, t, 2.2, (c.elapsed ?? 0) < 3 || t.stun > 0, label); break;
     case "poison": if (t) { hitEnemy(g, t, 1.0, false, label); if (t.hp > 0) { t.poisT = 4; t.poisD = Math.max(t.poisD, Math.round(f.atk * 0.45)); log(g, `${t.name} is badly poisoned.`); } } break;
     case "evade": b.evade = 2; log(g, "💨 You melt into the shadows: next 2 attacks will miss.", "good"); break;
     case "heal": { const amt = Math.round(f.maxHp * 0.35 * (f.sp.includes("healBoost") ? 1.5 : 1) * (g.perks.includes("highpriest") ? 1.5 : 1)); b.dotT = 0; const h = healPlayer(g, amt, true); log(g, `✨ You heal for ${h}.`, "heal"); break; }
     case "smite": {
       const wr = g.perks.includes("wrath");
       const ts = wr ? alive(c) : t ? [t] : [];
-      for (const e of ts) { hitEnemy(g, e, e.undead ? 2.5 : 1.8, false, label, true); if (wr && e.undead) stunE(g, e, 1); }
+      for (const e of ts) { hitEnemy(g, e, e.undead ? 2.5 : 1.8, false, label, true); if (wr && e.undead) stunE(g, e, 1.5); }
       break;
     }
-    case "holy": b.holy = 3; log(g, "🔆 Holy Shield: damage halved for 3 turns.", "good"); break;
+    case "holy": b.holy = 6; log(g, "🔆 Holy Shield: damage halved for 6 s.", "good"); break;
     case "multi": {
       if (g.perks.includes("volley")) { for (const e of alive(c)) { hitEnemy(g, e, 0.7, false, label); hitEnemy(g, e, 0.7, false, label); } }
       else for (let k = 0; k < 4; k++) { const a = alive(c); if (a.length === 0) break; hitEnemy(g, pick(a), 0.7, false, label); }
       break;
     }
-    case "trap": if (t) { stunE(g, t, 2); t.poisT = Math.max(t.poisT, 3); t.poisD = Math.max(t.poisD, Math.round(f.atk * 0.35)); log(g, `${t.name} is snared and bleeding.`); } break;
-    case "frenzy": b.frenzy = 4; if (t) hitEnemy(g, t, 1.5, false, label); log(g, "📯 Call of the Wild! Pets deal triple damage.", "good"); break;
+    case "trap": if (t) { stunE(g, t, 3); t.poisT = Math.max(t.poisT, 3); t.poisD = Math.max(t.poisD, Math.round(f.atk * 0.35)); log(g, `${t.name} is snared and bleeding.`); } break;
+    case "frenzy": b.frenzy = 8; if (t) hitEnemy(g, t, 1.5, false, label); log(g, "📯 Call of the Wild! Pets deal triple damage for 8 s.", "good"); break;
   }
   g.inAb = false;
 }
@@ -2648,7 +2654,7 @@ function useConsumable(g: Game, inv: Inv): ActRes {
       if (alive(c).some((e: Enemy) => e.boss)) { log(g, "The boss sees through the smoke!"); return "none"; }
       g.inv = g.inv.filter((i: Inv) => i.uid !== inv.uid);
       log(g, "💨 You vanish in a puff of smoke! Your foes stagger, blinded.", "good");
-      escapeAll(g, 6);
+      escapeAll(g, 3);
       return "end";
     }
     case "fury": case "iron": {
@@ -2692,7 +2698,7 @@ function useConsumable(g: Game, inv: Inv): ActRes {
       const ts = alive(c).filter((e: Enemy) => eDist(c, e) <= 5).sort((a: Enemy, b: Enemy) => eDist(c, a) - eDist(c, b)).slice(0, 3);
       if (ts.length === 0) { log(g, "No foes close enough."); return "none"; }
       const d = 12 + g.floor * 6;
-      for (const e of ts) { e.hp -= d; addFx(g, `-${d}`, "loot", "e" + e.uid); stunE(g, e, 1); const s = c.shots ?? (c.shots = []); s.push({ id: UID++, x1: c.px ?? 0, y1: c.py ?? 0, x2: e.x ?? 0, y2: e.y ?? 0, ts: Date.now(), c: "#9fd8ff" }); }
+      for (const e of ts) { e.hp -= d; addFx(g, `-${d}`, "loot", "e" + e.uid); stunE(g, e, 1.5); const s = c.shots ?? (c.shots = []); s.push({ id: UID++, x1: c.px ?? 0, y1: c.py ?? 0, x2: e.x ?? 0, y2: e.y ?? 0, ts: Date.now(), c: "#9fd8ff" }); }
       log(g, `🌪️ Lightning strikes ${ts.length} foe(s) for ${d}!`, "dmg");
       break;
     }
@@ -2729,7 +2735,7 @@ function doAction(g: Game, kind: string, arg: string): ActRes {
     if (g.perks.includes("spellblade")) g.mp = Math.min(f.maxMp, g.mp + 10);
     if (g.perks.includes("doublecut") && t.hp > 0 && Math.random() < 0.2) hitEnemy(g, t, mage ? 0.6 : 1, false, "⚔️ Double Cut");
     if (f.sp.includes("doubleStrike") && t.hp > 0 && Math.random() < 0.2) hitEnemy(g, t, 1, false, "⚔️ Echo Blade");
-    if (f.sp.includes("freezeHit") && t.hp > 0 && Math.random() < 0.25) stunE(g, t, 1);
+    if (f.sp.includes("freezeHit") && t.hp > 0 && Math.random() < 0.25) stunE(g, t, 1.5);
     if (f.sp.includes("chainShock")) for (const e of alive(c)) if (e !== t) { const d = Math.max(1, Math.round(f.atk * 0.35 * 60 / (60 + e.def))); e.hp -= d; addFx(g, `-${d}`, "dmg", "e" + e.uid); log(g, `⚡ Lightning arcs to ${e.name} for ${d}.`, "dmg"); }
     if (f.sp.includes("pierce")) {
       const others = alive(c).filter((e: Enemy) => e !== t && eDist(c, e) <= 3.2).sort((a: Enemy, b: Enemy) => eDist(c, a) - eDist(c, b));
@@ -2737,11 +2743,11 @@ function doAction(g: Game, kind: string, arg: string): ActRes {
     }
     return "turn";
   }
-  if (kind === "defend") { g.buffs.defend = true; const m = Math.round(f.maxMp * 0.1); g.mp = Math.min(f.maxMp, g.mp + m); log(g, `🛡️ You brace yourself (+${m} MP).`); return "turn"; }
+  if (kind === "defend") { g.buffs.defendT = 1.5; g.buffs.defend = true; const m = Math.round(f.maxMp * 0.1); g.mp = Math.min(f.maxMp, g.mp + m); log(g, `🛡️ You brace yourself for 1.5 s (+${m} MP).`); return "turn"; }
   if (kind === "vanish") {
     if (alive(c).some((e: Enemy) => e.boss)) { log(g, "The boss sees through your shadow."); return "none"; }
     if (g.usedShadow) { log(g, "Shadowmeld already used this floor."); return "none"; }
-    g.usedShadow = true; log(g, "🌫️ Shadowmeld! You slip away unseen.", "good"); escapeAll(g, 8); return "end";
+    g.usedShadow = true; log(g, "🌫️ Shadowmeld! You slip away unseen.", "good"); escapeAll(g, 4); return "end";
   }
   if (kind === "ability") return useAbility(g, arg);
   if (kind === "item") { const inv = g.inv.find((i: Inv) => i.uid === Number(arg)); if (!inv) return "none"; c.itemOpen = false; return useConsumable(g, inv); }
@@ -2814,7 +2820,7 @@ const HELP: [string, string][] = [
   ["✨ Starting perk", "Every new run (Story and Endless) opens with a choice of 3 random Common perks. The roll is saved, so reloading won't change it."],
   ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
-  ["✨ Abilities", "Each class starts with only a basic attack. Class abilities unlock as you level: the first at level 3, then 6, 9 and (if a class has a fourth) 12. Locked buttons show a lock and the required level, and a banner announces “New ability unlocked” when one opens. Warriors learn Shield Bash, a frontal-cone Cleave, Battle Cry, then Smash (a circular shockwave). Clerics learn Heal, Smite, Holy Shield, then the same Smash. Mage, Rogue and Ranger keep their three class abilities. Abilities cost MP and have cooldowns. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
+  ["✨ Abilities", "Each class starts with only a basic attack. Class abilities unlock as you level: the first at level 3, then 6, 9 and (if a class has a fourth) 12. Locked buttons show a lock and the required level, and a banner announces “New ability unlocked” when one opens. Warriors learn Shield Bash, a frontal-cone Cleave, Battle Cry, then Smash (a circular shockwave). Clerics learn Heal, Smite, Holy Shield, then the same Smash. Mage, Rogue and Ranger keep their three class abilities. Abilities cost MP and have cooldowns in seconds — each button shows a sweep and the time left. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
   ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls random affixes (✦ lines: crit, lifesteal, thorns, fire/ice/holy/poison, HP, DEF…), larger on deeper floors and rarer items; hover/long-press an affix to see its range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
@@ -3290,7 +3296,7 @@ function validRun(x: unknown): Game | null {
     else {
       c.itemOpen = false; c.charging = false; c.calm = 0; c.proj = []; c.tele = []; c.shots = []; c.dashT = 0; c.iT = 1; c.atkCd = 0; c.dashCd = 0;
       if (!num(c.target) || c.target < 0 || c.target >= c.enemies.length) c.target = 0;
-      if (!num(c.turn)) c.turn = 0; if (!num(c.phase)) c.phase = 1; if (!num(c.tick)) c.tick = 0; if (!num(c.bossT)) c.bossT = 3;
+      if (!num(c.turn)) c.turn = 0; if (!num(c.elapsed)) c.elapsed = (c.turn || 0) * 1.5; if (!num(c.phase)) c.phase = 1; if (!num(c.tick)) c.tick = 0; if (!num(c.bossT)) c.bossT = 3;
       c.boss = c.enemies.some((e: Enemy) => e.boss) || c.boss === true;
       if (g.screen === "inventory" || g.screen === "codex" || g.screen === "help" || g.screen === "shop") g.screen = "map";
     }
@@ -4163,7 +4169,7 @@ export default function DungeonOfEchoes() {
             <span>❤️ {c.base.hp}</span><span>🔷 {c.base.mp}</span><span>⚔️ {c.base.atk}</span><span>🛡️ {c.base.def}</span><span>🎯 {c.base.crit}%</span><span>💨 {c.base.dodge}%</span>
           </div>
           <div style={small}>{c.passive}</div>
-          {c.abs.map((a: Ab, i: number) => <div key={a.id} style={{ fontSize: 13 }}><b>{a.icon} {a.name}</b> <span style={{ color: t.text.secondary }}>(Lv {abUnlockAt(i)} · {a.mp} MP{a.cd ? `, ${a.cd}t cd` : ""})</span> — {a.desc}</div>)}
+          {c.abs.map((a: Ab, i: number) => <div key={a.id} style={{ fontSize: 13 }}><b>{a.icon} {a.name}</b> <span style={{ color: t.text.secondary }}>(Lv {abUnlockAt(i)} · {a.mp} MP{a.cd ? `, ${a.cd}s cd` : ""})</span> — {a.desc}</div>)}
           <div style={{ fontSize: 12, color: t.text.secondary, marginTop: 4 }}>Capstones: {CAPS[pickCls].map((p: Perk) => `${p.icon} ${p.name}`).join(" · ")} · Endless tree {owned(pickCls).length}/{TREE[pickCls].length}</div>
         </div>
         <div style={row}>
@@ -4692,7 +4698,7 @@ export default function DungeonOfEchoes() {
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
         {CLS[g.cls].abs.map((a: Ab, i: number) => {
           const locked = !abReady(g, i); const lv = abUnlockAt(i);
-          const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const fr = cd > 0 ? Math.min(1, cd / cdSec(g, a)) : 0; const noMp = g.mp < cost;
+          const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
           return (
             <button key={a.id} onClick={() => abil(i)} aria-label={locked ? `${a.name} unlocks at level ${lv}` : `${a.name} (key ${i + 1})`} title={locked ? `Unlocks at level ${lv}` : `${a.name}: ${a.desc}`} style={{ ...roundBtn, borderColor: locked ? "#665" : cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: locked ? 0.55 : noMp && cd <= 0 ? 0.55 : 1, filter: locked ? "grayscale(.7)" : undefined }}>
               <span>{locked ? "🔒" : a.icon}</span>{locked ? null : ring(fr)}
@@ -4735,14 +4741,14 @@ export default function DungeonOfEchoes() {
   if (b.fury > 0) chips.push(`📜 Fury ${fmtBuff(b.fury)}`);
   if (b.iron > 0) chips.push(`📃 Iron ${fmtBuff(b.iron)}`);
   if (c) {
-    if (b.rage > 0) chips.push(`📣 Rage ${b.rage}`);
-    if (b.holy > 0) chips.push(`🔆 Holy ${b.holy}`);
+    if (b.rage > 0) chips.push(`📣 Rage ${fmtBuff(b.rage)}`);
+    if (b.holy > 0) chips.push(`🔆 Holy ${fmtBuff(b.holy)}`);
     if (b.evade > 0) chips.push(`💨 Evade ×${b.evade}`);
     if (b.shield > 0) chips.push(`🔮 Shield ${b.shield}`);
-    if (b.frenzy > 0) chips.push(`📯 Frenzy ${b.frenzy}`);
+    if (b.frenzy > 0) chips.push(`📯 Frenzy ${fmtBuff(b.frenzy)}`);
     if ((b.hex ?? 0) > 0) chips.push(`🌀 Hex ${fmtBuff(b.hex ?? 0)}`);
   }
-  if (b.dotT > 0) chips.push(`☠️ DoT ${b.dotD}×${b.dotT}`);
+  if (b.dotT > 0) chips.push(`☠️ DoT ${b.dotD} for ${fmtBuff(b.dotT * 1.5)}`);
   const legend = c ? (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       {chips.length > 0 && <div data-buffs="1" style={{ ...row, gap: 6, flexWrap: "wrap" }}>{chips.map((x: string) => <span key={x} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 999, background: t.fill.secondary, border: "1px solid rgba(255,230,180,.25)", fontWeight: 700 }}>{x}</span>)}</div>}
