@@ -12,7 +12,7 @@ type Ui = "title" | "help" | "tree" | "codex" | "save";
 type Mode = "story" | "endless";
 type ActRes = "none" | "turn" | "end";
 
-interface ItemT { id: string; name: string; icon: string; slot: Slot; r: number; minF: number; price: number; st?: Stats; cls?: ClassId[]; sp?: string; desc?: string; fx?: string; pw?: number; set?: string; cursed?: boolean; curse?: string; pet?: string; ff?: number; }
+interface ItemT { id: string; name: string; icon: string; slot: Slot; r: number; minF: number; price: number; st?: Stats; cls?: ClassId[]; sp?: string; desc?: string; fx?: string; pw?: number; set?: string; cursed?: boolean; curse?: string; pet?: string; ff?: number; mpreg?: number; }
 interface SetT { name: string; n: number; b2: Stats; bf: Stats; sp: string; desc: string; b3?: Stats; cls?: ClassId; }
 interface Ab { id: string; name: string; icon: string; mp: number; cd: number; desc: string; }
 interface Base { hp: number; mp: number; atk: number; def: number; crit: number; dodge: number; }
@@ -65,6 +65,7 @@ const ITEMS: ItemT[] = [
   I("w_sword", "Rusty Sword", "🗡️", "weapon", 0, 1, 20, { atk: 4 }),
   I("w_dagger", "Bone Dagger", "🔪", "weapon", 0, 1, 20, { atk: 3, crit: 5 }),
   I("w_staff", "Apprentice Staff", "🪄", "weapon", 0, 1, 20, { atk: 3, mp: 10 }, { cls: MC }),
+  I("w_channel", "Channeler's Rod", "🪄", "weapon", 1, 1, 55, { atk: 4, mp: 18 }, { cls: MC, mpreg: 2.2, desc: "♻ Mana regen 2.2/s." }),
   I("w_bow", "Shortbow", "🏹", "weapon", 0, 1, 20, { atk: 4, crit: 3 }, { cls: ["ranger"] }),
   I("w_axe", "Iron Axe", "🪓", "weapon", 1, 1, 55, { atk: 7 }, { cls: ["warrior"] }),
   I("w_mace", "Blessed Mace", "🔨", "weapon", 1, 1, 55, { atk: 6, holy: 3 }, { cls: ["cleric", "warrior"] }),
@@ -90,13 +91,14 @@ const ITEMS: ItemT[] = [
   I("a_cloak", "Shadowweave Cloak", "🧥", "armor", 2, 2, 140, { def: 7, dodge: 8, crit: 4 }),
   I("a_plate", "Knight's Plate", "🛡️", "armor", 2, 2, 150, { def: 14, hp: 30 }, { cls: ["warrior", "cleric"] }),
   I("a_drake", "Drakescale Mail", "🐲", "armor", 3, 3, 330, { def: 16, hp: 40, fire: 4 }),
-  I("a_aegis", "Aegis of Dawn", "☀️", "armor", 4, 4, 800, { def: 22, hp: 60 }, { sp: "regen", desc: "Regenerate 4% HP every combat turn." }),
+  I("a_aegis", "Aegis of Dawn", "☀️", "armor", 4, 4, 800, { def: 22, hp: 60 }, { sp: "holyWard", desc: "Take 12% less damage." }),
   I("a_thorn", "Bulwark of Thorns", "🌵", "armor", 4, 4, 800, { def: 20, hp: 50 }, { cls: ["warrior"], sp: "thorns", desc: "Reflect 25% of damage taken." }),
   I("a_dragon", "Dragonheart Plate", "🐉", "armor", 4, 4, 850, { def: 24, hp: 50, fire: 6 }, { sp: "dotImmune", desc: "Immune to poison and burns." }),
   I("h_cap", "Leather Cap", "🧢", "helmet", 0, 1, 15, { def: 2 }),
   I("h_hood", "Thief's Hood", "🎩", "helmet", 1, 1, 50, { dodge: 5, crit: 3 }),
   I("h_helm", "Iron Helm", "⛑️", "helmet", 1, 1, 50, { def: 4, hp: 15 }),
   I("h_circlet", "Sage Circlet", "💠", "helmet", 2, 2, 130, { mp: 30, atk: 3 }),
+  I("h_arcflow", "Circlet of Living Arcana", "💠", "helmet", 3, 3, 300, { mp: 35, atk: 3 }, { mpreg: 4.0, desc: "♻ Mana regen 4.0/s." }),
   I("h_horned", "Horned Warhelm", "🪖", "helmet", 3, 3, 300, { def: 8, atk: 5, hp: 25 }),
   I("h_crown", "Crown of Echoes", "👑", "helmet", 4, 4, 800, { def: 10, hp: 40, mp: 40 }, { sp: "cdr", desc: "All ability cooldowns 1 turn shorter." }),
   I("r_copper", "Copper Ring", "💍", "ring", 0, 1, 15, { atk: 2 }),
@@ -107,11 +109,14 @@ const ITEMS: ItemT[] = [
   I("r_spell", "Spellweave Ring", "💍", "ring", 2, 2, 140, { mp: 25, fire: 4, ice: 4 }, { cls: ["mage"] }),
   I("r_vamp", "Vampire Signet", "🩸", "ring", 3, 3, 300, { ls: 8, atk: 5 }),
   I("r_void", "Ring of the Void", "🌀", "ring", 4, 4, 800, { ls: 12, atk: 8, crit: 8 }, { sp: "void", desc: "+15% damage dealt." }),
-  I("r_etern", "Ring of Eternity", "♾️", "ring", 4, 4, 800, { mp: 40, hp: 30 }, { sp: "mpRegen", desc: "+6 MP every combat turn." }),
+  I("r_etern", "Ring of Eternity", "♾️", "ring", 4, 4, 800, { mp: 50, hp: 30, atk: 6 }, { desc: "+50 MP, +30 HP and +6 ATK." }),
+  I("r_mana1", "Copper Focus", "💍", "ring", 0, 1, 18, { mp: 8 }, { mpreg: 1.2, desc: "♻ Mana regen 1.2/s." }),
+  I("r_mana2", "Moonwell Band", "💍", "ring", 1, 1, 50, { mp: 16 }, { mpreg: 1.8, desc: "♻ Mana regen 1.8/s." }),
   I("m_tooth", "Wolf Tooth Charm", "🦷", "amulet", 0, 1, 15, { crit: 4 }),
   I("m_saint", "Saint's Medallion", "📿", "amulet", 1, 1, 50, { holy: 4, hp: 15 }),
   I("m_beads", "Prayer Beads", "📿", "amulet", 1, 1, 55, { mp: 20, holy: 3 }, { cls: ["cleric"] }),
   I("m_owl", "Owl Amulet", "🦉", "amulet", 2, 2, 130, { mp: 30, dodge: 4 }),
+  I("m_well", "Amulet of the Wellspring", "📿", "amulet", 2, 2, 140, { mp: 25 }, { mpreg: 2.8, desc: "♻ Mana regen 2.8/s." }),
   I("m_viper", "Viper Fang Pendant", "🐍", "amulet", 2, 2, 130, { poison: 5, crit: 5 }),
   I("m_totem", "Hunter's Totem", "🦴", "amulet", 2, 2, 130, { atk: 4, crit: 8 }, { cls: ["ranger"] }),
   I("m_heart", "Heart of the Mountain", "💎", "amulet", 3, 3, 300, { hp: 60, def: 5 }),
@@ -231,7 +236,7 @@ const SETS: Record<string, SetT> = {
   warlord: { name: "Warlord's Panoply", cls: "warrior", n: 4, b2: { def: 8 }, b3: { th: 15, hp: 40 }, bf: { atk: 10 }, sp: "thorns", desc: "2 pc: +8 DEF · 3 pc: +15% thorns, +40 HP · 4 pc: +10 ATK and reflect another 25% of damage taken" },
   storm: { name: "Stormcaller's Regalia", cls: "mage", n: 4, b2: { mp: 30 }, b3: { fire: 6, ice: 6 }, bf: { atk: 6 }, sp: "chainShock", desc: "2 pc: +30 MP · 3 pc: +6 fire, +6 ice · 4 pc: +6 ATK and every attack arcs lightning to all other foes (35%)" },
   night: { name: "Nightblade's Shroud", cls: "rogue", n: 4, b2: { crit: 6 }, b3: { dodge: 6, poison: 5 }, bf: { atk: 6 }, sp: "critPoison", desc: "2 pc: +6% crit · 3 pc: +6% dodge, +5 poison · 4 pc: +6 ATK and crits inflict heavy poison" },
-  dawn: { name: "Lightbringer's Vestiture", cls: "cleric", n: 4, b2: { holy: 5 }, b3: { hp: 40, def: 5 }, bf: { mp: 30 }, sp: "regen", desc: "2 pc: +5 holy · 3 pc: +40 HP, +5 DEF · 4 pc: +30 MP and regenerate 4% HP every combat tick" },
+  dawn: { name: "Lightbringer's Vestiture", cls: "cleric", n: 4, b2: { holy: 5 }, b3: { hp: 40, def: 5 }, bf: { mp: 30, holy: 6 }, sp: "holyWard", desc: "2 pc: +5 holy · 3 pc: +40 HP, +5 DEF · 4 pc: +30 MP, +6 holy, and take 12% less damage" },
   beast: { name: "Beastmaster's Garb", cls: "ranger", n: 4, b2: { crit: 5 }, b3: { atk: 5, dodge: 5 }, bf: { hp: 30 }, sp: "petx2", desc: "2 pc: +5% crit · 3 pc: +5 ATK, +5% dodge · 4 pc: +30 HP and pet damage doubled" },
   ember: { name: "Emberforged Battlegear", n: 4, b2: { fire: 6 }, b3: { atk: 5, hp: 20 }, bf: { atk: 4 }, sp: "flameHit", desc: "2 pc: +6 fire · 3 pc: +5 ATK, +20 HP · 4 pc: +4 ATK and attacks can ignite foes" },
   dusk: { name: "Duskward Raiment", n: 4, b2: { dodge: 6 }, b3: { hp: 30, crit: 5 }, bf: { dodge: 4 }, sp: "ghoststep", desc: "2 pc: +6% dodge · 3 pc: +30 HP, +5% crit · 4 pc: +4% dodge and dodging an attack heals 4% HP" },
@@ -253,7 +258,7 @@ const PETS: Record<string, PetT> = {
 const CLS: Record<ClassId, ClassT> = {
   warrior: { id: "warrior", name: "Warrior", icon: "🛡️", tag: "Unbreakable frontliner", base: { hp: 120, mp: 30, atk: 12, def: 6, crit: 5, dodge: 3 }, grow: { hp: 14, mp: 3, atk: 2, def: 1.5, crit: 0 }, passive: "Rage: gains 2 MP every time it is struck.", start: ["w_sword", "a_tunic"],
     abs: [{ id: "bash", name: "Shield Bash", icon: "🛡️", mp: 5, cd: 3, desc: "130% damage and stuns 1 turn." }, { id: "cleave", name: "Cleave", icon: "🪓", mp: 8, cd: 2, desc: "100% damage in a frontal cone." }, { id: "cry", name: "Battle Cry", icon: "📣", mp: 10, cd: 5, desc: "+50% ATK for 3 turns, heal 15%." }, { id: "smash", name: "Smash", icon: "💥", mp: 10, cd: 4, desc: "120% damage in a circle around you, with a shockwave." }] },
-  mage: { id: "mage", name: "Mage", icon: "🧙", tag: "Glass-cannon spellcaster", base: { hp: 70, mp: 80, atk: 11, def: 2, crit: 5, dodge: 5 }, grow: { hp: 7, mp: 10, atk: 2.3, def: 0.7, crit: 0 }, passive: "Staff strikes are weak but restore 6 MP. Faster MP regen.", start: ["w_staff", "a_robe"],
+  mage: { id: "mage", name: "Mage", icon: "🧙", tag: "Glass-cannon spellcaster", base: { hp: 70, mp: 80, atk: 11, def: 2, crit: 5, dodge: 5 }, grow: { hp: 7, mp: 10, atk: 2.3, def: 0.7, crit: 0 }, passive: "Staff strikes are weak but restore 6 MP.", start: ["w_staff", "a_robe"],
     abs: [{ id: "fireball", name: "Fireball", icon: "🔥", mp: 12, cd: 0, desc: "220% fire damage + burn 3 turns." }, { id: "nova", name: "Frost Nova", icon: "❄️", mp: 16, cd: 4, desc: "120% to ALL enemies, freezes 2 turns." }, { id: "arcane", name: "Arcane Shield", icon: "🔮", mp: 10, cd: 5, desc: "Absorb shield worth 40% of max MP." }] },
   rogue: { id: "rogue", name: "Rogue", icon: "🥷", tag: "Crits, poison and evasion", base: { hp: 85, mp: 35, atk: 11, def: 3, crit: 25, dodge: 15 }, grow: { hp: 9, mp: 4, atk: 2.2, def: 0.8, crit: 0.5 }, passive: "Born lucky: high crit and dodge. Backstab auto-crits on the opening turn or vs stunned foes.", start: ["w_dagger", "a_tunic"],
     abs: [{ id: "backstab", name: "Backstab", icon: "🗡️", mp: 8, cd: 2, desc: "220% damage; guaranteed crit on turn 1 or vs stunned." }, { id: "poison", name: "Poison Blade", icon: "🧪", mp: 8, cd: 3, desc: "100% damage + strong poison 4 turns." }, { id: "evade", name: "Evade", icon: "💨", mp: 6, cd: 4, desc: "Automatically dodge the next 2 attacks." }] },
@@ -282,7 +287,7 @@ const CAPS: Record<ClassId, Perk[]> = {
   ],
   cleric: [
     { id: "radiance", name: "Radiance", icon: "☀️", tier: 4, rar: "Epic", cls: "cleric", desc: "Every heal in combat also blasts ALL enemies for the amount healed." },
-    { id: "sanctuary", name: "Sanctuary", icon: "🕊️", tier: 4, rar: "Epic", cls: "cleric", desc: "Regenerate 6% max HP every combat turn." },
+    { id: "sanctuary", name: "Sanctuary", icon: "🕊️", tier: 4, rar: "Epic", cls: "cleric", desc: "Take 12% less damage." },
     { id: "wrath", name: "Wrath of Heaven", icon: "🌩️", tier: 5, rar: "Legendary", cls: "cleric", desc: "Smite strikes ALL enemies and stuns undead." },
     { id: "resurrect", name: "Divine Resurrection", icon: "🕯️", tier: 5, rar: "Legendary", cls: "cleric", desc: "Once per floor, a lethal blow instead revives you at 50% HP." },
   ],
@@ -318,12 +323,12 @@ const UPG2: Perk[] = [
 // Additional rarity-tiered perks (shared + class-specific). Existing ids above are kept unchanged.
 const MORE_PERKS: Perk[] = [
   // Common
-  { id: "secondwind", name: "Second Wind", icon: "🌬️", tier: 1, desc: "After each fight won, heal 5% of your max HP." },
+  { id: "secondwind", name: "Second Wind", icon: "🌬️", tier: 1, desc: "+6 DEF.", st: { def: 6 } },
   { id: "spark", name: "Spark", icon: "🔥", tier: 1, desc: "+4 fire damage", st: { fire: 4 } },
   { id: "chill", name: "Chill", icon: "❄️", tier: 1, desc: "+4 ice damage", st: { ice: 4 } },
   { id: "wardlight", name: "Wardlight", icon: "✨", tier: 1, desc: "+4 holy damage", st: { holy: 4 } },
   { id: "thickhide", name: "Thick Hide", icon: "🦏", tier: 1, desc: "+15 max HP, +1 DEF", st: { hp: 15, def: 1 } },
-  { id: "deepbreath", name: "Deep Breath", icon: "💨", tier: 1, desc: "After each fight, restore 10% of your max MP." },
+  { id: "deepbreath", name: "Deep Breath", icon: "💨", tier: 1, desc: "+12 max MP and +3 ATK.", st: { mp: 12, atk: 3 } },
   // Uncommon
   { id: "ironwall", name: "Iron Wall", icon: "🧱", tier: 2, desc: "+8 DEF", st: { def: 8 } },
   { id: "sharpness", name: "Sharpness", icon: "🗡️", tier: 2, desc: "+8% crit", st: { crit: 8 } },
@@ -344,7 +349,7 @@ const MORE_PERKS: Perk[] = [
   { id: "vampiric", name: "Vampiric", icon: "🦇", tier: 3, desc: "+10% lifesteal", st: { ls: 10 } },
   { id: "stormcall", name: "Stormcall", icon: "⛈️", tier: 3, desc: "+8 fire and +8 ice damage", st: { fire: 8, ice: 8 } },
   { id: "thornskin", name: "Thornskin", icon: "🌵", tier: 3, desc: "+15% thorns, +4 DEF", st: { th: 15, def: 4 } },
-  { id: "lifewell", name: "Life Well", icon: "💧", tier: 3, desc: "Regenerate 3% max HP every combat tick." },
+  { id: "lifewell", name: "Life Well", icon: "💧", tier: 3, desc: "+40 max HP and +5 DEF.", st: { hp: 40, def: 5 } },
   { id: "execution", name: "Execution", icon: "⚰️", tier: 3, desc: "Enemies below 30% HP take 25% more damage." },
   { id: "arcanebattery", name: "Arcane Battery", icon: "🔋", tier: 3, desc: "Abilities cost 15% less MP." },
   { id: "shieldwall", name: "Shield Wall", icon: "🛡️", tier: 3, cls: "warrior", desc: "Take 8% less damage." },
@@ -362,7 +367,7 @@ const MORE_PERKS: Perk[] = [
   // Legendary
   { id: "godslayer", name: "Godslayer", icon: "🔱", tier: 5, desc: "You deal 20% more damage." },
   { id: "dragonheart", name: "Dragonheart", icon: "🐉", tier: 5, desc: "+150 max HP, +10 DEF; immune to poison and burns.", st: { hp: 150, def: 10 } },
-  { id: "eternity", name: "Eternity", icon: "♾️", tier: 5, desc: "After each fight won, restore 20% of your max HP and MP." },
+  { id: "eternity", name: "Eternity", icon: "♾️", tier: 5, desc: "Take 10% less damage, and +20 max MP.", st: { mp: 20 } },
 ];
 function withRar(p: Perk, rar: string): Perk { return { ...p, rar, tier: RAR.indexOf(rar) + 1 }; }
 const COMMON_PERKS: Perk[] = [...UPG1, ...UPG1X, ...MORE_PERKS.filter((p: Perk) => p.tier === 1)].map((p: Perk) => withRar(p, "Common"));
@@ -1067,7 +1072,7 @@ function gainXp(g: Game, n: number): void {
   while (g.xp >= need(g.lvl)) {
     g.xp -= need(g.lvl); g.lvl++;
     const f = full(g);
-    g.hp = Math.min(f.maxHp, g.hp + Math.round(f.maxHp * 0.3)); g.mp = Math.min(f.maxMp, g.mp + Math.round(f.maxMp * 0.3));
+    g.hp = Math.min(g.hp, f.maxHp); g.mp = Math.min(g.mp, f.maxMp);
     log(g, `⭐ Level up! You are now level ${g.lvl}.`, "good"); syncPets(g);
     addFx(g, `LEVEL ${g.lvl}!`, "good", "p");
   }
@@ -1163,6 +1168,9 @@ function damagePlayer(g: Game, e: Enemy, raw: number, magic: boolean, verb: stri
   if (g.perks.includes("shieldwall")) d *= 0.92;
   if (g.perks.includes("unbreakable")) d *= 0.88;
   if (f.sp.includes("colossus")) d *= 0.88;
+  if (f.sp.includes("holyWard")) d *= 0.88;
+  if (g.perks.includes("sanctuary")) d *= 0.88;
+  if (g.perks.includes("eternity")) d *= 0.90;
   if (f.curses.includes("c_fragile")) d *= 1.4;
   d = Math.max(1, Math.round(d));
   const total = d;
@@ -1214,9 +1222,6 @@ function endCombat(g: Game): void {
   const c = g.combat; if (!c) return;
   const won = c.enemies.some((e: Enemy) => e.dead && !e.away);
   const ff = full(g);
-  if (won && g.perks.includes("secondwind")) healPlayer(g, Math.round(ff.maxHp * 0.05), false);
-  if (g.perks.includes("deepbreath")) g.mp = Math.min(ff.maxMp, g.mp + Math.round(ff.maxMp * 0.1));
-  if (won && g.perks.includes("eternity")) { healPlayer(g, Math.round(ff.maxHp * 0.2), false); g.mp = Math.min(ff.maxMp, g.mp + Math.round(ff.maxMp * 0.2)); }
   g.combat = null; g.buffs = keepScrollBuffs(g.buffs); revivePets(g);
   log(g, "✅ Combat over — menus unlocked.", "good");
   if (c.vault) { g.vaultThen = c.upg && g.offers.length > 0 ? "upgrade" : "map"; g.screen = "vault"; }
@@ -1360,7 +1365,6 @@ const WIND = 0.9;        // telegraph / wind-up durations ×0.9
 const WAKE = 4.5;        // sleeping monsters notice you (was 4)
 const AGGRO = 5.5;       // awake monsters with line of sight join the fight
 const BOSS_AGGRO = 5;    // bosses wake when you step into their lair (LOS)
-const REGEN_T = 1.8;     // seconds per passive regen tick out of combat (was 1.5)
 const ELITE_P = 0.08;      // share of monsters spawned as elites from floor 3
 const LEASH = 11, BOSS_LEASH = 7, LOSE_T = 4, CALM_T = 1.5, DASH_SPD = 13.75;
 const HELD = new Set<string>();
@@ -2259,10 +2263,9 @@ function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   if (touchTiles(g, p, I)) return true;
   if (mapMonsters(g, dt, p)) ch = true;
   if (g.screen !== "map") return true;
+  tickManaItems(g, dt);
   if (g.combat) { I.regT = 0; return true; }
   if ((g.pets ?? []).length) { petsFollow(g, dt); ch = true; }
-  I.regT += dt;
-  if (I.regT >= REGEN_T) { I.regT = 0; const f = full(g); for (const pt of g.pets ?? []) if (pt.ko <= 0) pt.hp = Math.min(pt.max, pt.hp + Math.max(1, Math.round(pt.max * 0.08))); if (g.hp < f.maxHp || g.mp < f.maxMp) { rest(g); ch = true; } }
   return ch;
 }
 function navLayer(): HTMLElement {
@@ -2535,13 +2538,7 @@ function endRound(g: Game): void {
   const f = full(g);
   if (b.dotT > 0) { g.hp -= b.dotD; b.dotT--; log(g, `You suffer ${b.dotD} damage over time.`, "bad"); lethal(g); if (g.hp <= 0) { die(g); return; } }
   if (f.curses.includes("c_bleed")) { const d = Math.max(1, Math.round(f.maxHp * 0.05)); g.hp -= d; log(g, `🩸 The Bloodthirster drinks ${d} of your HP.`, "bad"); lethal(g); if (g.hp <= 0) { die(g); return; } }
-  let rg = 0;
-  if (f.sp.includes("regen")) rg += 0.04;
-  if (g.perks.includes("sanctuary")) rg += 0.06;
-  if (g.perks.includes("lifewell")) rg += 0.03;
-  if (rg > 0) healPlayer(g, Math.round(f.maxHp * rg), false);
   b.rage = Math.max(0, b.rage - 1); b.holy = Math.max(0, b.holy - 1); b.frenzy = Math.max(0, b.frenzy - 1); b.defend = false;
-  if (!f.curses.includes("c_nomana")) g.mp = Math.min(f.maxMp, g.mp + 2 + Math.round(f.maxMp * (g.cls === "mage" ? 0.05 : 0.03)) + (f.sp.includes("mpRegen") ? 6 : 0));
   c.turn++;
 }
 function cdSec(g: Game, ab: Ab): number { return Math.max(1, abCd(g, ab) * 1.5 + 0.6); }
@@ -2770,11 +2767,19 @@ function quickUse(g: Game): void {
   resolveDeaths(g);
 }
 
-function rest(g: Game): void {
-  if (g.screen !== "map") return;
+function gearManaRegen(g: Game): number {
+  let r = 0;
+  for (const k of GEAR) {
+    const it = g.eq[k]; if (!it) continue;
+    const t = IT[it.id]; if (t && t.mpreg) r += t.mpreg;
+  }
+  return r;
+}
+function tickManaItems(g: Game, dt: number): void {
   const f = full(g);
-  g.hp = Math.min(f.maxHp, g.hp + Math.max(1, Math.round(f.maxHp * 0.03)));
-  if (!f.curses.includes("c_nomana")) g.mp = Math.min(f.maxMp, g.mp + Math.max(1, Math.round(f.maxMp * 0.05)));
+  if (f.curses.includes("c_nomana")) return;
+  const r = gearManaRegen(g); if (r <= 0) return;
+  g.mp = Math.min(f.maxMp, g.mp + r * dt);
 }
 function equip(g: Game, uid: number): void {
   const inv = g.inv.find((i: Inv) => i.uid === uid); if (!inv) return;
@@ -2801,15 +2806,15 @@ const HELP: [string, string][] = [
   ["🕹️ Controls (touch)", "Touch and drag anywhere on the LEFT half of the screen to spawn a floating joystick; hold it to keep moving (analog, 8 directions). Out of combat the right side holds 🎒 Bag, 📖 Codex, ❓ Help, 🏠 and 💾. When a fight starts the same view swaps to combat controls: ⚔️ Attack (hold to keep swinging), your 3 abilities with cooldown rings, 💨 Dodge roll and a 🧪 potion quick-slot showing how many you carry. Tap an enemy to target it. Tap the minimap (top-right of the dungeon view) for the full map, which pauses the game. Item pickups float above your hero. Works in portrait and landscape."],
   ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving, you glide along walls). Exploring: M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. In combat: Space or J = attack (hold), Enter = attack once, 1/2/3 = abilities, Shift or K = dodge roll, R or 4 = quick-slot potion, Tab or Q/E = switch target. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc during play opens the exit prompt (the game pauses; confirming saves and exits) — even mid-fight."],
   ["🎮 Gamepad", "Left stick or D-pad moves. Exploring: A/✕ trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. In combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, RT/R2 ability 4, LB/L1 switch target, View/Select quick-slot potion. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options pauses (exit prompt), also mid-fight."],
-  ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant (stock is limited: each piece of gear sells once, potions and scrolls 1–3 each, then the slot shows SOLD OUT; leaving or reloading doesn't restock — the next merchant floor has fresh wares; Epic/Legendary wares are rare early, more common deeper, at most 2 per shop), 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You regenerate slowly while no monster is chasing you."],
+  ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant (stock is limited: each piece of gear sells once, potions and scrolls 1–3 each, then the slot shows SOLD OUT; leaving or reloading doesn't restock — the next merchant floor has fresh wares; Epic/Legendary wares are rare early, more common deeper, at most 2 per shop), 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You do not regenerate health or mana over time; look for potions, abilities, and gear marked ♻ Mana regen."],
   ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Ranged foes keep their distance: 🏹 archers show a red aim line before loosing a fast arrow, 🐸 Acid Spitters mark a green ring where their acid glob will land, and 🧙 Hex Cultists send a slow purple bolt that hexes you (−25% damage for 4 s). Their aim locks when the wind-up starts, so step aside. ★ Elite monsters (gold glow) are tougher and drop better loot. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. A Smoke Bomb or Shadowmeld breaks off a fight instantly (not against bosses)."],
   ["🔒 Combat lockout", "While any monster is fighting you, the bag, codex, help, full map, save-code screen, title button, merchants and the stairs are locked (greyed out; pressing them shows “In combat”). You can still move, attack, use abilities, dodge, switch targets and drink from the 🧪 quick-slot (your first healing potion, or any combat consumable you mark with ☆ Quick-slot in the bag). The minimap stays visible. The exit prompt (Esc / Start / back) always works: it pauses, and confirming saves your fight and exits. About 1.5 s after the last foe falls or gives up you'll see “Combat over” and everything unlocks."],
   ["☠️ Bosses", "The Broodmother (Floor 5) and the Echo Lord (Floor 10) wake when you step into their lair and fight you right there: acid pools, shadow flame and the Echo Lord's CATACLYSM ring land on the map, and spiderlings or Echo Shades crawl out around the boss. The stairs only appear once the boss is dead. Run too far and the boss returns to its lair and recovers fully — no chipping it down from range."],
-  ["🐾 Pets", "Rangers start with a Wolf (plus a Hawk with Pack Leader). Anyone can gain a charm pet from a Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil or Bone Hound Totem (one charm pet at a time). Pets path around walls and hazards, trail behind you and catch up if you pull ahead; if they get stuck they re-path, then poof to your side. In a fight they close along that path: melee pets flank, and the Imp keeps a ranged standoff with line of sight before throwing fire bolts. Enemies attack pets that get closer than you — Bone Hounds draw extra attention. A pet at 0 HP is knocked out 💫 for 12 s, then gets back up at 40%; every knocked-out pet recovers at 50% when the fight ends. Pets heal slowly while exploring; a Pet Treat fully heals and revives them."],
+  ["🐾 Pets", "Rangers start with a Wolf (plus a Hawk with Pack Leader). Anyone can gain a charm pet from a Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil or Bone Hound Totem (one charm pet at a time). Pets path around walls and hazards, trail behind you and catch up if you pull ahead; if they get stuck they re-path, then poof to your side. In a fight they close along that path: melee pets flank, and the Imp keeps a ranged standoff with line of sight before throwing fire bolts. Enemies attack pets that get closer than you — Bone Hounds draw extra attention. A pet at 0 HP is knocked out 💫 for 12 s, then gets back up at 40%; every knocked-out pet recovers at 50% when the fight ends. Pets do not regenerate health on their own; a Pet Treat fully heals and revives them."],
   ["✨ Starting perk", "Every new run (Story and Endless) opens with a choice of 3 random Common perks. The roll is saved, so reloading won't change it."],
   ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
-  ["✨ Abilities", "Each class starts with only a basic attack. Class abilities unlock as you level: the first at level 3, then 6, 9 and (if a class has a fourth) 12. Locked buttons show a lock and the required level, and a banner announces “New ability unlocked” when one opens. Warriors learn Shield Bash, a frontal-cone Cleave, Battle Cry, then Smash (a circular shockwave). Clerics learn Heal, Smite, Holy Shield, then the same Smash. Mage, Rogue and Ranger keep their three class abilities. Abilities cost MP and have cooldowns. MP regenerates every turn. Warriors gain MP when hit; Mages restore MP with staff strikes; Ranger wolves attack on their own. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
+  ["✨ Abilities", "Each class starts with only a basic attack. Class abilities unlock as you level: the first at level 3, then 6, 9 and (if a class has a fourth) 12. Locked buttons show a lock and the required level, and a banner announces “New ability unlocked” when one opens. Warriors learn Shield Bash, a frontal-cone Cleave, Battle Cry, then Smash (a circular shockwave). Clerics learn Heal, Smite, Holy Shield, then the same Smash. Mage, Rogue and Ranger keep their three class abilities. Abilities cost MP and have cooldowns. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
   ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls random affixes (✦ lines: crit, lifesteal, thorns, fire/ice/holy/poison, HP, DEF…), larger on deeper floors and rarer items; hover/long-press an affix to see its range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
