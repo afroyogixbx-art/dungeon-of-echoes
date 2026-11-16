@@ -1641,7 +1641,16 @@ function steerVel(I: Inp, tx: number, ty: number, dt: number): void {
   I.vx = Math.cos(na) * ns; I.vy = Math.sin(na) * ns;
 }
 // ---------- tile art: pre-rendered once per floor into an offscreen canvas ----------
-const TS = 32, VT = 11;
+const TS = 32, VT_MIN = 11;
+let VTX = VT_MIN, VTY = VT_MIN;
+function syncView(w?: number, h?: number): void {
+  const sw = Math.max(1, w ?? (typeof window !== "undefined" ? window.innerWidth : 400));
+  const sh = Math.max(1, h ?? (typeof window !== "undefined" ? window.innerHeight : 800));
+  const tile = Math.min(sw, sh) / VT_MIN;
+  VTX = Math.max(VT_MIN, sw / tile);
+  VTY = Math.max(VT_MIN, sh / tile);
+}
+if (typeof window !== "undefined") syncView();
 function hrand(x: number, y: number, s: number): number {
   let h = (Math.imul(x + 101, 374761393) + Math.imul(y + 211, 668265263) + Math.imul(s + 7, 362437)) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
@@ -1830,37 +1839,40 @@ function drawView(cv: HTMLCanvasElement, g: Game, force: boolean): void {
   const art = artFor(g); if (!art) return;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   // tile art is 32px per tile, so more canvas pixels than ~1.4x that add no detail, only fill cost; CSS scales it up
-  const cw = Math.min(Math.round(cv.clientWidth * dpr), Math.round(VT * TS * 1.4)); if (!cw) return;
-  if (cv.width !== cw || cv.height !== cw) { cv.width = cw; cv.height = cw; force = true; }
-  // redraw when the camera moves; otherwise only ~12 times a second for candle flicker
-  const key = `${(g.wx ?? 0).toFixed(3)},${(g.wy ?? 0).toFixed(3)},${g.floor},${g.px},${g.py}`, tn = performance.now();
+  const cw = Math.min(Math.round(cv.clientWidth * dpr), Math.round(VTX * TS * 1.4)); if (!cw) return;
+  const ch = Math.min(Math.round(cv.clientHeight * dpr), Math.round(VTY * TS * 1.4)); if (!ch) return;
+  if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; force = true; }
+  // redraw when the camera moves or the view size changes; otherwise only ~12 times a second for candle flicker
+  const key = `${(g.wx ?? 0).toFixed(3)},${(g.wy ?? 0).toFixed(3)},${g.floor},${g.px},${g.py},${VTX.toFixed(3)},${VTY.toFixed(3)},${cw}x${ch}`, tn = performance.now();
   if (!force && key === VIEW_K && tn - VIEW_T < 80) return;
   VIEW_K = key; VIEW_T = tn;
   const c = cv.getContext("2d"); if (!c) return;
   const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
-  const s = cw / VT, x0 = px - VT / 2, y0 = py - VT / 2;
+  // keep tiles square: never stretch even if the canvas is a pixel off the ideal aspect
+  const s = Math.min(cw / VTX, ch / VTY), ox = (cw - s * VTX) / 2, oy = (ch - s * VTY) / 2;
+  const x0 = px - VTX / 2, y0 = py - VTY / 2;
   const ac = art.cv.getContext("2d");
-  for (let ty = Math.max(0, Math.floor(y0)); ty <= Math.min(H - 1, Math.floor(y0 + VT)); ty++) for (let tx = Math.max(0, Math.floor(x0)); tx <= Math.min(W - 1, Math.floor(x0 + VT)); tx++) {
+  for (let ty = Math.max(0, Math.floor(y0)); ty <= Math.min(H - 1, Math.floor(y0 + VTY)); ty++) for (let tx = Math.max(0, Math.floor(x0)); tx <= Math.min(W - 1, Math.floor(x0 + VTX)); tx++) {
     if (art.baked[ty * W + tx] !== g.map[ty][tx] && ac) { bakeTile(ac, g, tx, ty, art.bio, null); art.baked[ty * W + tx] = g.map[ty][tx]; }
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
-  c.fillStyle = "#07060a"; c.fillRect(0, 0, cw, cw);
-  const sx0 = Math.max(0, x0), sy0 = Math.max(0, y0), sx1 = Math.min(W, x0 + VT), sy1 = Math.min(H, y0 + VT);
-  if (sx1 > sx0 && sy1 > sy0) c.drawImage(art.cv, sx0 * TS, sy0 * TS, (sx1 - sx0) * TS, (sy1 - sy0) * TS, (sx0 - x0) * s, (sy0 - y0) * s, (sx1 - sx0) * s, (sy1 - sy0) * s);
-  for (let ty = Math.floor(y0); ty <= Math.floor(y0 + VT); ty++) for (let tx = Math.floor(x0); tx <= Math.floor(x0 + VT); tx++) {
+  c.fillStyle = "#07060a"; c.fillRect(0, 0, cw, ch);
+  const sx0 = Math.max(0, x0), sy0 = Math.max(0, y0), sx1 = Math.min(W, x0 + VTX), sy1 = Math.min(H, y0 + VTY);
+  if (sx1 > sx0 && sy1 > sy0) c.drawImage(art.cv, sx0 * TS, sy0 * TS, (sx1 - sx0) * TS, (sy1 - sy0) * TS, ox + (sx0 - x0) * s, oy + (sy0 - y0) * s, (sx1 - sx0) * s, (sy1 - sy0) * s);
+  for (let ty = Math.floor(y0); ty <= Math.floor(y0 + VTY); ty++) for (let tx = Math.floor(x0); tx <= Math.floor(x0 + VTX); tx++) {
     const inb = tx >= 0 && ty >= 0 && tx < W && ty < H;
-    const dx = (tx - x0) * s, dy = (ty - y0) * s;
+    const dx = ox + (tx - x0) * s, dy = oy + (ty - y0) * s;
     if (!inb || !g.seen[ty][tx]) { c.fillStyle = "#07060a"; c.fillRect(Math.floor(dx), Math.floor(dy), Math.ceil(s) + 1, Math.ceil(s) + 1); }
     else if (!litT(g, tx, ty)) { c.fillStyle = "rgba(6,4,10,.62)"; c.fillRect(Math.floor(dx), Math.floor(dy), Math.ceil(s) + 1, Math.ceil(s) + 1); }
   }
   c.globalCompositeOperation = "lighter";
   const now = performance.now() / 1000;
   art.lights.forEach((L: [number, number, number], i: number) => {
-    if (L[0] < x0 - 1 || L[0] > x0 + VT + 1 || L[1] < y0 - 1 || L[1] > y0 + VT + 1) return;
+    if (L[0] < x0 - 1 || L[0] > x0 + VTX + 1 || L[1] < y0 - 1 || L[1] > y0 + VTY + 1) return;
     const lx = Math.floor(L[0]), ly = Math.floor(L[1]);
     if (lx < 0 || ly < 0 || lx >= W || ly >= H || !g.seen[ly][lx]) return;
     const f = 0.75 + 0.25 * Math.sin(now * (7 + (i % 5)) + i * 1.7) * Math.sin(now * 3.1 + i);
-    const gx = (L[0] - x0) * s, gy = (L[1] - y0) * s, rad = s * (L[2] === 2 ? 1.1 : 1.5);
+    const gx = ox + (L[0] - x0) * s, gy = oy + (L[1] - y0) * s, rad = s * (L[2] === 2 ? 1.1 : 1.5);
     const lg = c.createRadialGradient(gx, gy, 0, gx, gy, rad); lg.addColorStop(0, L[2] === 2 ? `rgba(140,255,90,${0.22 * f})` : `rgba(255,180,90,${0.3 * f})`); lg.addColorStop(1, "rgba(0,0,0,0)");
     c.fillStyle = lg; c.fillRect(gx - rad, gy - rad, rad * 2, rad * 2);
   });
@@ -1902,7 +1914,7 @@ function drawMini(cv: HTMLCanvasElement, g: Game, big: boolean): void {
   const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
   c.strokeStyle = "#000"; c.lineWidth = Math.max(1, dpr);
   dot(px, py, "#fff2c8", 0.55); c.beginPath(); c.arc(px * s, py * s, Math.max(1.5 * dpr, 0.55 * s), 0, 7); c.stroke();
-  if (!big) { c.strokeStyle = "rgba(255,230,180,.35)"; c.lineWidth = 1; c.strokeRect((px - VT / 2) * s, (py - VT / 2) * s, VT * s, VT * s); }
+  if (!big) { c.strokeStyle = "rgba(255,230,180,.35)"; c.lineWidth = 1; c.strokeRect((px - VTX / 2) * s, (py - VTY / 2) * s, VTX * s, VTY * s); }
 }
 // move combat sprites every frame without a React render (React refreshes HP bars etc. at ~15 Hz)
 function placeCombat(we: HTMLElement, c: Combat): void {
@@ -1923,7 +1935,7 @@ function placePets(we: HTMLElement, g: Game): void {
 }
 function petSz(k: string): number { return k === "hound" ? 0.74 : k === "wolf" ? 0.66 : 0.58; }
 function petSpr(k: string): string { return k === "imp" ? "pimp" : k === "owl" ? "powl" : k === "hound" ? "phound" : k; }
-function worldTf(g: Game): string { const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5; return `translate(${(-(px - VT / 2) / W) * 100}%, ${(-(py - VT / 2) / H) * 100}%)`; }
+function worldTf(g: Game): string { const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5; return `translate(${(-(px - VTX / 2) / W) * 100}%, ${(-(py - VTY / 2) / H) * 100}%)`; }
 function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   if (g.screen !== "map") return false;
   let ch = false;
@@ -2948,7 +2960,7 @@ export default function DungeonOfEchoes() {
     const clear = (): void => { const I = inp.current; HELD.clear(); I.kx = 0; I.ky = 0; I.katk = false; I.atk = false; };
     const pd = (): void => { try { document.documentElement.removeAttribute("data-doe-nav"); } catch (err) { void err; } };
     const onPad = (e: Event): void => setToast(e.type === "gamepadconnected" ? "🎮 Controller connected" : "🎮 Controller disconnected");
-    const onRs = (): void => setVp({ w: window.innerWidth, h: window.innerHeight });
+    const onRs = (): void => { const w = window.innerWidth, h = window.innerHeight; syncView(w, h); setVp({ w, h }); };
     const mq = typeof window.matchMedia === "function" ? window.matchMedia("(orientation: landscape)") : null;
     window.addEventListener("keydown", kd);
     window.addEventListener("keyup", ku);
@@ -3079,7 +3091,7 @@ export default function DungeonOfEchoes() {
     const ls = g0.log.filter((l: LogL) => l.ts !== undefined && now - l.ts < 3600 && l.c !== "dmg").slice(0, 3);
     if (ls.length === 0) return null;
     return (
-      <div data-notes="1" style={inline ? { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" } : { position: "absolute", left: 6, right: 6, bottom: 8, display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 4, pointerEvents: "none", zIndex: 7 }}>
+      <div data-notes="1" style={inline ? { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, pointerEvents: "none" } : { position: "absolute", left: "max(8px, env(safe-area-inset-left))", right: "auto", bottom: "max(10px, env(safe-area-inset-bottom))", maxWidth: "min(420px, 54vw)", display: "flex", flexDirection: "column-reverse", alignItems: "flex-start", gap: 4, pointerEvents: "none", zIndex: 12 }}>
         {ls.map((l: LogL, i: number) => <div key={`${l.ts}-${i}-${l.t}`} style={{ maxWidth: "94%", fontSize: 12, fontWeight: 700, lineHeight: 1.3, padding: "4px 10px", borderRadius: 999, background: "rgba(10,8,14,.86)", border: `1px solid ${col(l.c)}`, color: col(l.c), textAlign: "center", animation: `doeNote 3.6s ease-in ${-(now - (l.ts ?? now))}ms forwards` }}>{l.t}</div>)}
       </div>
     );
@@ -3154,6 +3166,7 @@ export default function DungeonOfEchoes() {
   };
 
   const g = G.current;
+  syncView(vp.w, vp.h);
   const land = vp.w > vp.h && vp.h <= 640;
   const sa = (s: string, b: number): string => `max(${b}px, env(safe-area-inset-${s}))`;
   const root: CSSProperties = { position: "relative", fontFamily: t.font.family, color: t.text.primary, background: t.bg.base, maxWidth: land ? 1000 : 520, width: "100%", margin: "0 auto", padding: `${sa("top", 10)} ${sa("right", 10)} ${sa("bottom", 10)} ${sa("left", 10)}`, boxSizing: "border-box", display: "flex", flexDirection: "column", gap: 10, userSelect: "none", overflowX: "hidden" };
@@ -3684,50 +3697,43 @@ export default function DungeonOfEchoes() {
     </div>
   );
 
-  const hudC = (
-    <div style={{ ...card, padding: "4px 8px", display: "flex", alignItems: "center", gap: 8, position: "relative", flex: "0 0 auto" }}>
-      {g.screen !== "map" && fxLayer(g, "p")}
-      <span style={{ width: 30, height: 30, flex: "0 0 auto", borderRadius: 6, background: "radial-gradient(circle at 50% 40%, #3a2a1a, #0d0a10 80%)", border: "1px solid #5a3a2a", overflow: "hidden" }}>{spr(g.cls, 30)}</span>
-      <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>{CLS[g.cls].name} {g.lvl}</span>
-      <div style={{ flex: "1 1 auto", minWidth: 0, display: "flex", gap: 8 }}>{bar(g.hp, f.maxHp, "#e5484d", "HP")}{bar(g.mp, f.maxMp, "#3e8ef7", "MP")}{bar(g.xp, need(g.lvl), "#f5a524", "XP")}</div>
+  const hudNarrow = vp.w < 700;
+  const hudMeta = (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto", flex: "0 0 auto" }}>
       <span style={{ fontSize: 12, whiteSpace: "nowrap" }}>{g.mode === "story" ? `🏰 ${g.floor}/${STORY_END}` : `∞ ${g.floor}`}</span>
       <span style={{ fontSize: 12, color: t.text.warning, fontWeight: 700, whiteSpace: "nowrap" }}>💰 {g.gold}</span>
       <span style={{ fontSize: 11, color: LAST_SAVE ? t.text.success : t.text.warning, whiteSpace: "nowrap" }}>{LAST_SAVE ? "💾" : "⚠️"}</span>
       <button onClick={homeBtn} aria-disabled={!!g.combat} aria-label="Title screen (copies your save code)" style={{ opacity: g.combat ? 0.4 : 1, minWidth: 36, minHeight: 32, borderRadius: 8, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 15, cursor: "pointer" }}>🏠</button>
     </div>
   );
-  const playLayout = (g0: Game, viewFn: () => ReactNode, aspect: number, actions: ReactNode, below: ReactNode) => {
-    if (land) {
-      const side = Math.round(Math.max(150, Math.min(240, vp.w * 0.25)));
-      const availH = vp.h - 70; const availW = vp.w - side * 2 - 44;
-      const w = Math.max(140, Math.min(availW, availH * aspect));
-      return (
-        <div {...joyH} style={{ position: "fixed", inset: 0, display: "flex", flexDirection: "column", gap: 6, padding: `${sa("top", 6)} ${sa("right", 8)} ${sa("bottom", 6)} ${sa("left", 8)}`, boxSizing: "border-box", background: t.bg.base, color: t.text.primary, fontFamily: t.font.family, userSelect: "none", touchAction: "none", overflow: "hidden" }}>
-          {style}
-          {hudC}
-          <div style={{ flex: "1 1 auto", minHeight: 0, display: "flex", gap: 8 }}>
-            <div style={{ width: side, flex: "0 0 auto", minHeight: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ flex: "1 1 auto", minHeight: 50, borderRadius: 12, border: `1px dashed ${t.border.default}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: t.text.tertiary, textAlign: "center", padding: 6 }}>🕹️<br />Drag on the left half to move</div>
-            </div>
-            <div style={{ flex: "1 1 auto", minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: w, maxWidth: "100%", position: "relative" }}>{viewFn()}{notes(g0, false)}</div></div>
-            <div data-noj="1" style={{ width: side, flex: "0 0 auto", minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", gap: 6, touchAction: "pan-y" }}>
-              <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 6 }}>{below}{actions}</div>
-            </div>
-          </div>
-        </div>
-      );
-    }
+  const hudBars = <div style={{ flex: "1 1 auto", minWidth: 0, display: "flex", gap: 6 }}>{bar(g.hp, f.maxHp, "#e5484d", "HP")}{bar(g.mp, f.maxMp, "#3e8ef7", "MP")}{bar(g.xp, need(g.lvl), "#f5a524", "XP")}</div>;
+  const hudC = (
+    <div data-hud="1" style={{ ...card, padding: "4px 8px", display: "flex", flexDirection: hudNarrow ? "column" : "row", alignItems: hudNarrow ? "stretch" : "center", gap: 6, position: "relative", flex: "0 0 auto", width: "100%", boxSizing: "border-box", background: "rgba(10,8,14,.78)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", border: "1px solid rgba(255,230,180,.22)", boxShadow: "0 4px 16px rgba(0,0,0,.35)" }}>
+      {g.screen !== "map" && fxLayer(g, "p")}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, width: "100%" }}>
+        <span style={{ width: 30, height: 30, flex: "0 0 auto", borderRadius: 6, background: "radial-gradient(circle at 50% 40%, #3a2a1a, #0d0a10 80%)", border: "1px solid #5a3a2a", overflow: "hidden" }}>{spr(g.cls, 30)}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>{CLS[g.cls].name} {g.lvl}</span>
+        {!hudNarrow && hudBars}
+        {hudMeta}
+      </div>
+      {hudNarrow && hudBars}
+    </div>
+  );
+  const playLayout = (g0: Game, viewFn: () => ReactNode, _aspect: number, actions: ReactNode, below: ReactNode) => {
+    const padT = sa("top", 8), padR = sa("right", 8), padB = sa("bottom", 8), padL = sa("left", 8);
+    const mini = Math.max(88, Math.min(132, Math.round(Math.min(vp.w, vp.h) * 0.2)));
+    const panel: CSSProperties = { background: "rgba(10,8,14,.72)", border: "1px solid rgba(255,230,180,.18)", borderRadius: 10, padding: "6px 8px", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", boxShadow: "0 4px 16px rgba(0,0,0,.35)" };
     return (
-      <div style={root}>{style}
-        {hud}
-        <div {...joyH} style={{ display: "flex", flexDirection: "column", gap: 8, touchAction: "none" }}>
-          <div style={{ position: "relative" }}>{viewFn()}{notes(g0, false)}</div>
-          <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
-            <div style={{ flex: "1 1 0", minHeight: 150, borderRadius: 12, border: `1px dashed ${t.border.default}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: t.text.tertiary, textAlign: "center", padding: 6 }}>🕹️<br />Touch &amp; drag on the left half to move</div>
-            <div data-noj="1" style={{ flex: "1.4 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: 6, justifyContent: "flex-end" }}>{actions}</div>
-          </div>
+      <div {...joyH} style={{ position: "fixed", inset: 0, background: "#07060a", color: t.text.primary, fontFamily: t.font.family, userSelect: "none", touchAction: "none", overflow: "hidden" }}>
+        {style}
+        <div style={{ position: "absolute", inset: 0 }}>{viewFn()}{notes(g0, false)}</div>
+        <div style={{ position: "absolute", top: padT, left: padL, right: `calc(${padR} + ${mini + 10}px)`, zIndex: 10, pointerEvents: "none" }}>
+          <div style={{ pointerEvents: "auto", maxWidth: "100%" }}>{hudC}</div>
         </div>
-        {below}
+        <div data-noj="1" style={{ position: "absolute", right: padR, bottom: padB, zIndex: 10, maxWidth: vp.h <= 480 ? "min(64vw, 340px)" : vp.w < 720 ? "min(92vw, 420px)" : 380, display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", pointerEvents: "auto" }}>
+          <div style={{ ...panel, maxWidth: "100%", maxHeight: vp.h <= 480 ? 52 : undefined, overflow: vp.h <= 480 ? "hidden" : undefined, fontSize: vp.h <= 480 ? 10 : undefined }}>{below}</div>
+          {actions}
+        </div>
       </div>
     );
   };
@@ -3973,10 +3979,10 @@ export default function DungeonOfEchoes() {
   const remAt = new Map<number, string>();
   for (const r of g.rem ?? []) { const [a, b] = r.split(":"); remAt.set(Number(a), b); }
   const bio: Biome = g.biome ?? biomeOf(g.floor);
-  const VH = 7;
+  const VHX = Math.ceil(VTX / 2) + 2, VHY = Math.ceil(VTY / 2) + 2;
   const tPos = (x: number, y: number): CSSProperties => ({ position: "absolute", left: `${(x / W) * 100}%`, top: `${(y / H) * 100}%`, width: `${100 / W}%`, height: `${100 / H}%` });
   const objs: ReactNode[] = [];
-  for (let y = Math.max(0, g.py - VH); y <= Math.min(H - 1, g.py + VH); y++) for (let x = Math.max(0, g.px - VH); x <= Math.min(W - 1, g.px + VH); x++) {
+  for (let y = Math.max(0, g.py - VHY); y <= Math.min(H - 1, g.py + VHY); y++) for (let x = Math.max(0, g.px - VHX); x <= Math.min(W - 1, g.px + VHX); x++) {
     if (!g.seen[y][x]) continue;
     const v = g.map[y][x]; const rk = remAt.get(y * W + x);
     const isObj = v === 2 || v === 3 || v === 4;
@@ -3992,7 +3998,7 @@ export default function DungeonOfEchoes() {
   }
   for (const mm of g.mons) {
     const mfx = mm.fx ?? mm.x + 0.5, mfy = mm.fy ?? mm.y + 0.5;
-    if (Math.abs(mm.x - g.px) > VH || Math.abs(mm.y - g.py) > VH || !g.seen[mm.y]?.[mm.x]) continue;
+    if (Math.abs(mm.x - g.px) > VHX || Math.abs(mm.y - g.py) > VHY || !g.seen[mm.y]?.[mm.x]) continue;
     const vis = litT(g, mm.x, mm.y);
     if (!vis && !mm.boss) continue;
     const sty: CSSProperties | undefined = mm.boss ? (vis ? { filter: "drop-shadow(0 0 3px rgba(200,0,0,.8))" } : { filter: "brightness(0)", opacity: 0.55 }) : mm.stun > 0 ? { opacity: 0.6 } : mm.el ? { filter: "drop-shadow(0 0 3px rgba(255,200,60,.95))" } : { filter: "drop-shadow(0 2px 2px rgba(0,0,0,.8))" };
@@ -4003,9 +4009,9 @@ export default function DungeonOfEchoes() {
   const wBox = (x: number, y: number, sz: number): CSSProperties => ({ position: "absolute", left: `${((x - sz / 2) / W) * 100}%`, top: `${((y - sz / 2) / H) * 100}%`, width: `${(sz / W) * 100}%`, height: `${(sz / H) * 100}%` });
   const pfx = g.wx ?? g.px + 0.5, pfy = g.wy ?? g.py + 0.5;
   const cBoss = c ? c.enemies.find((e: Enemy) => e.boss && !e.dead) : undefined;
-  const inViewP = (x: number, y: number): boolean => Math.abs(x - pfx) < VT / 2 + 2 && Math.abs(y - pfy) < VT / 2 + 2;
+  const inViewP = (x: number, y: number): boolean => Math.abs(x - pfx) < VTX / 2 + 2 && Math.abs(y - pfy) < VTY / 2 + 2;
   if (c) {
-    const inView = (x: number, y: number): boolean => Math.abs(x - pfx) < VT / 2 + 2 && Math.abs(y - pfy) < VT / 2 + 2;
+    const inView = (x: number, y: number): boolean => Math.abs(x - pfx) < VTX / 2 + 2 && Math.abs(y - pfy) < VTY / 2 + 2;
     for (const tl of c.tele ?? []) objs.push(
       <div key={`t${tl.id}`} data-tele={tl.kind} data-tid={tl.id} style={{ ...wBox(tl.x, tl.y, tl.r * 2), borderRadius: "50%", border: `2px solid ${tl.kind === "acid" ? "#7dff4a" : tl.kind === "cata" ? "#c07bff" : "#ff5a2a"}`, background: "rgba(0,0,0,.15)", boxSizing: "border-box", zIndex: 1 }}>
         <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: tl.kind === "acid" ? "rgba(110,220,60,.4)" : tl.kind === "cata" ? "rgba(150,60,255,.45)" : "rgba(255,80,20,.42)", transform: `scale(${Math.max(0, Math.min(1, 1 - tl.t / tl.max))})` }} />
@@ -4065,24 +4071,26 @@ export default function DungeonOfEchoes() {
       </div>
     );
   });
-  const tilePct = `${100 / VT}%`;
+  const tileW = `${100 / VTX}%`, tileH = `${100 / VTY}%`;
+  const tilePx = Math.min(vp.w, vp.h) / VT_MIN;
+  const mini = Math.max(88, Math.min(132, Math.round(Math.min(vp.w, vp.h) * 0.2)));
   const floats = g.fx.filter((x: Fx) => x.at === "m" && nowMs - x.ts < 1250);
   const onMerchant = nearMerchant(g);
   const mapView = (): ReactNode => (
-      <div style={{ position: "relative", borderRadius: 10, overflow: "hidden", width: "100%", aspectRatio: "1", background: "#07060a" }}>
+      <div style={{ position: "absolute", inset: 0, overflow: "hidden", width: "100%", height: "100%", background: "#07060a" }}>
         <canvas ref={mapCv} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(circle at 50% 50%, ${bio === "warren" ? "rgba(255,170,80,.13)" : "rgba(220,150,255,.11)"} 0, rgba(0,0,0,0) ${(2.6 / VT) * 100}%), radial-gradient(circle at 50% 50%, rgba(0,0,0,0) ${(1.3 / VT) * 100}%, rgba(0,0,0,.6) ${((R + 1.4) / VT) * 100}%)` }} />
-        <div ref={worldEl} style={{ position: "absolute", left: 0, top: 0, width: `${(W / VT) * 100}%`, height: `${(H / VT) * 100}%`, transform: worldTf(g), pointerEvents: "none", willChange: "transform" }}>{objs}</div>
-        <div data-hero="1" style={{ position: "absolute", left: "50%", top: "50%", width: tilePct, height: tilePct, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 3px rgba(0,0,0,.9))", opacity: c && (c.iT ?? 0) > 0 ? 0.55 : 1, zIndex: 4 }}>
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(circle at 50% 50%, ${bio === "warren" ? "rgba(255,170,80,.13)" : "rgba(220,150,255,.11)"} 0, rgba(0,0,0,0) ${2.6 * tilePx}px), radial-gradient(circle at 50% 50%, rgba(0,0,0,0) ${1.3 * tilePx}px, rgba(0,0,0,.6) ${(R + 1.4) * tilePx}px)` }} />
+        <div ref={worldEl} style={{ position: "absolute", left: 0, top: 0, width: `${(W / VTX) * 100}%`, height: `${(H / VTY) * 100}%`, transform: worldTf(g), pointerEvents: "none", willChange: "transform" }}>{objs}</div>
+        <div data-hero="1" style={{ position: "absolute", left: "50%", top: "50%", width: tileW, height: tileH, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 3px rgba(0,0,0,.9))", opacity: c && (c.iT ?? 0) > 0 ? 0.55 : 1, zIndex: 4 }}>
           {spr(g.cls, "100%")}
           <div style={{ position: "absolute", left: "50%", bottom: "100%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", pointerEvents: "none", whiteSpace: "nowrap", zIndex: 8 }}>
             {g.fx.filter((x: Fx) => x.at === "p" && nowMs - x.ts < 1000).map((x: Fx) => <span key={x.id} style={{ animation: "doeFloat 1s ease-out forwards", fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000" }}>{x.text}</span>)}
           </div>
         </div>
         {g.hurtTs && nowMs - g.hurtTs < 700 ? <div key={`h${g.hurtTs}`} style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse at center, transparent 40%, rgba(190,0,0,.5) 100%)", animation: "doeFlash .55s ease-out forwards", zIndex: 6 }} /> : null}
-        {c ? <div data-incombat="1" style={{ position: "absolute", left: 6, top: 6, padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#ffe0d0", background: "rgba(120,10,10,.72)", border: "1px solid rgba(255,90,70,.7)", textShadow: "0 1px 2px #000", pointerEvents: "none", zIndex: 7 }}>{alive(c).length === 0 ? "✅ Clear…" : cBoss ? `☠️ ${cBoss.name.replace(/^The /, "")} · Phase ${c.phase}/${cBoss.bk === "lord" ? 3 : 2}` : `⚔️ In combat · ${alive(c).length}`}{(g.buffs.hex ?? 0) > 0 ? " · 🌀 Hexed" : ""}</div> : null}
+        {c ? <div data-incombat="1" style={{ position: "absolute", left: "max(8px, env(safe-area-inset-left))", top: "max(64px, calc(env(safe-area-inset-top) + 56px))", padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#ffe0d0", background: "rgba(120,10,10,.72)", border: "1px solid rgba(255,90,70,.7)", textShadow: "0 1px 2px #000", pointerEvents: "none", zIndex: 7 }}>{alive(c).length === 0 ? "✅ Clear…" : cBoss ? `☠️ ${cBoss.name.replace(/^The /, "")} · Phase ${c.phase}/${cBoss.bk === "lord" ? 3 : 2}` : `⚔️ In combat · ${alive(c).length}`}{(g.buffs.hex ?? 0) > 0 ? " · 🌀 Hexed" : ""}</div> : null}
         {c && c.charging ? <div style={{ position: "absolute", left: 0, right: 0, top: "30%", textAlign: "center", fontWeight: 800, fontSize: 12, color: "#ffb0ff", animation: "doePulse .8s infinite", textShadow: "0 1px 3px #000", pointerEvents: "none", zIndex: 7 }}>⚠️ CATACLYSM — leave the purple ring!</div> : null}
-        <div style={{ position: "absolute", left: "50%", bottom: `${50 + 50 / VT}%`, transform: "translateX(-50%)", display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 1, pointerEvents: "none", zIndex: 6 }}>
+        <div style={{ position: "absolute", left: "50%", bottom: `${50 + 50 / VTY}%`, transform: "translateX(-50%)", display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 1, pointerEvents: "none", zIndex: 6 }}>
           {floats.map((x: Fx) => <span key={x.id} data-float="1" style={{ fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000, 0 0 2px #000", whiteSpace: "nowrap", animation: `doeRise 1.2s ease-out ${-(nowMs - x.ts)}ms forwards` }}>{x.text}</span>)}
         </div>
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
@@ -4090,15 +4098,17 @@ export default function DungeonOfEchoes() {
             ? [0, 1, 2, 3, 4, 5, 6, 7].map((i: number) => <span key={i} style={{ position: "absolute", left: `${(i * 37 + 8) % 92}%`, top: `${60 + (i * 23) % 35}%`, width: 3 + (i % 3), height: 3 + (i % 3), borderRadius: "50%", background: i % 3 === 0 ? "rgba(230,230,240,.7)" : "rgba(160,255,90,.7)", opacity: 0, animation: `doeDrift ${5 + (i % 4)}s linear ${i * 0.7}s infinite` }} />)
             : [0, 1, 2].map((i: number) => <span key={i} style={{ position: "absolute", left: "-20%", width: "140%", top: `${10 + i * 30}%`, height: "30%", background: "radial-gradient(ellipse at center, rgba(150,70,220,.22), transparent 70%)", animation: `doeMist ${9 + i * 3}s ease-in-out ${i}s infinite alternate` }} />)}
         </div>
-        <button data-noj="1" data-minimap="1" aria-disabled={!!c} aria-label={c ? "Map locked in combat" : "Open map (M)"} title={c ? "Locked in combat" : "Map (M)"} onClick={c ? lockNote : toggleMap} style={{ position: "absolute", right: 6, top: 6, width: "27%", aspectRatio: "1", padding: 0, border: `1px solid ${c ? "rgba(255,90,70,.55)" : "rgba(255,230,180,.4)"}`, borderRadius: 8, background: "transparent", overflow: "hidden", zIndex: 5, cursor: c ? "default" : "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.6)" }}>
+        <button data-noj="1" data-minimap="1" aria-disabled={!!c} aria-label={c ? "Map locked in combat" : "Open map (M)"} title={c ? "Locked in combat" : "Map (M)"} onClick={c ? lockNote : toggleMap} style={{ position: "absolute", right: "max(8px, env(safe-area-inset-right))", top: "max(8px, env(safe-area-inset-top))", width: mini, height: mini, padding: 0, border: `1px solid ${c ? "rgba(255,90,70,.55)" : "rgba(255,230,180,.4)"}`, borderRadius: 8, background: "transparent", overflow: "hidden", zIndex: 8, cursor: c ? "default" : "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.6)" }}>
           <canvas ref={miniCv} style={{ width: "100%", height: "100%", display: "block" }} />
           <span style={{ position: "absolute", left: 3, bottom: 1, fontSize: 9, fontWeight: 800, color: "rgba(255,240,210,.85)", textShadow: "0 1px 2px #000" }}>{c ? "🔒" : "M"}</span>
         </button>
         {g.bannerTs && Date.now() - g.bannerTs < 3500 ? (
-          <div key={g.bannerTs} style={{ position: "absolute", left: "6%", right: "6%", top: "36%", textAlign: "center", padding: "10px 8px", borderRadius: 10, background: "rgba(8,6,12,.85)", border: `1px solid ${bio === "warren" ? "#6aa83a" : "#8a4ad0"}`, color: "#f0e8ff", animation: "doeBanner 3.2s ease-in-out forwards", pointerEvents: "none", zIndex: 8 }}>
-            <div style={{ fontSize: 11, letterSpacing: 2, opacity: 0.8 }}>{g.mode === "story" ? `FLOOR ${g.floor}` : `DEPTH ${g.floor}`}</div>
-            <div style={{ fontSize: 18, fontWeight: 800 }}>{BIOME[bio].name}</div>
-            <div style={{ fontSize: 11, opacity: 0.8 }}>{BIOME[bio].sub}</div>
+          <div key={g.bannerTs} style={{ position: "absolute", left: 0, right: 0, top: "36%", display: "flex", justifyContent: "center", pointerEvents: "none", zIndex: 8 }}>
+            <div style={{ width: "min(88%, 520px)", textAlign: "center", padding: "10px 8px", borderRadius: 10, background: "rgba(8,6,12,.85)", border: `1px solid ${bio === "warren" ? "#6aa83a" : "#8a4ad0"}`, color: "#f0e8ff", animation: "doeBanner 3.2s ease-in-out forwards", boxSizing: "border-box" }}>
+              <div style={{ fontSize: 11, letterSpacing: 2, opacity: 0.8 }}>{g.mode === "story" ? `FLOOR ${g.floor}` : `DEPTH ${g.floor}`}</div>
+              <div style={{ fontSize: 18, fontWeight: 800 }}>{BIOME[bio].name}</div>
+              <div style={{ fontSize: 11, opacity: 0.8 }}>{BIOME[bio].sub}</div>
+            </div>
           </div>
         ) : null}
       </div>
