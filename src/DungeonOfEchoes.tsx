@@ -1328,11 +1328,11 @@ function aimTarget(g: Game, c: Combat, r: number): boolean {
   return false;
 }
 function syncPos(g: Game): void { const c = g.combat; if (!c) return; c.px = g.wx ?? g.px + 0.5; c.py = g.wy ?? g.py + 0.5; }
-function shot(g: Game, col: string): void {
+function shot(g: Game, col: string, delay = 0): void {
   const c = g.combat; if (!c) return;
   const e = c.enemies[c.target]; if (!e) return;
   const s = c.shots ?? (c.shots = []);
-  s.push({ id: UID++, x1: c.px ?? 0, y1: c.py ?? 0, x2: e.x ?? 0, y2: e.y ?? 0, ts: Date.now(), c: col });
+  s.push({ id: UID++, x1: c.px ?? 0, y1: c.py ?? 0, x2: e.x ?? 0, y2: e.y ?? 0, ts: Date.now() + delay, c: col });
   if (s.length > 8) s.shift();
 }
 function rtAttack(g: Game): void {
@@ -1341,8 +1341,9 @@ function rtAttack(g: Game): void {
   const r = ARNG[g.cls] / U;
   if (!aimTarget(g, c, r)) { c.atkCd = 0.3; addFx(g, "too far", "sys", "p"); return; }
   { const e = c.enemies[c.target]; if (e) setFace((e.x ?? 0) - (c.px ?? 0), (e.y ?? 0) - (c.py ?? 0)); }
+  beginHeroAtk(g);
   c.atkCd = ARATE[g.cls];
-  if (r > 30 / U) shot(g, g.cls === "mage" ? "#b18cff" : "#e8d9a8");
+  if (r > 30 / U) shot(g, g.cls === "mage" ? "#b18cff" : "#e8d9a8", weapAnim(g) === "bow" ? 90 : 0);
   doAction(g, "attack", "");
   resolveDeaths(g);
 }
@@ -1988,6 +1989,91 @@ function drawMini(cv: HTMLCanvasElement, g: Game, big: boolean): void {
   if (!big) { c.strokeStyle = "rgba(255,230,180,.35)"; c.lineWidth = 1; c.strokeRect((px - VTX / 2) * s, (py - VTY / 2) * s, VTX * s, VTY * s); }
 }
 // move combat sprites every frame without a React render (React refreshes HP bars etc. at ~15 Hz)
+
+// visual-only hero and pet animation (module state, never written into a save)
+type WeapAnim = "slash" | "bow" | "staff" | "mace" | "thrust";
+interface HeroAn { walkT: number; face: number; moving: boolean; atkTs: number; kind: WeapAnim | ""; ang: number; prev: number }
+const HERO_AN: HeroAn = { walkT: 0, face: 1, moving: false, atkTs: 0, kind: "", ang: 0, prev: 0 };
+interface PetAn { x: number; y: number; walk: number; face: number; hT: number; prev: number }
+const PET_AN: PetAn[] = [];
+function weapAnim(g: Game): WeapAnim {
+  const id = g.eq.weapon?.id ?? CLS[g.cls].start[0];
+  const ic = IT[id]?.icon ?? "";
+  if (ic === "🏹") return "bow";
+  if (ic === "🪄") return "staff";
+  if (ic === "🔨") return "mace";
+  if (ic === "🔱") return "thrust";
+  return "slash";
+}
+function beginHeroAtk(g: Game): void {
+  const c = g.combat; if (!c) return;
+  const e = c.enemies[c.target];
+  const px = c.px ?? 0, py = c.py ?? 0;
+  const ang = e ? Math.atan2((e.y ?? py) - py, (e.x ?? px) - px) : FACE;
+  HERO_AN.atkTs = performance.now(); HERO_AN.kind = weapAnim(g); HERO_AN.ang = ang;
+  HERO_AN.face = Math.cos(ang) >= 0 ? 1 : -1;
+}
+function atkDur(k: string): number { return k === "bow" ? 250 : k === "mace" ? 260 : 230; }
+function setFx(fx: SVGElement, name: string, on: boolean, rot = 0, extra?: (g: SVGGElement) => void): void {
+  const g = fx.querySelector(`[data-fx="${name}"]`) as SVGGElement | null; if (!g) return;
+  g.style.opacity = on ? "1" : "0";
+  g.style.transform = `rotate(${rot}deg)`;
+  if (on && extra) extra(g);
+}
+function placeHero(g: Game, I: Inp): void {
+  const el = document.querySelector("[data-hero-an]") as HTMLElement | null;
+  const fx = document.querySelector("[data-hero-fx]") as SVGElement | null;
+  if (!el) return;
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - (HERO_AN.prev || now)) / 1000);
+  HERO_AN.prev = now;
+  const vm = Math.hypot(I.vx, I.vy);
+  HERO_AN.moving = vm > 0.35;
+  if (HERO_AN.moving) {
+    HERO_AN.walkT += dt;
+    if (I.vx > 0.15) HERO_AN.face = 1; else if (I.vx < -0.15) HERO_AN.face = -1;
+  }
+  const bob = HERO_AN.moving ? Math.sin(HERO_AN.walkT * 11) * 6 : Math.sin(now / 520) * 1.6;
+  const lean = HERO_AN.moving ? HERO_AN.face * 7 : 0;
+  const squash = HERO_AN.moving ? 1 + Math.sin(HERO_AN.walkT * 22) * 0.05 : 1 + Math.sin(now / 520) * 0.02;
+  let rot = lean, ox = 0, oy = bob;
+  const kind = HERO_AN.kind, age = now - HERO_AN.atkTs, dur = atkDur(kind);
+  const t = HERO_AN.atkTs > 0 && age < dur ? age / dur : -1;
+  if (t >= 0) {
+    const swing = Math.sin(t * Math.PI);
+    if (kind === "slash" || kind === "mace") rot += swing * (kind === "mace" ? 18 : 14) * HERO_AN.face;
+    else if (kind === "staff" || kind === "thrust") { ox += Math.cos(HERO_AN.ang) * swing * 12; oy += Math.sin(HERO_AN.ang) * swing * 10; }
+    else if (kind === "bow") { const pull = t < 0.4 ? t / 0.4 : Math.max(0, 1 - (t - 0.4) / 0.6); ox -= Math.cos(HERO_AN.ang) * pull * 8; }
+  }
+  el.style.transform = `translate(${ox}%, ${oy}%) scale(${HERO_AN.face}, ${squash}) rotate(${rot}deg)`;
+  el.style.transformOrigin = "50% 70%";
+  if (!fx) return;
+  const deg = HERO_AN.ang * 180 / Math.PI;
+  const show = (name: WeapAnim): boolean => t >= 0 && kind === name;
+  setFx(fx, "slash", show("slash"), deg - 70 + (t >= 0 ? t * 120 : 0), (gr) => {
+    const trails = gr.querySelectorAll("path");
+    trails.forEach((p, i) => { (p as SVGPathElement).style.opacity = String(Math.max(0, 1 - t - i * 0.2)); });
+  });
+  setFx(fx, "bow", show("bow"), deg, (gr) => {
+    const str = gr.querySelector('[data-part="string"]') as SVGLineElement | null;
+    const ar = gr.querySelector('[data-part="arrow"]') as SVGLineElement | null;
+    const pull = t < 0.4 ? t / 0.4 : 0;
+    if (str) { str.setAttribute("x2", String(10 - pull * 10)); }
+    if (ar) { ar.style.opacity = t >= 0.4 && t < 0.75 ? "1" : t < 0.4 ? String(0.7) : "0"; ar.setAttribute("x2", t >= 0.4 ? String(28 + (t - 0.4) * 20) : "18"); }
+  });
+  setFx(fx, "staff", show("staff"), deg, (gr) => {
+    const orb = gr.querySelector("circle") as SVGCircleElement | null;
+    if (orb) orb.setAttribute("r", String(3 + Math.sin(t * Math.PI) * 3));
+    gr.style.transform = `rotate(${deg}deg) translate(${8 + Math.sin(t * Math.PI) * 10}px, 0)`;
+  });
+  setFx(fx, "mace", show("mace"), deg - 80 + (t >= 0 ? t * 130 : 0), (gr) => {
+    const thud = gr.querySelector("circle") as SVGCircleElement | null;
+    if (thud) thud.style.opacity = t > 0.4 && t < 0.75 ? String(1 - (t - 0.4) / 0.35) : "0";
+  });
+  setFx(fx, "thrust", show("thrust"), deg, (gr) => {
+    gr.style.transform = `rotate(${deg}deg) translate(${Math.sin(t * Math.PI) * 14}px, 0)`;
+  });
+}
 function placeCombat(we: HTMLElement, c: Combat): void {
   const put = (el: HTMLElement, x: number, y: number, sz: number): void => { el.style.left = `${((x - sz / 2) / W) * 100}%`; el.style.top = `${((y - sz / 2) / H) * 100}%`; };
   const byUid = (v: string | undefined): Enemy | undefined => c.enemies.find((e: Enemy) => e.uid === Number(v));
@@ -2002,7 +2088,59 @@ function placeCombat(we: HTMLElement, c: Combat): void {
 }
 function placePets(we: HTMLElement, g: Game): void {
   const ps = g.pets ?? [];
-  we.querySelectorAll<HTMLElement>("[data-pet]").forEach((el: HTMLElement) => { const p = ps[Number(el.dataset.pet)]; if (!p) return; const sz = parseFloat(el.dataset.sz ?? "0.62"); el.style.left = `${((p.x - sz / 2) / W) * 100}%`; el.style.top = `${((p.y - sz / 2) / H) * 100}%`; });
+  const now = performance.now();
+  we.querySelectorAll<HTMLElement>("[data-pet]").forEach((el: HTMLElement) => {
+    const i = Number(el.dataset.pet); const p = ps[i]; if (!p) return;
+    const sz = parseFloat(el.dataset.sz ?? "0.62");
+    el.style.left = `${((p.x - sz / 2) / W) * 100}%`; el.style.top = `${((p.y - sz / 2) / H) * 100}%`;
+    const st = PET_AN[i] ?? (PET_AN[i] = { x: p.x, y: p.y, walk: 0, face: 1, hT: 0, prev: now });
+    const dt = Math.min(0.05, (now - (st.prev || now)) / 1000); st.prev = now;
+    const dx = p.x - st.x, dy = p.y - st.y; st.x = p.x; st.y = p.y;
+    const moving = Math.hypot(dx, dy) > 0.0008;
+    if (dx > 0.0005) st.face = 1; else if (dx < -0.0005) st.face = -1;
+    st.walk += dt;
+    const inner = el.querySelector("[data-pet-an]") as HTMLElement | null;
+    const fx = el.querySelector("[data-pet-fx]") as SVGElement | null;
+    if (!inner) return;
+    const ko = p.ko > 0;
+    const ag = p.aT ? Date.now() - p.aT : 9999;
+    const hurt = st.hT ? Date.now() - st.hT : 9999;
+    let ox = 0, oy = 0, rot = 0, sx = st.face, sy = 1, op = 1;
+    if (ko) { rot = 80; op = 0.5; sy = 0.72; sx = st.face * 0.95; }
+    else {
+      const breath = Math.sin(now / 480 + i) * 0.035;
+      if (p.k === "wolf" || p.k === "hound") {
+        if (moving) { oy = Math.sin(st.walk * 14) * 8; rot = Math.sin(st.walk * 14) * 8; sy = 1 + Math.sin(st.walk * 28) * 0.07; }
+        else sy = 1 + breath;
+      } else if (p.k === "hawk" || p.k === "owl") {
+        oy = Math.sin(now / 260 + i) * (moving ? 7 : 4);
+        rot = Math.sin(now / 130 + i) * (moving ? 11 : 5);
+        sy = 1 + Math.sin(now / 130 + i) * 0.09;
+      } else {
+        oy = Math.sin(now / 200 + i) * 7;
+        op = 0.86 + Math.sin(now / 90 + i) * 0.14;
+        rot = Math.sin(now / 320 + i) * 5;
+        sy = 1 + breath;
+      }
+      if (ag < 280 && p.tx !== undefined && p.ty !== undefined) {
+        const u = ag / 280, vx = p.tx - p.x, vy = p.ty - p.y, vl = Math.hypot(vx, vy) || 1;
+        const dive = p.k === "hawk" || p.k === "owl";
+        const k = Math.sin(u * Math.PI) * (p.k === "imp" ? 16 : dive ? 55 : 42);
+        ox += (vx / vl) * k; oy += (vy / vl) * k;
+        if (dive) rot += 22 * Math.sin(u * Math.PI);
+      }
+      if (hurt < 180) { const f = 1 - hurt / 180; ox += Math.sin(hurt / 20) * 5 * f; sx *= 1 - 0.08 * f; }
+    }
+    inner.style.transform = `translate(${ox}%, ${oy}%) scale(${sx}, ${sy}) rotate(${rot}deg)`;
+    inner.style.opacity = String(op);
+    inner.style.filter = ko ? "grayscale(1) brightness(.6)" : g.buffs.frenzy > 0 ? "drop-shadow(0 0 3px rgba(220,30,30,.9))" : "drop-shadow(0 2px 2px rgba(0,0,0,.7))";
+    if (fx) {
+      const flash = !ko && ((p.k === "imp" && ag < 200) || (p.k !== "imp" && ag < 220));
+      fx.style.opacity = flash ? String(1 - ag / 240) : "0";
+      const bolt = fx.querySelector("path");
+      if (bolt) bolt.setAttribute("d", p.k === "imp" ? "M8 2 L12 9 L9 9 L14 18 L7 10 L10 10 Z" : "M4 3 L14 15 M8 2 L17 12 M2 7 L11 18");
+    }
+  });
 }
 function petSz(k: string): number { return k === "hound" ? 0.74 : k === "wolf" ? 0.66 : 0.58; }
 function petSpr(k: string): string { return k === "imp" ? "pimp" : k === "owl" ? "powl" : k === "hound" ? "phound" : k; }
@@ -2108,6 +2246,7 @@ function hurtPet(g: Game, p: Pet, raw: number): number {
   if (p.ko > 0 || p.hp <= 0) return 0;
   const f = full(g); const d = Math.max(1, Math.round(raw * (0.9 + Math.random() * 0.2) * 60 / (60 + f.def * 0.5)));
   p.hp -= d; const i = (g.pets ?? []).indexOf(p); addFx(g, `-${d}`, "bad", "pt" + i);
+  if (i >= 0) { const st = PET_AN[i] ?? (PET_AN[i] = { x: p.x, y: p.y, walk: 0, face: 1, hT: 0, prev: performance.now() }); st.hT = Date.now(); }
   if (p.hp <= 0) { p.hp = 0; p.ko = PET_KO; log(g, `💫 Your ${PETS[p.k].name} is knocked out!`, "bad"); }
   return d;
 }
@@ -3451,6 +3590,7 @@ export default function DungeonOfEchoes() {
     const gg = G.current; if (!gg || gg.screen !== "map") return;
     const cv = mapCv.current; if (cv) drawView(cv, gg, force);
     const we = worldEl.current; if (we) { we.style.transform = worldTf(gg); if (gg.combat) placeCombat(we, gg.combat); placePets(we, gg); }
+    placeHero(gg, inp.current);
     const mc = miniCv.current; const now = performance.now();
     if (mc && (force || now - miniT.current > 120)) { miniT.current = now; drawMini(mc, gg, false); }
   };
@@ -4168,19 +4308,17 @@ export default function DungeonOfEchoes() {
       );
     });
     for (const p of c.proj ?? []) objs.push(<div key={`p${p.id}`} data-proj={p.id} style={{ ...wBox(p.x, p.y, 0.4), borderRadius: "50%", background: p.c, boxShadow: `0 0 8px ${p.c}`, zIndex: 5 }} />);
-    const sh = (c.shots ?? []).filter((x: Shot) => nowMs - x.ts < 160);
+    const sh = (c.shots ?? []).filter((x: Shot) => x.ts <= nowMs && nowMs - x.ts < 160);
     if (sh.length > 0) objs.push(<svg key="shots" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 5 }}>{sh.map((x: Shot) => <line key={x.id} x1={x.x1} y1={x.y1} x2={x.x2} y2={x.y2} stroke={x.c} strokeWidth={0.11} strokeLinecap="round" opacity={0.9} />)}</svg>);
   }
   (g.pets ?? []).forEach((p: Pet, i: number) => {
     if (!inViewP(p.x, p.y)) return;
-    const ko = p.ko > 0, ag = p.aT ? nowMs - p.aT : 9999, lunge = !ko && ag < 260;
+    const ko = p.ko > 0;
     const sz = petSz(p.k);
-    let ox = 0, oy = 0, cx = 0, cy = 0;
-    if (lunge && p.tx !== undefined && p.ty !== undefined) { const vx = p.tx - p.x, vy = p.ty - p.y, vl = Math.hypot(vx, vy) || 1; const k = p.k === "imp" ? 8 : Math.sin((ag / 260) * Math.PI) * 45; ox = vx / vl * k; oy = vy / vl * k; cx = vx / sz * 100; cy = vy / sz * 100; }
     objs.push(
-      <div key={`pet${i}`} data-pet={i} data-petk={p.k} data-ko={ko ? "1" : "0"} data-sz={sz} style={{ ...wBox(p.x, p.y, sz), zIndex: 3, pointerEvents: "none" }}>
-        <div style={{ position: "absolute", inset: 0, transform: `translate(${ox}%, ${oy}%)${ko ? " rotate(80deg)" : ""}`, opacity: ko ? 0.55 : 1, filter: ko ? "grayscale(1) brightness(.6)" : g.buffs.frenzy > 0 ? "drop-shadow(0 0 3px rgba(220,30,30,.9))" : "drop-shadow(0 2px 2px rgba(0,0,0,.7))" }}>{spr(petSpr(p.k), "100%")}</div>
-        {lunge && p.k !== "imp" && <svg data-petatk="1" viewBox="0 0 20 20" style={{ position: "absolute", left: `${cx}%`, top: `${cy}%`, width: "100%", height: "100%", overflow: "visible", opacity: 1 - ag / 260 }}><path d="M4 3 L14 15 M8 2 L17 12 M2 7 L11 18" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" /></svg>}
+      <div key={`pet${i}`} data-pet={i} data-petk={p.k} data-ko={ko ? "1" : "0"} data-sz={sz} style={{ ...wBox(p.x, p.y, sz), zIndex: 3, pointerEvents: "none", overflow: "visible" }}>
+        <div data-pet-an="1" style={{ position: "absolute", inset: 0, transformOrigin: "50% 70%" }}>{spr(petSpr(p.k), "100%")}</div>
+        <svg data-pet-fx="1" viewBox="0 0 20 20" style={{ position: "absolute", inset: "-20%", width: "140%", height: "140%", overflow: "visible", opacity: 0, pointerEvents: "none" }}><path d="M4 3 L14 15 M8 2 L17 12 M2 7 L11 18" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" fill="#ffb24a" /></svg>
         {ko ? <div style={{ position: "absolute", left: 0, right: 0, top: "-45%", textAlign: "center", fontSize: 10 }}>💫</div>
           : c && <div style={{ position: "absolute", left: "8%", right: "8%", top: "-16%", height: 3, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden" }}><div style={{ width: `${(Math.max(0, p.hp) / p.max) * 100}%`, height: "100%", background: "#3fcf6a" }} /></div>}
         {arenaFx(g, "pt" + i)}
@@ -4198,7 +4336,33 @@ export default function DungeonOfEchoes() {
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(circle at 50% 50%, ${bio === "warren" ? "rgba(255,170,80,.13)" : "rgba(220,150,255,.11)"} 0, rgba(0,0,0,0) ${2.6 * tilePx}px), radial-gradient(circle at 50% 50%, rgba(0,0,0,0) ${1.3 * tilePx}px, rgba(0,0,0,.6) ${(R + 1.4) * tilePx}px)` }} />
         <div ref={worldEl} style={{ position: "absolute", left: 0, top: 0, width: `${(W / VTX) * 100}%`, height: `${(H / VTY) * 100}%`, transform: worldTf(g), pointerEvents: "none", willChange: "transform" }}>{objs}</div>
         <div data-hero="1" style={{ position: "absolute", left: "50%", top: "50%", width: tileW, height: tileH, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 3px rgba(0,0,0,.9))", opacity: c && (c.iT ?? 0) > 0 ? 0.55 : 1, zIndex: 4, overflow: "visible" }}>
-          {spr(g.cls, "100%")}
+          <div data-hero-an="1" style={{ position: "absolute", inset: 0, transformOrigin: "50% 70%" }}>
+            {spr(g.cls, "100%")}
+            <svg data-hero-fx="1" viewBox="-32 -32 64 64" style={{ position: "absolute", left: "-50%", top: "-50%", width: "200%", height: "200%", overflow: "visible", pointerEvents: "none" }}>
+              <g data-fx="slash" style={{ opacity: 0, transformOrigin: "0 4px" }}>
+                <path d="M8 -18 A28 28 0 0 1 22 16" fill="none" stroke="rgba(255,240,210,.95)" strokeWidth="2.4" strokeLinecap="round" />
+                <path d="M4 -16 A24 24 0 0 1 18 12" fill="none" stroke="rgba(255,220,140,.55)" strokeWidth="6" strokeLinecap="round" />
+                <path d="M10 -10 A18 18 0 0 1 16 8" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="1.4" strokeLinecap="round" />
+              </g>
+              <g data-fx="bow" style={{ opacity: 0, transformOrigin: "0 0" }}>
+                <path d="M8 -16 Q20 0 8 16" fill="none" stroke="#c9a06a" strokeWidth="2.2" strokeLinecap="round" />
+                <line data-part="string" x1="8" y1="-16" x2="8" y2="16" stroke="#f4e4c4" strokeWidth="1.1" />
+                <line data-part="arrow" x1="-6" y1="0" x2="18" y2="0" stroke="#e8d9a8" strokeWidth="1.6" strokeLinecap="round" />
+              </g>
+              <g data-fx="staff" style={{ opacity: 0, transformOrigin: "0 0" }}>
+                <line x1="-8" y1="0" x2="16" y2="0" stroke="#b18cff" strokeWidth="2" strokeLinecap="round" />
+                <circle cx="18" cy="0" r="4" fill="rgba(180,140,255,.85)" />
+              </g>
+              <g data-fx="mace" style={{ opacity: 0, transformOrigin: "0 6px" }}>
+                <path d="M6 -20 A30 30 0 0 1 24 14" fill="none" stroke="rgba(220,200,160,.95)" strokeWidth="3.2" strokeLinecap="round" />
+                <circle cx="22" cy="12" r="6" fill="rgba(255,200,80,.0)" stroke="rgba(255,210,90,.9)" strokeWidth="2" />
+              </g>
+              <g data-fx="thrust" style={{ opacity: 0, transformOrigin: "0 0" }}>
+                <line x1="-10" y1="0" x2="22" y2="0" stroke="#d8e6ff" strokeWidth="2.2" strokeLinecap="round" />
+                <polygon points="22,-4 30,0 22,4" fill="#d8e6ff" />
+              </g>
+            </svg>
+          </div>
           {livePulses(nowMs).map((p: PulseFx) => {
             if (p.k === "smash") {
               const u = Math.min(1, (nowMs - p.ts) / 440), d = (0.5 + 2.4 * 2 * u) * tilePx;
