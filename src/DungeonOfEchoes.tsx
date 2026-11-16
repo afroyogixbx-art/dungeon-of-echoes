@@ -171,10 +171,10 @@ const ITEMS: ItemT[] = [
   I("c_rej", "Rejuvenation Tonic", "🍹", "consumable", 2, 2, 70, undefined, { fx: "both", pw: 60, desc: "Restore 60% HP and MP." }),
   I("c_anti", "Antidote", "🌿", "consumable", 0, 1, 12, undefined, { fx: "cleanse", pw: 15, desc: "Cure poison/burn, heal 15%." }),
   I("c_bomb", "Fire Bomb", "💣", "consumable", 1, 1, 40, undefined, { fx: "bomb", desc: "Combat: fire damage to ALL enemies + burn." }),
-  I("c_frost", "Frost Grenade", "🧊", "consumable", 2, 2, 70, undefined, { fx: "frost", desc: "Combat: ice damage to ALL, freeze 2 turns." }),
+  I("c_frost", "Frost Grenade", "🧊", "consumable", 2, 2, 70, undefined, { fx: "frost", desc: "Combat: ice damage to ALL nearby foes and freeze them for 2.5 s." }),
   I("c_smoke", "Smoke Bomb", "💨", "consumable", 1, 1, 30, undefined, { fx: "smoke", desc: "Combat: instantly break off the fight, foes are blinded (not bosses)." }),
-  I("c_fury", "Scroll of Fury", "📜", "consumable", 1, 1, 40, undefined, { fx: "fury", desc: "Combat: +50% ATK for 3 turns." }),
-  I("c_iron", "Scroll of Ironskin", "📃", "consumable", 1, 1, 40, undefined, { fx: "iron", desc: "Combat: +50% DEF for 3 turns." }),
+  I("c_fury", "Scroll of Fury", "📜", "consumable", 1, 1, 40, undefined, { fx: "fury", desc: "+50% ATK for 20 s. Reading another refreshes the duration." }),
+  I("c_iron", "Scroll of Ironskin", "📃", "consumable", 1, 1, 40, undefined, { fx: "iron", desc: "+50% DEF for 25 s. Reading another refreshes the duration." }),
   I("c_map", "Scroll of Revealing", "🗺️", "consumable", 0, 1, 20, undefined, { fx: "reveal", desc: "Map: reveal the whole floor." }),
   I("c_tele", "Scroll of Descent", "🌀", "consumable", 2, 2, 60, undefined, { fx: "tele", desc: "Map: teleport beside the stairs (or boss)." }),
   I("c_ident", "Scroll of Identify", "🔍", "consumable", 2, 1, 60, undefined, { fx: "ident", desc: "Identify every unidentified item in your bag." }),
@@ -615,6 +615,13 @@ const BIOME: Record<Biome, { name: string; sub: string }> = {
 };
 const FAV: Record<Biome, string[]> = { warren: ["spider", "rat", "bat", "slime", "goblin"], crypt: ["skel", "wraith", "necro", "lich", "demon", "shade"] };
 function freshBuffs(): Buffs { return { rage: 0, holy: 0, evade: 0, shield: 0, frenzy: 0, fury: 0, iron: 0, defend: false, dotT: 0, dotD: 0 }; }
+const FURY_T = 20, IRON_T = 25;
+function keepScrollBuffs(b: Buffs): Buffs { const n = freshBuffs(); n.fury = b.fury; n.iron = b.iron; return n; }
+function tickScrollBuffs(g: Game, dt: number): void {
+  if (g.buffs.fury > 0) g.buffs.fury = Math.max(0, g.buffs.fury - dt);
+  if (g.buffs.iron > 0) g.buffs.iron = Math.max(0, g.buffs.iron - dt);
+}
+function fmtBuff(n: number): string { return n >= 10 ? `${Math.ceil(n)}s` : `${Math.max(0.1, n).toFixed(1)}s`; }
 function log(g: Game, t: string, c: string = "sys"): void { g.log.unshift({ t, c, ts: Date.now() }); if (g.log.length > 60) g.log.pop(); }
 function addFx(g: Game, text: string, c: string, at: string): void { g.fx.push({ id: UID++, text, c, at, ts: Date.now() }); if (g.fx.length > 12) g.fx.shift(); }
 // floating pickup text above the hero (map and arena) instead of log lines
@@ -1140,7 +1147,7 @@ function bossDown(g: Game, b: Enemy): void {
   c.tele = []; c.proj = []; c.charging = false;
   g.map[g.sy][g.sx] = 2;
   log(g, "The stairs 🔽 appear where the boss fell.", "good");
-  if (g.mode === "story" && g.floor >= STORY_END) { g.combat = null; g.buffs = freshBuffs(); revivePets(g); if (g.floor % 10 === 0) { g.vaultThen = "victory"; g.screen = "vault"; } else g.screen = "victory"; return; }
+  if (g.mode === "story" && g.floor >= STORY_END) { g.combat = null; g.buffs = keepScrollBuffs(g.buffs); revivePets(g); if (g.floor % 10 === 0) { g.vaultThen = "victory"; g.screen = "vault"; } else g.screen = "victory"; return; }
   if (g.mode === "endless") { g.offers = makeOffers(g); c.upg = true; }
   if (g.floor % 10 === 0) c.vault = true;
   if (g.floor === 5 && g.mode === "story") log(g, "The Broodmother is dead. Deeper halls await…", "good");
@@ -1153,7 +1160,7 @@ function endCombat(g: Game): void {
   if (won && g.perks.includes("secondwind")) healPlayer(g, Math.round(ff.maxHp * 0.05), false);
   if (g.perks.includes("deepbreath")) g.mp = Math.min(ff.maxMp, g.mp + Math.round(ff.maxMp * 0.1));
   if (won && g.perks.includes("eternity")) { healPlayer(g, Math.round(ff.maxHp * 0.2), false); g.mp = Math.min(ff.maxMp, g.mp + Math.round(ff.maxMp * 0.2)); }
-  g.combat = null; g.buffs = freshBuffs(); revivePets(g);
+  g.combat = null; g.buffs = keepScrollBuffs(g.buffs); revivePets(g);
   log(g, "✅ Combat over — menus unlocked.", "good");
   if (c.vault) { g.vaultThen = c.upg && g.offers.length > 0 ? "upgrade" : "map"; g.screen = "vault"; }
   else if (c.upg && g.mode === "endless" && g.offers.length > 0) g.screen = "upgrade";
@@ -1172,7 +1179,7 @@ function rtScale(e: Enemy, f: number): void {
 // a map monster gains aggro: it joins the (possibly new) encounter right where it stands
 function engage(g: Game, m: MapMon): void {
   const fresh = !g.combat;
-  if (!g.combat) { g.combat = newCombat(); g.buffs = freshBuffs(); }
+  if (!g.combat) { g.combat = newCombat(); g.buffs = keepScrollBuffs(g.buffs); }
   const c = g.combat;
   const e = m.boss ? makeBoss(g.floor) : makeEnemy(MON[m.t], g.floor);
   rtScale(e, g.floor);
@@ -1203,7 +1210,7 @@ function toMapMon(g: Game, e: Enemy, stun: number, home: boolean): void {
 function escapeAll(g: Game, stun: number): void {
   const c = g.combat; if (!c) return;
   for (const e of c.enemies) if (!e.dead) { toMapMon(g, e, stun, false); e.dead = true; e.away = true; }
-  g.combat = null; g.buffs = freshBuffs(); revivePets(g);
+  g.combat = null; g.buffs = keepScrollBuffs(g.buffs); revivePets(g);
   log(g, "✅ Combat over — menus unlocked.", "good");
 }
 
@@ -2161,6 +2168,7 @@ function petSpr(k: string): string { return k === "imp" ? "pimp" : k === "owl" ?
 function worldTf(g: Game): string { const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5; return `translate(${(-(px - VTX / 2) / W) * 100}%, ${(-(py - VTY / 2) / H) * 100}%)`; }
 function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   if (g.screen !== "map") return false;
+  tickScrollBuffs(g, dt);
   let ch = false;
   if (g.wx === undefined || g.wy === undefined || Math.floor(g.wx) !== g.px || Math.floor(g.wy) !== g.py) { g.wx = g.px + 0.5; g.wy = g.py + 0.5; ch = true; }
   const p = { x: g.wx, y: g.wy };
@@ -2315,7 +2323,7 @@ function endRound(g: Game): void {
   if (g.perks.includes("sanctuary")) rg += 0.06;
   if (g.perks.includes("lifewell")) rg += 0.03;
   if (rg > 0) healPlayer(g, Math.round(f.maxHp * rg), false);
-  b.rage = Math.max(0, b.rage - 1); b.holy = Math.max(0, b.holy - 1); b.frenzy = Math.max(0, b.frenzy - 1); b.fury = Math.max(0, b.fury - 1); b.iron = Math.max(0, b.iron - 1); b.defend = false;
+  b.rage = Math.max(0, b.rage - 1); b.holy = Math.max(0, b.holy - 1); b.frenzy = Math.max(0, b.frenzy - 1); b.defend = false;
   if (!f.curses.includes("c_nomana")) g.mp = Math.min(f.maxMp, g.mp + 2 + Math.round(f.maxMp * (g.cls === "mage" ? 0.05 : 0.03)) + (f.sp.includes("mpRegen") ? 6 : 0));
   c.turn++;
 }
@@ -2416,7 +2424,7 @@ function useConsumable(g: Game, inv: Inv): ActRes {
       const d = t.fx === "bomb" ? 15 + g.floor * 6 : 10 + g.floor * 4;
       for (const e of nearP(c, 5)) {
         e.hp -= d; addFx(g, `-${d}`, "loot", "e" + e.uid);
-        if (t.fx === "bomb") { e.burnT = Math.max(e.burnT, 2); e.burnD = Math.max(e.burnD, 3 + g.floor * 2); } else stunE(g, e, 2);
+        if (t.fx === "bomb") { e.burnT = Math.max(e.burnT, 2); e.burnD = Math.max(e.burnD, 3 + g.floor * 2); } else stunE(g, e, 2.5);
       }
       log(g, `${t.icon} ${t.name} hits all enemies for ${d}!`, "dmg");
       break;
@@ -2430,9 +2438,9 @@ function useConsumable(g: Game, inv: Inv): ActRes {
       return "end";
     }
     case "fury": case "iron": {
-      if (!inCombat) { log(g, "Read it during combat."); return "none"; }
-      if (t.fx === "fury") g.buffs.fury = 4; else g.buffs.iron = 3;
-      log(g, `${t.icon} ${t.name} empowers you!`, "good");
+      if (t.fx === "fury") g.buffs.fury = FURY_T; else g.buffs.iron = IRON_T;
+      log(g, `${t.icon} ${t.name}! +50% ${t.fx === "fury" ? "ATK" : "DEF"} for ${t.fx === "fury" ? FURY_T : IRON_T} s.`, "good");
+      addFx(g, t.fx === "fury" ? "FURY" : "IRONSKIN", "good", "p");
       break;
     }
     case "reveal": {
@@ -3731,7 +3739,7 @@ export default function DungeonOfEchoes() {
       drawRef.current(false);
       if (currentAbPop() && (AB_POPS[0]?.ts ?? 0) !== (I as Inp & { abTs?: number }).abTs) { (I as Inp & { abTs?: number }).abTs = AB_POPS[0]?.ts; setToast(`✨ New ability unlocked: ${currentAbPop()!.name}`); }
       if ((gg.screen as Screen) !== "map" || was !== !!gg.combat) { I.rT = 0; refresh(); }
-      else if (chg || currentAbPop() || livePulses(Date.now()).length) { I.rT += dt; if (I.rT >= (gg.combat ? 0.066 : 0.033)) { I.rT = 0; refresh(); } }
+      else if (chg || currentAbPop() || livePulses(Date.now()).length || gg.buffs.fury > 0 || gg.buffs.iron > 0) { I.rT += dt; if (I.rT >= (gg.combat ? 0.066 : 0.033)) { I.rT = 0; refresh(); } }
     } else return;
     I.saveT += dt;
     if (I.saveT >= 1.5 || (gg.screen as Screen) === "dead") { I.saveT = 0; LAST_SAVE = saveRun(gg); }
@@ -4390,6 +4398,12 @@ export default function DungeonOfEchoes() {
           </div>
         </div>
         {g.hurtTs && nowMs - g.hurtTs < 700 ? <div key={`h${g.hurtTs}`} style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse at center, transparent 40%, rgba(190,0,0,.5) 100%)", animation: "doeFlash .55s ease-out forwards", zIndex: 6 }} /> : null}
+        {(g.buffs.fury > 0 || g.buffs.iron > 0) ? (
+          <div data-scrollbuffs="1" style={{ position: "absolute", left: "max(8px, env(safe-area-inset-left))", top: c ? "max(94px, calc(env(safe-area-inset-top) + 86px))" : "max(64px, calc(env(safe-area-inset-top) + 56px))", display: "flex", gap: 6, pointerEvents: "none", zIndex: 7 }}>
+            {g.buffs.fury > 0 && <span title="Scroll of Fury: +50% ATK" style={{ padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#fff0d0", background: "rgba(80,30,10,.78)", border: "1px solid rgba(255,180,80,.7)", textShadow: "0 1px 2px #000" }}>📜 Fury {fmtBuff(g.buffs.fury)}</span>}
+            {g.buffs.iron > 0 && <span title="Scroll of Ironskin: +50% DEF" style={{ padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#e8f0ff", background: "rgba(20,30,70,.78)", border: "1px solid rgba(140,180,255,.7)", textShadow: "0 1px 2px #000" }}>📃 Ironskin {fmtBuff(g.buffs.iron)}</span>}
+          </div>
+        ) : null}
         {c ? <div data-incombat="1" style={{ position: "absolute", left: "max(8px, env(safe-area-inset-left))", top: "max(64px, calc(env(safe-area-inset-top) + 56px))", padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#ffe0d0", background: "rgba(120,10,10,.72)", border: "1px solid rgba(255,90,70,.7)", textShadow: "0 1px 2px #000", pointerEvents: "none", zIndex: 7 }}>{alive(c).length === 0 ? "✅ Clear…" : cBoss ? `☠️ ${cBoss.name.replace(/^The /, "")} · Phase ${c.phase}/${cBoss.bk === "lord" ? 3 : 2}` : `⚔️ In combat · ${alive(c).length}`}{(g.buffs.hex ?? 0) > 0 ? " · 🌀 Hexed" : ""}</div> : null}
         {c && c.charging ? <div style={{ position: "absolute", left: 0, right: 0, top: "30%", textAlign: "center", fontWeight: 800, fontSize: 12, color: "#ffb0ff", animation: "doePulse .8s infinite", textShadow: "0 1px 3px #000", pointerEvents: "none", zIndex: 7 }}>⚠️ CATACLYSM — leave the purple ring!</div> : null}
         <div style={{ position: "absolute", left: "50%", bottom: `${50 + 50 / VTY}%`, transform: "translateX(-50%)", display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 1, pointerEvents: "none", zIndex: 6 }}>
@@ -4475,23 +4489,27 @@ export default function DungeonOfEchoes() {
   );
   const b = g.buffs;
   const chips: string[] = [];
+  if (b.fury > 0) chips.push(`📜 Fury ${fmtBuff(b.fury)}`);
+  if (b.iron > 0) chips.push(`📃 Iron ${fmtBuff(b.iron)}`);
   if (c) {
     if (b.rage > 0) chips.push(`📣 Rage ${b.rage}`);
-    if (b.fury > 0) chips.push(`📜 Fury ${b.fury}`);
     if (b.holy > 0) chips.push(`🔆 Holy ${b.holy}`);
-    if (b.iron > 0) chips.push(`📃 Iron ${b.iron}`);
     if (b.evade > 0) chips.push(`💨 Evade ×${b.evade}`);
     if (b.shield > 0) chips.push(`🔮 Shield ${b.shield}`);
     if (b.frenzy > 0) chips.push(`📯 Frenzy ${b.frenzy}`);
+    if ((b.hex ?? 0) > 0) chips.push(`🌀 Hex ${fmtBuff(b.hex ?? 0)}`);
   }
   if (b.dotT > 0) chips.push(`☠️ DoT ${b.dotD}×${b.dotT}`);
   const legend = c ? (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {chips.length > 0 && <div style={{ ...row, gap: 6 }}>{chips.map((x: string) => <span key={x} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 999, background: t.fill.secondary }}>{x}</span>)}</div>}
+      {chips.length > 0 && <div data-buffs="1" style={{ ...row, gap: 6, flexWrap: "wrap" }}>{chips.map((x: string) => <span key={x} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 999, background: t.fill.secondary, border: "1px solid rgba(255,230,180,.25)", fontWeight: 700 }}>{x}</span>)}</div>}
       <div style={{ ...small, fontSize: 11 }}>⚔️ <b>In combat</b> — bag, map, codex, shops and stairs are locked. Red rings are incoming hits: step out or dodge. Tap an enemy to target it. Break line of sight for ~4 s to lose pursuers. {CLS[g.cls].passive}</div>
     </div>
   ) : (
-          <div style={{ ...small, fontSize: 11 }}><b>{BIOME[bio].name}</b> · {bio === "warren" ? "🕸️ webs slow you and wake the warren" : "🔮 runes drain 8% HP and wake the dead"} · 🔽 stairs · 📦 chest · 💰 merchant (walk onto it){g.floor % 5 === 0 ? ` · ${bossKind(g.floor) === "lord" ? "Echo Lord" : "Broodmother"} guards the stairs` : ""}{g.mode === "endless" ? " · ☠️ permadeath" : ""}{g.perks.length ? ` · ${g.perks.length} perk${g.perks.length > 1 ? "s" : ""}` : ""} · monsters roam in real time</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {chips.length > 0 && <div data-buffs="1" style={{ ...row, gap: 6, flexWrap: "wrap" }}>{chips.map((x: string) => <span key={x} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 999, background: t.fill.secondary, border: "1px solid rgba(255,230,180,.25)", fontWeight: 700 }}>{x}</span>)}</div>}
+            <div style={{ ...small, fontSize: 11 }}><b>{BIOME[bio].name}</b> · {bio === "warren" ? "🕸️ webs slow you and wake the warren" : "🔮 runes drain 8% HP and wake the dead"} · 🔽 stairs · 📦 chest · 💰 merchant (walk onto it){g.floor % 5 === 0 ? ` · ${bossKind(g.floor) === "lord" ? "Echo Lord" : "Broodmother"} guards the stairs` : ""}{g.mode === "endless" ? " · ☠️ permadeath" : ""}{g.perks.length ? ` · ${g.perks.length} perk${g.perks.length > 1 ? "s" : ""}` : ""} · monsters roam in real time</div>
+          </div>
   );
   return playLayout(g, mapView, 1, mapActions, legend);
 }
