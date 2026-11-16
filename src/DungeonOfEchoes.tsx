@@ -2834,8 +2834,8 @@ const HELP: [string, string][] = [
 // ---- dark-fantasy SVG sprites (viewBox 64x64, scale to any size) ----
 const BONE = "#ddd2b2", BONED = "#a3967a", BLOOD = "#7d0a10", BLOODB = "#b3141c", STEEL = "#8b94a3", STEELD = "#4a505c", STEELL = "#c3cad6", BLK = "#0d0a10";
 function eye(x: number, y: number, c: string, r?: number): ReactNode {
-  const rr = r ?? 1.5;
-  return <g><circle cx={x} cy={y} r={rr * 2.6} fill={c} opacity={0.28} /><circle cx={x} cy={y} r={rr} fill={c} /><circle cx={x} cy={y} r={rr * 0.4} fill="#fff" opacity={0.85} /></g>;
+  const rr = r ?? 1.1;
+  return <g><circle cx={x} cy={y} r={rr * 4.2} fill={c} opacity={0.22} /><circle cx={x} cy={y} r={rr * 2.2} fill={c} opacity={0.45} /><circle cx={x} cy={y} r={rr * 0.85} fill={c} /><circle cx={x} cy={y} r={Math.max(0.35, rr * 0.28)} fill="#fff" opacity={0.9} /></g>;
 }
 function blot(x: number, y: number, r: number, c?: string): ReactNode {
   return <g fill={c ?? BLOODB} opacity={0.9}><circle cx={x} cy={y} r={r} /><circle cx={x + r * 0.9} cy={y + r * 0.5} r={r * 0.55} /><circle cx={x - r * 0.7} cy={y + r * 0.7} r={r * 0.4} /><rect x={x - r * 0.18} y={y} width={r * 0.36} height={r * 2.2} rx={r * 0.18} /></g>;
@@ -2914,183 +2914,270 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M28 44 L32 54 L36 44 Z" fill="#2a1f18" /><ellipse cx="32" cy="34" rx="7" ry="11" fill="#4a3826" /><path d="M27 32 Q32 36 37 32 L36 40 Q32 42 28 40 Z" fill="#c9b994" opacity={0.6} />
     <circle cx="32" cy="22" r="6" fill="#4a3826" />{eye(29.5, 21, "#ff9a1a", 0.9)}{eye(34.5, 21, "#ff9a1a", 0.9)}<path d="M30.5 24 L33.5 24 L32 28 Z" fill="#d9b04a" />
     <path d="M29 44 L27 48 M31 45 L30 49 M33 45 L34 49 M35 44 L37 48" stroke="#d9b04a" strokeWidth="0.9" />{blot(32, 49, 1.2)}</g>),
-  rat: () => (<g>{shd(20)}
-    <path d="M54 40 Q64 32 56 24" fill="none" stroke="#8a6a6a" strokeWidth="1.6" />
-    <path d="M16 40 Q20 24 38 24 Q54 24 56 40 Q54 50 36 50 Q22 50 16 40 Z" fill="#4a3f3a" /><path d="M22 30 L24 25 L27 30 L30 24 L33 29 L36 23 L39 29 Z" fill="#3a302c" />
-    <ellipse cx="44" cy="38" rx="3.5" ry="2.4" fill="#6e1a1a" /><path d="M42 37 L46 39" stroke={BONE} strokeWidth="0.8" />
-    <path d="M4 40 Q8 32 18 32 L22 42 Q14 46 4 40 Z" fill="#5a4c44" /><circle cx="16" cy="30" r="3.5" fill="#6a4a4a" />
-    {eye(12, 37, "#ff2a2a", 1.1)}<path d="M4 40 L8 42 M5.5 41 L6 44" stroke="#e8dcc0" strokeWidth="0.9" />{blot(6, 43, 1.3)}
-    <path d="M22 49 L20 55 M30 50 L29 55 M42 50 L43 55 M50 48 L52 54" stroke="#3a302c" strokeWidth="2" /></g>),
+  rat: () => (<g>
+    {shd(20)}<ellipse cx="32" cy="50" rx="20" ry="5" fill="#1a0c0c" opacity={0.35} />
+    <path d="M58 36 Q66 28 62 20 Q58 28 54 32" fill="none" stroke="#3a2a28" strokeWidth="2.2" />
+    <path d="M58 36 Q64 30 60 22" fill="none" stroke="#6a2a28" strokeWidth="0.7" />
+    <path d="M12 40 Q10 26 28 22 Q48 20 56 34 Q54 48 30 50 Q14 50 12 40 Z" fill="#2a1c1a" />
+    <path d="M16 36 Q28 28 46 32 Q50 40 32 44 Q18 44 16 36 Z" fill="#3a2622" />
+    <path d="M20 30 L18 22 L24 28 M14 32 L8 24 L16 30" fill="#2a1c1a" />
+    <path d="M22 34 L40 34 M24 38 L36 38" stroke="#1a1010" strokeWidth="0.8" />
+    <path d="M8 38 Q4 36 6 32 Q10 34 12 38 Z" fill="#4a2a28" />
+    {eye(14, 34, "#ff2a1a", 0.9)}
+    <path d="M8 40 L4 42 L8 43 L11 41 Z" fill="#d8cfc0" />
+    <path d="M10 42 L6 46" stroke={BLOODB} strokeWidth="1.2" />
+    {blot(28, 42, 1.1)}
+  </g>),
   slime: () => (<g>
-    <ellipse cx="32" cy="58" rx="24" ry="4" fill="#2f4a1a" opacity={0.6} />
-    <path d="M8 56 Q6 34 20 24 Q32 14 44 24 Q58 34 56 56 Z" fill="#7d9e46" opacity={0.88} /><path d="M14 56 Q14 40 24 32 Q32 26 40 32 Q50 40 50 56 Z" fill="#4b6527" opacity={0.5} />
-    <circle cx="30" cy="42" r="6" fill={BONE} opacity={0.75} /><rect x="27" y="46" width="6" height="3" fill={BONE} opacity={0.7} />
-    <circle cx="28" cy="41.5" r="1.4" fill="#203010" /><circle cx="32" cy="41.5" r="1.4" fill="#203010" /><path d="M40 50 L47 45" stroke={BONE} strokeWidth="1.6" opacity={0.7} />
-    {eye(24, 30, "#d8ff4a", 1.3)}{eye(37, 28, "#d8ff4a", 1.6)}
-    <path d="M12 56 L12 61 M20 56 L20 60 M46 56 L46 62" stroke="#7d9e46" strokeWidth="2.4" strokeLinecap="round" /><circle cx="22" cy="25" r="2" fill="#c8ff8a" opacity={0.5} /></g>),
-  goblin: () => (<g>{shd(14)}
-    <rect x="25" y="44" width="5" height="13" fill="#3d4a2a" /><rect x="34" y="44" width="5" height="13" fill="#3d4a2a" />
-    <path d="M22 30 Q32 26 42 30 L40 46 L24 46 Z" fill="#4a3a2a" /><path d="M24 46 L27 50 L30 46 L33 50 L36 46 L39 50 L40 46 Z" fill="#4a3a2a" />
-    <path d="M22 18 L6 11 L20 24 Z" fill="#5e7a3a" /><path d="M42 18 L58 11 L44 24 Z" fill="#5e7a3a" /><ellipse cx="32" cy="20" rx="10" ry="9" fill="#5e7a3a" />
-    <path d="M24 15 L30 18 M40 15 L34 18" stroke="#1a2010" strokeWidth="1.5" />{eye(28, 19.5, "#ff3a1a", 1.1)}{eye(36, 19.5, "#ff3a1a", 1.1)}
-    <path d="M26 25 Q32 29 38 25 Z" fill="#1a0a0a" /><path d="M27 25 L28 27 L29 25 Z M31 25.5 L32 28 L33 25.5 Z M35 25 L36 27 L37 25 Z" fill={BONE} />
-    <circle cx="44" cy="36" r="2.5" fill="#5e7a3a" /><rect x="43" y="24" width="2" height="12" fill="#3b2a1c" />
-    <path d="M42 14 L54 12 L54 24 L44 25 Z" fill="#7a7468" stroke="#4a4438" strokeWidth="0.6" /><path d="M50 18 L54 16 L54 24 L49 24 Z" fill={BLOODB} opacity={0.85} />
-    <circle cx="20" cy="36" r="2.5" fill="#5e7a3a" />{blot(48, 21, 1.2)}{blot(30, 36, 1.3)}</g>),
+    {shd(22)}<ellipse cx="32" cy="58" rx="22" ry="4" fill="#14200c" opacity={0.55} />
+    <path d="M10 56 Q6 40 16 28 Q22 16 28 24 Q32 10 38 22 Q48 16 52 30 Q60 38 56 56 Z" fill="#1c2a10" />
+    <path d="M14 54 Q14 36 26 30 Q34 22 40 32 Q50 30 50 50 Q40 56 28 54 Z" fill="#2e4418" />
+    <path d="M22 48 Q30 40 40 48 Q34 52 28 50 Z" fill="#4a0d10" opacity={0.7} />
+    <path d="M26 34 Q28 28 32 34" stroke={BONE} strokeWidth="1.4" fill="none" />
+    <ellipse cx="30" cy="32" rx="4" ry="3.2" fill="#1a140c" /><path d="M27 32 L33 32 M30 30 L30 35" stroke={BONED} strokeWidth="0.7" />
+    {eye(24, 36, "#b6ff3a", 1.0)}{eye(38, 34, "#b6ff3a", 0.7)}
+    <path d="M20 56 Q22 62 24 56 M36 56 Q38 64 40 56 M44 52 Q46 60 48 52" fill="#3e6a18" />
+    <circle cx="18" cy="44" r="2.2" fill="#0c1408" /><circle cx="46" cy="42" r="1.6" fill="#0c1408" />
+  </g>),
+  goblin: () => (<g>
+    {shd(14)}{pud(32, 54, 10, 4, "#3a0808", 0.45)}
+    <path d="M26 56 L24 36 L30 34 L28 56 Z M34 56 L36 34 L42 36 L40 56 Z" fill="#2a2010" />
+    <path d="M24 36 L22 26 L42 26 L40 36 Z" fill="#3a2a14" />
+    <path d="M20 28 Q18 16 28 10 Q36 6 44 14 Q48 22 42 28 Q34 32 24 28 Z" fill="#3a4a1c" />
+    <path d="M22 20 L16 12 L24 18 M44 16 L52 6 L46 18" fill="#2a3414" />
+    <path d="M28 22 Q36 20 42 24" fill="#2a2010" />
+    <path d="M24 26 Q32 30 40 26 Q38 34 32 35 Q26 34 24 26 Z" fill="#2a3410" />
+    {eye(29, 22, "#ff3a1a", 0.85)}{eye(38, 21, "#ff3a1a", 0.7)}
+    <path d="M30 28 L28 32 L32 30 M36 28 L40 33 L38 29" fill={BONE} />
+    <path d="M16 32 L6 28 L16 36 Z" fill="#5a5040" /><path d="M6 28 L2 26" stroke="#8a8070" strokeWidth="1.2" />
+    {blot(34, 40, 0.9)}
+  </g>),
   bat: () => (<g>
-    <path d="M32 26 Q20 12 2 18 Q8 22 6 28 Q12 26 14 32 Q18 28 22 34 Q26 28 32 34 Z" fill="#2a1830" /><path d="M32 26 Q44 12 62 18 Q56 22 58 28 Q52 26 50 32 Q46 28 42 34 Q38 28 32 34 Z" fill="#2a1830" />
-    <path d="M32 26 L20 13 M32 26 L44 13 M32 27 L8 21 M32 27 L56 21" stroke="#4a3256" strokeWidth="0.8" />
-    <path d="M26 23 L27 14 L30 21 Z" fill="#3a2440" /><path d="M38 23 L37 14 L34 21 Z" fill="#3a2440" /><ellipse cx="32" cy="32" rx="6" ry="9" fill="#3a2440" />
-    {eye(29.5, 28, "#ff2a2a", 1)}{eye(34.5, 28, "#ff2a2a", 1)}<path d="M30 33 L31 36 L32 33 L33 36 L34 33 Z" fill={BONE} />{blot(31, 37, 1.1)}{blot(33.5, 38, 0.8)}</g>),
-  skel: () => (<g>{shd(14)}
-    <path d="M28 44 L26 58 M36 44 L38 58" stroke={BONE} strokeWidth="2.6" strokeLinecap="round" /><path d="M27 44 L37 44 L35 40 L29 40 Z" fill={BONED} />
-    <rect x="31" y="24" width="2" height="18" fill={BONE} /><path d="M24 27 Q32 25 40 27 M24 31 Q32 29 40 31 M25 35 Q32 33 39 35" stroke={BONE} strokeWidth="1.8" fill="none" />
-    <path d="M24 26 L19 37 M40 26 L46 36" stroke={BONE} strokeWidth="2.2" fill="none" strokeLinecap="round" />
-    <path d="M24 14 Q24 4 32 4 Q40 4 40 14 Q40 19 37 20 L37 23 L27 23 L27 20 Q24 19 24 14 Z" fill={BONE} />
-    <ellipse cx="28.5" cy="13" rx="2.6" ry="3" fill={BLK} /><ellipse cx="35.5" cy="13" rx="2.6" ry="3" fill={BLK} />{eye(28.5, 13, "#ff3a2a", 1)}{eye(35.5, 13, "#ff3a2a", 1)}
-    <path d="M31 16 L32 18.5 L33 16 Z" fill={BLK} /><path d="M28 21 L28 23 M30 21 L30 23 M32 21 L32 23 M34 21 L34 23 M36 21 L36 23" stroke={BLK} strokeWidth="0.6" />
-    <path d="M36 5 L34 9 L37 11" stroke="#5a4a3a" strokeWidth="0.7" fill="none" />
-    <rect x="45" y="12" width="3" height="24" fill="#7a6a58" transform="rotate(10 46 24)" /><rect x="41" y="34" width="10" height="2.2" fill="#4a3a2a" /><path d="M45 14 L48 16 L47 24 Z" fill={BLOOD} />
-    <circle cx="18" cy="40" r="7" fill="#4a3a2a" stroke="#6a5a48" /><path d="M14 36 L22 44" stroke="#2a1e14" />{blot(30, 30, 1)}</g>),
-  spider: () => (<g>{shd(22)}
-    <g stroke="#2a2030" strokeWidth="2.2" fill="none" strokeLinecap="round"><path d="M26 34 L14 24 L4 34" /><path d="M26 37 L12 34 L4 46" /><path d="M27 40 L14 44 L8 56" /><path d="M28 42 L20 50 L18 60" /><path d="M38 34 L50 24 L60 34" /><path d="M38 37 L52 34 L60 46" /><path d="M37 40 L50 44 L56 56" /><path d="M36 42 L44 50 L46 60" /></g>
-    <ellipse cx="32" cy="24" rx="11" ry="10" fill="#2e2236" /><path d="M30 18 L34 18 L32 22 L34 26 L30 26 L32 22 Z" fill={BLOODB} />
-    <ellipse cx="32" cy="38" rx="8" ry="7" fill="#3a2c44" />{eye(29, 36, "#9dff3a", 1)}{eye(35, 36, "#9dff3a", 1)}{eye(31, 33.5, "#9dff3a", 0.7)}{eye(33, 33.5, "#9dff3a", 0.7)}
-    <path d="M29 43 Q28 47 30 48 M35 43 Q36 47 34 48" stroke={BONE} strokeWidth="1.4" fill="none" />{blot(32, 48, 1)}</g>),
-  kobold: () => (<g>{shd(14)}
-    <path d="M40 52 Q52 56 58 48" stroke="#5a4a2a" strokeWidth="3" fill="none" strokeLinecap="round" />
-    <rect x="26" y="44" width="5" height="13" fill="#6a5a30" /><rect x="34" y="44" width="5" height="13" fill="#6a5a30" />
-    <path d="M22 30 Q32 26 42 30 L42 48 L22 48 Z" fill="#4a2a20" /><path d="M22 48 L26 52 L30 48 L34 52 L38 48 L42 52 L42 48 Z" fill="#4a2a20" />
-    <path d="M28 12 L30 5 L33 12 Z M34 12 L37 6 L38 13 Z" fill="#5a4a2a" /><path d="M24 22 Q26 12 36 12 Q42 14 40 24 Q36 28 28 27 L18 25 Q16 22 24 22 Z" fill="#7a6a38" />
-    {eye(30, 18, "#b6ff3a", 1)}<path d="M18 25 L28 26" stroke="#2a1a10" strokeWidth="0.8" /><path d="M20 25 L21 27 M23 25.5 L24 27.5" stroke={BONE} strokeWidth="0.7" />
-    <path d="M26 31 Q32 35 38 31" stroke={BONE} strokeWidth="1.4" fill="none" strokeDasharray="1.5 1" />
-    <rect x="46" y="14" width="2.2" height="44" fill="#4a3826" /><circle cx="47" cy="9" r="7" fill="#8aff3a" opacity={0.15} />
-    <circle cx="47" cy="11" r="4.2" fill={BONE} /><circle cx="45.6" cy="10.5" r="1" fill={BLK} /><circle cx="48.4" cy="10.5" r="1" fill={BLK} />
-    <path d="M47 7 Q44 3 47 0 Q50 3 47 7 Z" fill="#8aff3a" opacity={0.85} /><circle cx="45" cy="36" r="2.5" fill="#7a6a38" />{blot(30, 40, 1.3)}</g>),
-  orc: () => (<g>{shd(18)}
-    <rect x="22" y="44" width="8" height="14" fill="#2e3a22" /><rect x="34" y="44" width="8" height="14" fill="#2e3a22" />
-    <path d="M14 26 Q32 18 50 26 L46 48 L18 48 Z" fill="#4e6a34" /><path d="M18 30 L46 40" stroke="#3a2414" strokeWidth="3" />
-    <circle cx="28" cy="34" r="1.6" fill="#6a7262" /><circle cx="38" cy="38" r="1.6" fill="#6a7262" /><rect x="18" y="44" width="28" height="5" fill="#3a2414" />
-    <path d="M10 24 Q16 18 22 24 L20 30 L12 30 Z" fill={STEELD} /><path d="M12 22 L9 15 L15 21 Z M17 20 L18 13 L20 21 Z" fill={STEELD} />
-    <path d="M24 22 Q22 8 32 8 Q42 8 40 22 Q36 26 32 26 Q28 26 24 22 Z" fill="#5e7a3a" /><path d="M25 14 L39 14" stroke="#1a2010" strokeWidth="2" />
-    {eye(28.5, 16, "#ff2a1a", 1.1)}{eye(35.5, 16, "#ff2a1a", 1.1)}<path d="M27 22 L26 17 L29 21 Z M37 22 L38 17 L35 21 Z" fill={BONE} />
-    <path d="M30 9 L31 13 L33 10" stroke={BLOODB} strokeWidth="0.8" fill="none" />
-    <path d="M48 37 L54 8 L60 10 L53 38 Z" fill="#4a3220" /><path d="M54 12 L50 10 M57 16 L61 14 M53 20 L49 19 M57 25 L61 23" stroke={STEELL} strokeWidth="1.4" />
-    <circle cx="50" cy="37" r="3.4" fill="#5e7a3a" /><circle cx="14" cy="36" r="3.4" fill="#5e7a3a" />{blot(56, 12, 2)}{blot(55, 22, 1.4)}{blot(22, 38, 1.4)}</g>),
+    {shd(16)}
+    <path d="M32 28 L8 16 Q4 28 14 34 Q8 40 16 46 L28 36 Z" fill="#1a1018" />
+    <path d="M32 28 L56 14 Q62 26 50 34 Q58 42 48 48 L36 36 Z" fill="#160e14" />
+    <path d="M12 22 L18 30 M14 36 L22 34 M50 20 L44 30 M52 38 L42 36" stroke="#2a1820" strokeWidth="1.1" />
+    <path d="M26 26 Q32 18 38 26 L36 40 Q32 46 28 40 Z" fill="#2a1820" />
+    <path d="M28 24 L24 16 L30 22 M36 24 L42 14 L38 22" fill="#2a1820" />
+    {eye(30, 28, "#ff2a2a", 0.8)}{eye(35, 27, "#ff2a2a", 0.8)}
+    <path d="M30 34 L32 38 L34 34 Q32 36 30 34 Z" fill="#4a0a0c" />
+    <path d="M29 35 L30 39 M35 35 L34 39" fill={BONE} stroke={BONE} strokeWidth="0.7" />
+  </g>),
+  skel: () => (<g>
+    {shd(13)}
+    <path d="M22 56 L26 40 M38 40 L42 56" stroke={BONED} strokeWidth="3.1" strokeLinecap="round" />
+    <path d="M26 40 L38 40 L36 52 L28 52 Z" fill="#cfc3a0" />
+    <path d="M28 44 L36 44 M29 48 L35 48" stroke="#5a5040" strokeWidth="0.9" />
+    <path d="M20 38 L26 40 M38 40 L48 34" stroke={BONE} strokeWidth="2.4" strokeLinecap="round" />
+    <path d="M48 34 L58 30 L52 28 Z" fill="#4a3a30" /><path d="M58 30 L62 22" stroke={STEELD} strokeWidth="1.4" />
+    <ellipse cx="32" cy="24" rx="9" ry="8" fill="#e6d8b0" />
+    <path d="M26 22 Q32 20 38 22" stroke="#8a7a60" strokeWidth="0.8" fill="none" />
+    <ellipse cx="29" cy="23" rx="2.4" ry="3" fill={BLK} /><ellipse cx="36" cy="23" rx="2.1" ry="2.6" fill={BLK} />
+    {eye(29.2, 23.2, "#7cff6a", 0.7)}
+    <path d="M28 28 L30 30 L32 28 L34 31 L36 28" fill="none" stroke={BLK} strokeWidth="0.8" />
+    <path d="M24 20 L22 14 M40 20 L44 12" stroke={BONE} strokeWidth="1.3" />
+    {blot(40, 36, 1.0)}
+  </g>),
+  spider: () => (<g>
+    {shd(22)}
+    <g fill="none" stroke="#1c1014" strokeWidth="2.3" strokeLinecap="round">
+      <path d="M28 32 Q10 16 8 8" /><path d="M26 36 Q6 30 2 22" /><path d="M26 42 Q8 46 4 54" /><path d="M30 46 Q20 56 16 62" />
+      <path d="M36 32 Q54 14 58 6" /><path d="M38 36 Q58 28 62 18" /><path d="M38 42 Q56 48 60 56" /><path d="M34 46 Q46 58 50 62" />
+    </g>
+    <ellipse cx="32" cy="38" rx="13" ry="10" fill="#1a0e12" />
+    <ellipse cx="32" cy="37" rx="9" ry="7" fill="#2a1218" />
+    <path d="M24 34 Q32 30 40 34" stroke="#4a1a22" strokeWidth="1" fill="none" />
+    <g>{eye(27, 34, "#ff2a2a", 0.55)}{eye(31, 32, "#ff2a2a", 0.5)}{eye(35, 32, "#ff2a2a", 0.5)}{eye(39, 34, "#ff2a2a", 0.55)}
+    {eye(29, 36, "#ff2a2a", 0.4)}{eye(35, 36, "#ff2a2a", 0.4)}</g>
+    <path d="M26 42 L22 48 M38 42 L42 48" stroke="#c8b89a" strokeWidth="1.4" />
+    <path d="M22 48 L20 52 M42 48 L44 53" stroke="#6aff3a" strokeWidth="1.1" opacity={0.8} />
+  </g>),
+  kobold: () => (<g>
+    {shd(13)}
+    <path d="M28 56 L26 38 L32 36 L30 56 Z M34 56 L36 36 L42 38 L40 56 Z" fill="#3a2a18" />
+    <path d="M24 38 Q32 30 42 38 L40 48 Q32 52 26 48 Z" fill="#4a3820" />
+    <path d="M24 30 Q20 16 32 12 Q46 14 44 28 Q38 34 28 32 Z" fill="#5a4a28" />
+    <path d="M22 18 L16 8 L26 16 M40 14 L48 4 L44 16" fill="#3a2e18" />
+    <path d="M26 26 Q34 28 40 24" fill="#2a2010" />
+    {eye(30, 22, "#ffcc4d", 0.75)}{eye(38, 21, "#ffcc4d", 0.7)}
+    <path d="M32 26 L30 30 L34 28 Z" fill="#1a1008" />
+    <path d="M44 32 L50 18" stroke="#6a5a40" strokeWidth="2" /><circle cx="50" cy="16" r="3.2" fill="#6aff3a" opacity={0.45} /><circle cx="50" cy="16" r="1.4" fill="#d8ff9a" />
+    <path d="M20 34 L14 38 L20 40 Z" fill="#4a3820" />
+  </g>),
+  orc: () => (<g>
+    {shd(18)}
+    <path d="M22 58 L18 36 L28 34 L26 58 Z M36 58 L38 34 L48 36 L44 58 Z" fill="#2a1e12" />
+    <path d="M16 36 Q32 26 50 36 L48 50 Q32 56 18 50 Z" fill="#3a4a22" />
+    <path d="M20 28 Q18 10 30 6 Q44 4 50 16 Q52 28 42 32 Q30 36 20 28 Z" fill="#4a5a28" />
+    <path d="M18 16 L8 8 L22 18 M48 12 L58 2 L50 16" fill="#2a3414" />
+    <path d="M22 18 Q28 14 36 16" stroke="#2a3410" strokeWidth="1.2" fill="none" />
+    {eye(28, 18, "#ff3a1a", 0.9)}{eye(40, 16, "#ff3a1a", 0.75)}
+    <path d="M26 26 L22 34 L28 30 M38 24 L46 34 L40 28" fill={BONE} />
+    <path d="M28 26 Q34 30 42 24" fill="#2a1a10" />
+    <path d="M50 32 L60 20 L58 40 Z" fill="#4a3a30" /><path d="M58 20 L63 12" stroke="#8a8070" strokeWidth="1.6" />
+    {blot(24, 42, 1.3)}
+  </g>),
   wraith: () => (<g>
-    <path d="M32 6 Q48 8 50 30 Q52 44 56 58 L48 52 L44 60 L38 52 L32 62 L26 52 L20 60 L16 52 L8 58 Q12 44 14 30 Q16 8 32 6 Z" fill="#2a2a3e" opacity={0.85} />
-    <path d="M32 10 Q44 12 44 26 L40 50 L24 50 L20 26 Q20 12 32 10 Z" fill="#3e3e5a" opacity={0.6} />
-    <path d="M16 34 Q10 30 16 27 M48 34 Q54 30 48 27" stroke="#3e3e5a" strokeWidth="5" fill="none" />
-    <path d="M14 34 L4 40 M14 34 L6 44 M14 34 L9 46 M50 34 L60 40 M50 34 L58 44 M50 34 L55 46" stroke={BONE} strokeWidth="1.2" />
-    <ellipse cx="32" cy="22" rx="8" ry="9" fill={BLK} />{eye(28.5, 21, "#7cf0ff", 1.3)}{eye(35.5, 21, "#7cf0ff", 1.3)}
-    <path d="M28 27 Q32 32 36 27" stroke="#7cf0ff" strokeWidth="0.8" fill="none" opacity={0.6} /><path d="M20 44 L44 46" stroke="#5a5a6a" strokeWidth="1.2" strokeDasharray="2 1.2" /></g>),
-  elf: () => (<g>{shd(13)}
-    <path d="M24 24 Q32 20 40 24 L42 56 L22 56 Z" fill="#241a30" /><path d="M28 24 L36 24 L35 44 L29 44 Z" fill="#3a2a4a" /><path d="M22 56 L26 50 L30 56 L34 50 L38 56 L42 50 L42 56 Z" fill="#160f1e" />
-    <path d="M26 14 L18 10 L26 17 Z M38 14 L46 10 L38 17 Z" fill="#6a5a7a" /><ellipse cx="32" cy="15" rx="6" ry="7" fill="#6a5a7a" />
-    <path d="M25 13 Q26 4 32 5 Q40 4 39 13 L41 30 L38 22 Q36 10 32 10 Q28 10 26 22 L23 30 Z" fill="#e8e4f0" />
-    {eye(29.5, 15.5, "#c45aff", 1)}{eye(34.5, 15.5, "#c45aff", 1)}<path d="M30 20 L34 20" stroke="#2a1a30" strokeWidth="0.7" />
-    <path d="M44 38 Q56 30 54 14 Q52 26 43 36 Z" fill={STEELL} stroke={STEELD} strokeWidth="0.5" /><path d="M54 16 Q53 22 50 26" stroke={BLOODB} strokeWidth="1.4" fill="none" />
-    <circle cx="44" cy="38" r="2.2" fill="#6a5a7a" /><path d="M20 38 L12 46 L13 47 L21 39 Z" fill={STEELL} /><circle cx="20" cy="38" r="2.2" fill="#6a5a7a" />{blot(13, 46, 0.9)}{blot(30, 34, 1)}</g>),
-  golem: () => (<g>{shd(22)}
-    <rect x="20" y="44" width="9" height="15" rx="1" fill="#5a564e" /><rect x="35" y="44" width="9" height="15" rx="1" fill="#5a564e" />
-    <path d="M14 22 L50 22 L48 46 L16 46 Z" fill="#6e6a60" /><path d="M6 22 L16 20 L16 42 L8 46 Z" fill="#5e5a52" /><path d="M58 22 L48 20 L48 42 L56 46 Z" fill="#5e5a52" />
-    <rect x="4" y="44" width="10" height="9" rx="2" fill="#4e4a44" /><rect x="50" y="44" width="10" height="9" rx="2" fill="#4e4a44" />
-    <path d="M18 22 L20 17 L24 22 Z M44 22 L42 17 L40 22 Z" fill="#3e4a2a" /><rect x="24" y="8" width="16" height="14" rx="2" fill="#7a766a" /><rect x="26" y="13" width="12" height="3" fill="#1a1410" />
-    {eye(29, 14.5, "#ff8a1a", 1.1)}{eye(35, 14.5, "#ff8a1a", 1.1)}
-    <circle cx="32" cy="32" r="5" fill="#ff8a1a" opacity={0.25} /><path d="M24 28 L30 32 L28 38 L34 42 M40 26 L36 32 L42 36" stroke="#ff8a1a" strokeWidth="1.2" fill="none" /><circle cx="32" cy="32" r="2.4" fill="#ffb04a" />
-    <path d="M10 28 L14 34 M54 30 L50 36" stroke="#2a2620" strokeWidth="1" />{blot(8, 50, 1.4)}{blot(55, 49, 1.2)}</g>),
-  necro: () => (<g>{shd(15)}
-    <path d="M32 10 L46 30 L48 58 L16 58 L18 30 Z" fill="#1e1a14" /><path d="M16 58 L19 50 L23 58 L26 52 L30 58 L34 51 L38 58 L42 52 L46 58 Z" fill="#141008" />
-    <path d="M26 40 Q24 50 28 56 M38 38 Q40 48 36 56" stroke={BLOODB} strokeWidth="2" fill="none" opacity={0.75} /><path d="M28 30 L36 30 L32 44 Z" fill="#6e0d14" />
-    <path d="M20 28 Q20 8 32 6 Q44 8 44 28 Q38 24 32 24 Q26 24 20 28 Z" fill="#2a2418" />
-    <path d="M26 14 Q32 11 38 14 L38 22 Q32 27 26 22 Z" fill="#7a8a5a" /><path d="M32 13 Q38 13 38 16 L38 22 Q35 25 32 25 Z" fill={BONE} /><circle cx="35" cy="17" r="1.8" fill={BLK} />
-    {eye(29, 17, "#8aff3a", 1)}{eye(35, 17, "#8aff3a", 1)}<path d="M32 22 L38 22 M33.5 22 L33.5 24 M35.5 22 L35.5 24" stroke={BLK} strokeWidth="0.6" />
-    <path d="M27 19 Q28 21 27 23" stroke={BLOODB} strokeWidth="1" fill="none" /><circle cx="28.5" cy="21.5" r="1.2" fill="#4a5a2a" />
-    <path d="M12 40 L12 10" stroke="#3a2e22" strokeWidth="2.4" /><circle cx="12" cy="8" r="8" fill="#8aff3a" opacity={0.14} />
-    <circle cx="12" cy="10" r="4" fill={BONE} /><circle cx="10.6" cy="9.5" r="1" fill="#2a3a10" /><circle cx="13.4" cy="9.5" r="1" fill="#2a3a10" />
-    <path d="M12 6 Q9 2 12 0 Q15 2 12 6 Z" fill="#8aff3a" opacity={0.85} /><path d="M15 34 L11 32 M15 35 L10 35 M15 36 L11 38" stroke={BONE} strokeWidth="1.1" />
-    <circle cx="50" cy="20" r="2.2" fill="#8aff3a" opacity={0.6} /><circle cx="54" cy="28" r="1.5" fill="#8aff3a" opacity={0.45} /></g>),
-  basil: () => (<g>{shd(22)}
-    <path d="M8 54 Q8 40 24 42 Q44 44 50 52 Q54 58 40 58 L16 58 Q8 58 8 54 Z" fill="#3e5a2a" /><path d="M14 50 Q30 46 44 54" stroke="#2a4018" strokeWidth="1.2" fill="none" strokeDasharray="2 1.5" />
-    <path d="M40 50 Q50 40 44 28 Q40 18 30 16 L26 24 Q34 26 36 32 Q40 42 32 48 Z" fill="#4a6a32" /><path d="M38 46 Q44 38 40 30" stroke="#c9c28a" strokeWidth="2.4" fill="none" opacity={0.6} />
-    <path d="M22 8 L20 2 L25 7 Z M27 8 L27 1 L30 8 Z" fill="#2a4018" /><path d="M16 14 Q22 6 32 10 Q36 14 32 20 Q24 24 14 20 Z" fill="#4a6a32" />
-    {eye(24, 13, "#ffe23a", 1.3)}<path d="M14 18 L22 20" stroke="#1a2a10" strokeWidth="0.8" /><path d="M15 18 L15.5 22 M18 19 L18.5 23" stroke={BONE} strokeWidth="0.9" />
-    <path d="M13 20 L9 22 L10 21 L6 24" stroke={BLOODB} strokeWidth="0.8" fill="none" />{blot(17, 24, 1)}<circle cx="15.5" cy="24" r="0.9" fill="#9dff3a" /></g>),
-  demon: () => (<g>{shd(18)}
-    <path d="M24 24 Q6 6 2 30 Q8 26 10 32 Q14 28 16 34 Q20 30 24 36 Z" fill="#3a0d10" /><path d="M40 24 Q58 6 62 30 Q56 26 54 32 Q50 28 48 34 Q44 30 40 36 Z" fill="#3a0d10" />
-    <rect x="24" y="44" width="7" height="14" fill="#5a1212" /><rect x="33" y="44" width="7" height="14" fill="#5a1212" /><path d="M23 58 L21 61 L28 61 Z M41 58 L43 61 L36 61 Z" fill="#1a0a0a" />
-    <path d="M20 26 Q32 20 44 26 L42 46 L22 46 Z" fill="#7a1a16" /><path d="M26 30 Q32 33 38 30 M26 35 Q32 38 38 35" stroke="#4a0a0a" strokeWidth="1" fill="none" />
-    <path d="M26 12 Q18 8 18 0 Q22 6 28 9 Z M38 12 Q46 8 46 0 Q42 6 36 9 Z" fill={BONE} /><path d="M25 18 Q25 8 32 8 Q39 8 39 18 Q38 24 32 25 Q26 24 25 18 Z" fill="#8a1e18" />
-    {eye(29, 15, "#ffb21a", 1.2)}{eye(35, 15, "#ffb21a", 1.2)}<path d="M28 20 L36 20 L32 23 Z" fill="#1a0505" /><path d="M29 20 L30 22 M34 20 L35 22" stroke={BONE} strokeWidth="0.7" />
-    <path d="M20 30 L14 42 M44 30 L50 42" stroke="#7a1a16" strokeWidth="4" strokeLinecap="round" /><path d="M14 42 L11 46 M14 42 L14 47 M14 42 L17 46 M50 42 L47 46 M50 42 L50 47 M50 42 L53 46" stroke={BONE} strokeWidth="1" />
-    {blot(13, 47, 1.3)}{blot(51, 47, 1.3)}<path d="M24 58 Q22 52 26 50 Q26 54 28 56 Z M40 58 Q42 52 38 50 Q38 54 36 56 Z" fill="#ff6a1a" opacity={0.6} /></g>),
-  lich: () => (<g>{shd(15)}
-    <path d="M32 14 L48 32 L52 60 L12 60 L16 32 Z" fill="#2a1838" /><path d="M12 60 L16 52 L20 60 L24 53 L28 60 L32 52 L36 60 L40 53 L44 60 L48 52 L52 60 Z" fill="#180e22" />
-    <path d="M26 26 L38 26 L36 48 L28 48 Z" fill="#1a0a22" /><rect x="31.3" y="28" width="1.4" height="12" fill={BONE} />
-    <path d="M28 30 Q32 29 36 30 M28 33 Q32 32 36 33 M28.5 36 Q32 35 35.5 36" stroke={BONE} strokeWidth="1.2" fill="none" /><path d="M30 40 L28 45 M34 41 L36 46" stroke={BLOODB} strokeWidth="1" />
-    <path d="M25 18 Q25 8 32 8 Q39 8 39 18 Q39 21 36 22 L36 25 L28 25 L28 22 Q25 21 25 18 Z" fill={BONE} />
-    <ellipse cx="29.3" cy="17" rx="2.3" ry="2.6" fill={BLK} /><ellipse cx="34.7" cy="17" rx="2.3" ry="2.6" fill={BLK} />{eye(29.3, 17, "#c27aff", 1.1)}{eye(34.7, 17, "#c27aff", 1.1)}
-    <path d="M29 23 L35 23" stroke={BLK} strokeWidth="0.7" /><path d="M25 11 L26 4 L28.5 8 L30.5 2 L32 7 L33.5 2 L35.5 8 L38 4 L39 11 Z" fill="#9a8a3a" /><circle cx="32" cy="9" r="1" fill="#c27aff" />
-    <path d="M16 34 L10 30 M48 34 L54 30" stroke={BONE} strokeWidth="1.4" /><circle cx="9" cy="28" r="4.5" fill="#a24aff" opacity={0.35} /><circle cx="9" cy="28" r="2" fill="#d8a8ff" />
-    <circle cx="55" cy="27" r="6" fill="#a24aff" opacity={0.2} /><path d="M55 22 L58 27 L55 32 L52 27 Z" fill="#7a2aff" opacity={0.85} /></g>),
-  wyvern: () => (<g>{shd(22)}
-    <path d="M30 26 Q14 2 2 10 Q10 14 6 20 Q14 18 12 26 Q18 22 22 30 Z" fill="#2e2a3e" /><path d="M30 26 L4 10 M30 26 L8 20 M30 26 L13 26" stroke="#4a4462" strokeWidth="0.8" />
-    <path d="M52 44 Q60 48 62 58 L58 54 L56 60 Q56 50 48 48 Z" fill="#3e4a32" /><path d="M62 58 L59 52 L64 54 Z" fill={BONE} />
-    <path d="M18 46 Q22 30 36 30 Q50 30 52 44 Q50 52 36 52 Q24 52 18 46 Z" fill="#3e4a32" /><path d="M24 46 Q34 50 46 46" stroke="#a8a070" strokeWidth="2" fill="none" opacity={0.5} />
-    <path d="M28 52 L26 58 M42 52 L44 58" stroke="#2e3a26" strokeWidth="3" /><path d="M23 58 L29 58 M41 58 L47 58" stroke={BONE} strokeWidth="1" />
-    <path d="M38 28 Q52 0 62 6 Q56 12 60 16 Q52 16 54 22 Q48 20 46 30 Z" fill="#3a3550" /><path d="M40 30 L50 40" stroke={BLOODB} strokeWidth="1" />
-    <path d="M22 36 Q14 26 18 18 L24 18 Q22 26 28 32 Z" fill="#3e4a32" /><path d="M10 18 Q14 10 24 12 L26 18 Q18 22 10 20 Z" fill="#4a5a3a" /><path d="M20 12 L24 5 L24 13 Z" fill={BONE} />
-    {eye(19, 15, "#ff2a2a", 1.1)}<path d="M10 20 L18 20 M12 20 L12.5 22 M15 20 L15.5 22" stroke={BONE} strokeWidth="0.7" />{blot(12, 22.5, 1.2)}</g>),
+    <ellipse cx="32" cy="44" rx="20" ry="16" fill="#0c2a28" opacity={0.28} />
+    <path d="M20 58 Q16 36 28 24 Q32 8 36 22 Q50 30 46 58 Q36 64 20 58 Z" fill="#0e1c1c" opacity={0.92} />
+    <path d="M24 54 Q28 36 32 28 Q38 36 42 54" fill="#143230" opacity={0.8} />
+    <path d="M26 30 Q32 22 40 30 L38 40 Q32 36 26 40 Z" fill="#0a1212" />
+    <path d="M28 34 L36 34 M30 38 L34 38" stroke="#7cf0ff" strokeWidth="0.6" opacity={0.4} />
+    {eye(29, 28, "#7cf0ff", 0.7)}{eye(36, 27, "#7cf0ff", 0.65)}
+    <path d="M22 48 Q18 60 14 64 M42 50 Q50 62 56 66 M32 52 Q32 62 30 66" stroke="#7cf0ff" strokeWidth="1" opacity={0.35} fill="none" />
+  </g>),
   shade: () => (<g>
-    <path d="M38 8 Q50 10 50 26 Q52 42 56 58" stroke="#7a4aff" strokeWidth="0.8" fill="none" opacity={0.3} />
-    <path d="M32 6 Q44 8 44 24 Q46 40 50 58 Q40 50 32 60 Q24 50 14 58 Q18 40 20 24 Q20 8 32 6 Z" fill="#1a1028" opacity={0.92} />
-    <path d="M32 6 Q44 8 44 24 Q46 40 50 58 M20 24 Q18 40 14 58" stroke="#7a4aff" strokeWidth="1" fill="none" opacity={0.6} />
-    <path d="M20 30 L8 36 L6 44 M44 30 L56 36 L58 44" stroke="#1a1028" strokeWidth="3" fill="none" />{eye(28.5, 20, "#e8e0ff", 1.2)}{eye(35.5, 20, "#e8e0ff", 1.2)}</g>),
+    <ellipse cx="32" cy="40" rx="18" ry="20" fill="#1a0a2a" opacity={0.4} />
+    <path d="M18 58 Q14 30 30 16 Q40 6 44 22 Q54 30 48 58 Q34 66 18 58 Z" fill="#0a0614" />
+    <path d="M26 28 Q34 10 42 26 Q36 22 32 24 Z" fill="#14081e" />
+    {eye(30, 26, "#d06bff", 0.65)}{eye(37, 24, "#d06bff", 0.85)}
+    <path d="M20 44 Q28 36 34 44 Q30 50 24 48 Z" fill="#2a1050" opacity={0.6} />
+    <path d="M16 50 Q8 62 4 66 M48 48 Q58 62 62 68" stroke="#b84aff" strokeWidth="1" opacity={0.35} fill="none" />
+  </g>),
+  elf: () => (<g>
+    {shd(13)}
+    <path d="M28 56 L26 36 L32 34 L30 56 Z M34 56 L36 34 L42 36 L40 56 Z" fill="#1a1420" />
+    <path d="M24 36 Q32 28 42 36 L40 48 Q32 52 26 48 Z" fill="#2a1a28" />
+    <path d="M24 28 Q20 10 32 8 Q46 8 44 26 Q38 32 28 30 Z" fill="#3a2a38" />
+    <path d="M22 16 L12 2 L26 18 M44 14 L56 0 L46 18" fill="#2a1a28" />
+    <ellipse cx="32" cy="20" rx="6" ry="7" fill="#1a1014" />
+    {eye(29.5, 20, "#d06bff", 0.7)}{eye(35, 19, "#d06bff", 0.7)}
+    <path d="M30 25 L32 28 L34 25" fill="#4a0a10" />
+    <path d="M44 32 L54 26" stroke="#2a1a28" strokeWidth="2.2" /><path d="M54 26 L60 18 L56 28 Z" fill={STEELD} />
+    <path d="M22 40 L18 38 L22 44 Z" fill="#4a1a22" />
+  </g>),
+  golem: () => (<g>
+    {shd(20)}
+    <path d="M16 56 L14 32 L28 28 L26 56 Z M36 56 L38 28 L52 32 L50 56 Z" fill="#2a2620" />
+    <path d="M14 32 Q32 16 52 32 L50 46 Q32 54 16 46 Z" fill="#3a3630" />
+    <path d="M22 24 Q32 8 44 22 L42 32 Q32 28 24 32 Z" fill="#2e2a26" />
+    <path d="M20 28 L36 20 M28 36 L46 30 M18 42 L40 40" stroke="#1a1610" strokeWidth="1.3" />
+    <path d="M24 30 L38 26 M26 38 L40 36" stroke="#ff6a1a" strokeWidth="1.1" opacity={0.75} />
+    {eye(28, 20, "#ff6a1a", 0.8)}{eye(38, 19, "#ff6a1a", 0.7)}
+    <rect x="10" y="30" width="8" height="14" rx="1" fill="#4a4640" /><rect x="48" y="30" width="8" height="14" rx="1" fill="#4a4640" />
+  </g>),
+  necro: () => (<g>
+    {shd(15)}
+    <path d="M22 58 L24 34 L40 34 L42 58 Z" fill="#1a1020" />
+    <path d="M20 36 Q32 20 44 36 L42 50 Q32 56 22 50 Z" fill="#24162e" />
+    <path d="M18 30 Q32 0 46 30 Q38 22 32 22 Q26 22 18 30 Z" fill="#0e0a14" />
+    <ellipse cx="32" cy="26" rx="6" ry="6" fill="#0a060c" />
+    <path d="M28 24 L30 28 L32 24 L34 29 L36 24" stroke={BONE} strokeWidth="0.8" fill="none" />
+    {eye(30, 25, "#6aff3a", 0.7)}{eye(35, 25, "#6aff3a", 0.7)}
+    <path d="M44 38 L56 22" stroke="#3a2a1a" strokeWidth="2" /><path d="M54 18 L60 8 L58 22 Z" fill="#6aff3a" opacity={0.45} />
+    <circle cx="16" cy="40" r="3" fill="#6aff3a" opacity={0.3} /><path d="M16 44 L16 54" stroke="#6aff3a" strokeWidth="0.8" opacity={0.5} />
+  </g>),
+  basil: () => (<g>
+    {shd(22)}
+    <path d="M8 50 Q6 40 16 36 Q10 30 22 28 Q18 20 32 22 Q28 14 40 18 Q48 16 52 24 Q60 28 56 40 Q62 46 50 52 Q32 58 8 50 Z" fill="#1a2a12" />
+    <path d="M16 44 Q24 32 38 30 Q48 28 52 38 Q46 46 32 48 Q20 50 16 44 Z" fill="#2a4418" />
+    <path d="M40 22 L46 10 L44 22 M48 20 L56 8 L50 22 M36 20 L34 8 L40 20" fill="#1a2a10" />
+    <path d="M48 32 Q56 28 58 34 Q52 38 48 36 Z" fill="#4a0a10" />
+    {eye(42, 28, "#e8ff3a", 0.9)}{eye(50, 30, "#e8ff3a", 0.6)}
+    <path d="M50 36 L58 40 L52 38" fill={BONE} />
+    <path d="M58 40 L62 44" stroke="#6aff3a" strokeWidth="1.2" />
+    {blot(28, 44, 1.0, "#4a6a10")}
+  </g>),
+  demon: () => (<g>
+    {shd(18)}<ellipse cx="32" cy="48" rx="18" ry="8" fill="#2a0800" opacity={0.4} />
+    <path d="M24 58 L20 36 L30 32 L28 58 Z M36 58 L38 32 L48 36 L44 58 Z" fill="#1a0a08" />
+    <path d="M16 36 Q32 22 50 36 L48 50 Q32 58 18 50 Z" fill="#4a140c" />
+    <path d="M18 20 L8 0 L24 18 M46 18 L58 0 L44 18" fill="#2a0a08" />
+    <path d="M20 24 Q32 8 46 22 Q40 30 32 30 Q24 30 20 24 Z" fill="#3a0e0a" />
+    <ellipse cx="32" cy="22" rx="8" ry="7" fill="#1a0606" />
+    {eye(28, 21, "#ff3a1a", 0.95)}{eye(36, 20, "#ff3a1a", 0.85)}
+    <path d="M26 26 L24 34 L30 30 M38 26 L44 34 L38 29" fill={BONE} />
+    <path d="M28 28 Q32 34 38 28" fill="#4a0a0c" />
+    <path d="M14 32 L4 28 L16 38 Z M50 32 L62 26 L50 40 Z" fill="#5a1a10" />
+    <path d="M22 40 L40 40" stroke="#ff6a1a" strokeWidth="0.8" opacity={0.6} />
+  </g>),
+  lich: () => (<g>
+    {shd(16)}
+    <path d="M26 58 L28 38 L36 38 L38 58 Z" fill="#2a2430" />
+    <path d="M24 40 L40 40 L38 50 L26 50 Z" fill="#cfc3a0" />
+    <path d="M28 43 L36 43 M28 47 L36 47" stroke="#5a5040" strokeWidth="0.8" />
+    <path d="M20 22 L16 6 L24 16 M44 22 L50 4 L42 16 M32 12 L32 2" stroke={BONE} strokeWidth="2" strokeLinecap="round" />
+    <ellipse cx="32" cy="22" rx="9" ry="8" fill="#e8dcc0" />
+    <ellipse cx="29" cy="21" rx="2.3" ry="3" fill={BLK} /><ellipse cx="36" cy="21" rx="2.3" ry="3" fill={BLK} />
+    {eye(29, 21, "#d06bff", 0.75)}{eye(36, 21, "#d06bff", 0.75)}
+    <path d="M28 26 L30 29 L32 26 L34 29 L36 26" stroke={BLK} strokeWidth="0.8" fill="none" />
+    <path d="M42 36 L54 16" stroke="#3a2a4a" strokeWidth="2" /><circle cx="55" cy="14" r="5" fill="#d06bff" opacity={0.35} /><circle cx="55" cy="14" r="2" fill="#f0d0ff" />
+  </g>),
+  wyvern: () => (<g>
+    {shd(20)}
+    <path d="M32 36 L8 18 Q2 28 16 34 L6 44 Q16 42 28 40 Z" fill="#1a1410" />
+    <path d="M40 32 Q58 16 62 8 Q64 22 52 32 Q62 36 56 46 L42 38 Z" fill="#16120e" />
+    <path d="M24 36 Q36 22 50 32 Q54 42 42 50 Q28 54 22 46 Z" fill="#2a2218" />
+    <path d="M46 30 Q58 28 60 36 Q54 38 48 36 Z" fill="#3a2a1c" />
+    <path d="M52 28 L60 22 L54 30" fill="#1a140e" />
+    {eye(50, 30, "#ff3a1a", 0.85)}
+    <path d="M54 34 L62 36 L56 37" fill={BONE} />
+    <path d="M20 48 Q12 60 8 64 M16 50 Q16 62 12 66" stroke="#2a2218" strokeWidth="2.2" fill="none" />
+    <path d="M8 64 L4 68 M12 66 L10 70" stroke="#6a2a20" strokeWidth="1.2" />
+  </g>),
   brood: () => (<g>
-    <g stroke="#c9c2d8" strokeWidth="0.4" opacity={0.35} fill="none"><path d="M0 0 L32 30 L64 0 M0 30 L64 30 M32 0 L32 30 M0 64 L32 30 L64 64" /><path d="M12 12 Q32 18 52 12 M6 22 Q32 28 58 22" /></g>
-    {shd(28)}
-    <g stroke="#1e1424" strokeWidth="3.2" fill="none" strokeLinecap="round" strokeLinejoin="round"><path d="M24 36 L10 18 L2 26" /><path d="M23 40 L6 34 L1 46" /><path d="M24 44 L8 50 L4 62" /><path d="M27 47 L18 56 L16 63" /><path d="M40 36 L54 18 L62 26" /><path d="M41 40 L58 34 L63 46" /><path d="M40 44 L56 50 L60 62" /><path d="M37 47 L46 56 L48 63" /></g>
-    <g fill="#3a2a44"><circle cx="10" cy="18" r="1.6" /><circle cx="54" cy="18" r="1.6" /><circle cx="6" cy="34" r="1.6" /><circle cx="58" cy="34" r="1.6" /></g>
-    <ellipse cx="32" cy="22" rx="17" ry="15" fill="#2a1c34" /><path d="M22 14 Q32 8 42 14 M20 22 Q32 18 44 22" stroke="#4a3256" strokeWidth="1.5" fill="none" />
-    <path d="M29 16 L35 16 L32 22 L35 28 L29 28 L32 22 Z" fill={BLOODB} />
-    <g fill="#d8d0b0" opacity={0.9}><ellipse cx="18" cy="26" rx="3.4" ry="2.6" /><ellipse cx="46" cy="27" rx="3.4" ry="2.6" /><ellipse cx="22" cy="31" rx="2.5" ry="2" /><ellipse cx="43" cy="32" rx="2.5" ry="2" /></g>
-    <g fill="#9dff3a" opacity={0.55}><circle cx="18" cy="26" r="1" /><circle cx="46" cy="27" r="1" /></g>
-    <ellipse cx="32" cy="42" rx="11" ry="9" fill="#3a2848" />
-    {eye(27, 39, "#ff2a2a", 1.3)}{eye(37, 39, "#ff2a2a", 1.3)}{eye(29.5, 36, "#ff2a2a", 0.9)}{eye(34.5, 36, "#ff2a2a", 0.9)}{eye(25, 42.5, "#ff2a2a", 0.7)}{eye(39, 42.5, "#ff2a2a", 0.7)}{eye(31, 34, "#ff2a2a", 0.6)}{eye(33, 34, "#ff2a2a", 0.6)}
-    <path d="M27 48 Q25 54 29 57 L29 52 Z M37 48 Q39 54 35 57 L35 52 Z" fill={BONE} />{blot(29, 57, 1.6)}{blot(35, 57.5, 1.4)}<path d="M32 50 L32 56" stroke="#7fd14a" strokeWidth="1.2" />
-    <circle cx="50" cy="8" r="3.4" fill={BONE} /><circle cx="49" cy="7.6" r="0.8" fill={BLK} /><circle cx="51" cy="7.6" r="0.8" fill={BLK} /><path d="M50 11 L50 16" stroke="#c9c2d8" strokeWidth="0.5" />
-    {blot(30, 46, 1.2)}{blot(20, 18, 1.4)}{blot(44, 16, 1)}</g>),
+    {shd(26)}<ellipse cx="32" cy="50" rx="26" ry="8" fill="#0c1408" opacity={0.5} />
+    <g fill="none" stroke="#140c10" strokeWidth="2.8" strokeLinecap="round">
+      <path d="M20 36 Q6 18 4 8" /><path d="M16 42 Q0 36 0 24" /><path d="M16 50 Q2 56 0 64" />
+      <path d="M44 36 Q58 16 62 6" /><path d="M48 42 Q64 34 64 22" /><path d="M48 50 Q62 58 64 66" />
+    </g>
+    <ellipse cx="32" cy="42" rx="20" ry="16" fill="#1a0e14" />
+    <ellipse cx="32" cy="46" rx="16" ry="12" fill="#2a1420" />
+    <path d="M20 46 Q32 38 44 46 Q40 54 32 56 Q24 54 20 46 Z" fill="#3a1a14" />
+    <circle cx="24" cy="48" r="3.2" fill="#4a2010" /><circle cx="32" cy="50" r="3.6" fill="#4a2010" /><circle cx="40" cy="48" r="3" fill="#4a2010" />
+    <path d="M22 28 Q32 16 44 28 Q38 24 32 24 Z" fill="#140810" />
+    {eye(24, 30, "#ff1a1a", 0.7)}{eye(30, 26, "#ff1a1a", 0.6)}{eye(36, 26, "#ff1a1a", 0.6)}{eye(42, 30, "#ff1a1a", 0.7)}
+    {eye(28, 32, "#ff1a1a", 0.45)}{eye(38, 32, "#ff1a1a", 0.45)}
+    <path d="M26 36 L20 44 M38 36 L44 44" stroke="#c8b89a" strokeWidth="1.6" />
+    <path d="M20 44 L16 50 M44 44 L48 51" stroke="#6aff3a" strokeWidth="1.1" opacity={0.75} />
+  </g>),
   lord: () => (<g>
-    <ellipse cx="32" cy="34" rx="31" ry="29" fill="#4a2366" opacity={0.2} /><ellipse cx="32" cy="59" rx="26" ry="5" fill="#1a0f24" opacity={0.75} />
-    <path d="M40 8 L56 22 L58 60 L22 60 L24 22 Z" fill="#7a4aff" opacity={0.12} />
-    <path d="M16 20 L6 62 L12 58 L16 63 L22 58 L28 63 L32 58 L36 63 L42 58 L48 63 L52 58 L58 62 L48 20 Z" fill="#2a0a14" />
-    <rect x="23" y="48" width="7" height="12" fill="#2e3038" /><rect x="34" y="48" width="7" height="12" fill="#2e3038" />
-    <path d="M20 22 Q32 16 44 22 L42 48 L22 48 Z" fill="#3a3d48" /><path d="M28 28 L38 28 L36 40 L30 42 Z" fill="#1a0a10" />
-    <path d="M29 31 Q33 30 37 31 M29.5 34 Q33 33 36.5 34 M30 37 Q33 36 36 37" stroke={BONE} strokeWidth="1.1" fill="none" /><path d="M28 28 L30 42" stroke={BLOODB} strokeWidth="1.2" />{blot(36, 40, 1.6)}{blot(24, 44, 1.2)}
-    <path d="M12 22 Q18 14 24 22 L22 28 L14 28 Z" fill="#4a4e5a" /><path d="M13 20 L9 10 L16 18 Z M18 17 L18 7 L21 17 Z" fill="#4a4e5a" stroke="#2a2e36" strokeWidth="0.6" />
-    <path d="M52 22 Q46 14 40 22 L42 28 L50 28 Z" fill="#4a4e5a" /><path d="M51 20 L55 10 L48 18 Z M46 17 L46 7 L43 17 Z" fill="#4a4e5a" stroke="#2a2e36" strokeWidth="0.6" />
-    <path d="M25 18 Q25 6 32 6 Q39 6 39 18 L37 23 L27 23 Z" fill="#2e3038" /><path d="M27.5 11 Q32 9 36.5 11 L36 20 Q32 23 28 20 Z" fill={BONE} />
-    <ellipse cx="30" cy="14" rx="1.8" ry="2.2" fill={BLK} /><ellipse cx="34" cy="14" rx="1.8" ry="2.2" fill={BLK} />{eye(30, 14, "#b84aff", 1.2)}{eye(34, 14, "#b84aff", 1.2)}
-    <path d="M29.5 19 L34.5 19 M30.5 19 L30.5 20.5 M32 19 L32 21 M33.5 19 L33.5 20.5" stroke={BLK} strokeWidth="0.6" />
-    <path d="M24 8 L25 0 L28 5 L30 0 L32 4 L34 0 L36 5 L39 0 L40 8 Z" fill="#8a7a2a" stroke="#4a3a10" strokeWidth="0.5" /><circle cx="32" cy="6" r="1.2" fill="#b84aff" />
-    <rect x="50" y="8" width="4" height="39" fill="#5a5e6a" stroke="#2a2e36" strokeWidth="0.5" /><path d="M50 8 L52 2 L54 8 Z" fill="#5a5e6a" />
-    <path d="M50 16 L54 18 L54 34 L50 30 Z" fill={BLOODB} opacity={0.85} />{blot(52, 12, 1.2)}
-    <rect x="46" y="47" width="12" height="2.6" fill="#3a2a10" /><rect x="51" y="49.6" width="2" height="7" fill="#2a1a0a" /><circle cx="52" cy="57.5" r="1.5" fill="#b84aff" /><circle cx="52" cy="52" r="3" fill="#3a3d48" />
-    <circle cx="16" cy="38" r="5" fill="#7a2aff" opacity={0.3} /><circle cx="16" cy="38" r="2.2" fill="#d8a8ff" />
-    <circle cx="8" cy="14" r="2" fill="#b84aff" opacity={0.6} /><circle cx="5" cy="24" r="1.4" fill="#b84aff" opacity={0.45} /><circle cx="60" cy="40" r="1.6" fill="#b84aff" opacity={0.45} /></g>),
-  garcher: () => (<g>{SPR.goblin()}<rect x="40" y="10" width="14" height="16" fill="transparent" /><path d="M42 14 L54 12 L54 24 L44 25 Z" fill="#3a2a1a" opacity={0.9} /><g><path d="M10 14 Q-2 32 10 50" stroke="#6a4a2a" strokeWidth="2.6" fill="none" strokeLinecap="round" /><path d="M10 14 L10 50" stroke="#ddd" strokeWidth="0.6" /><path d="M10 32 L28 30" stroke="#c9b48a" strokeWidth="1.2" /><path d="M28 30 L24 28 L25 32 Z" fill="#aab" /></g><rect x="36" y="26" width="6" height="12" rx="2" fill="#5a3a1a" /><path d="M37 26 L37 20 M39 26 L39 19 M41 26 L41 20" stroke="#c9b48a" strokeWidth="0.8" /></g>),
-  sarcher: () => (<g>{SPR.skel()}<rect x="40" y="10" width="14" height="34" fill="#07060a" opacity={0} /><g><path d="M10 14 Q-2 32 10 50" stroke="#6a4a2a" strokeWidth="2.6" fill="none" strokeLinecap="round" /><path d="M10 14 L10 50" stroke="#ddd" strokeWidth="0.6" /><path d="M10 32 L28 30" stroke="#c9b48a" strokeWidth="1.2" /><path d="M28 30 L24 28 L25 32 Z" fill="#aab" /></g><path d="M14 26 L22 30" stroke="#ff3a2a" strokeWidth="0.8" opacity={0.6} /></g>),
-  spitter: () => (<g>{shd(18)}
-    <ellipse cx="32" cy="40" rx="18" ry="13" fill="#3e6a22" /><ellipse cx="32" cy="44" rx="12" ry="7" fill="#9acb5a" opacity={0.55} />
-    <path d="M14 46 L6 56 L16 52 Z M50 46 L58 56 L48 52 Z" fill="#2e5418" />
-    <circle cx="23" cy="28" r="6" fill="#3e6a22" /><circle cx="41" cy="28" r="6" fill="#3e6a22" />{eye(23, 27, "#e8ff3a", 1.6)}{eye(41, 27, "#e8ff3a", 1.6)}
-    <path d="M22 38 Q32 44 42 38" stroke="#1a2e0c" strokeWidth="1.6" fill="none" /><circle cx="32" cy="47" r="3.2" fill="#b6ff3a" opacity={0.85} /><circle cx="36" cy="52" r="1.6" fill="#b6ff3a" opacity={0.7} />
-    <circle cx="20" cy="40" r="1.6" fill="#2a4a14" /><circle cx="44" cy="42" r="2" fill="#2a4a14" /><circle cx="30" cy="34" r="1.3" fill="#2a4a14" /></g>),
-  hexer: () => (<g>{shd(15)}
-    <path d="M20 56 L24 26 Q32 18 40 26 L44 56 Z" fill="#2a1638" /><path d="M24 56 L27 34 L37 34 L40 56 Z" fill="#3c1f52" />
-    <path d="M22 28 Q32 4 42 28 Q37 24 32 24 Q27 24 22 28 Z" fill="#1c0e26" /><ellipse cx="32" cy="27" rx="6" ry="5" fill="#0a050e" />{eye(29.5, 27, "#d06bff", 1.1)}{eye(34.5, 27, "#d06bff", 1.1)}
-    <path d="M44 34 L52 30" stroke="#2a1638" strokeWidth="3" strokeLinecap="round" /><circle cx="54" cy="28" r="6" fill="#c04cff" opacity={0.25} /><circle cx="54" cy="28" r="3" fill="#e0a0ff" />
-    <path d="M28 40 L36 40 M32 36 L32 46" stroke="#c04cff" strokeWidth="1.2" opacity={0.8} /></g>),
+    <ellipse cx="32" cy="48" rx="26" ry="14" fill="#1a0a2a" opacity={0.5} />
+    <path d="M16 60 L18 32 L46 32 L48 60 Q32 66 16 60 Z" fill="#14081c" />
+    <path d="M20 36 Q32 20 44 36 L42 56 Q32 60 22 56 Z" fill="#1e0e28" />
+    <path d="M18 22 L8 0 L22 20 M46 22 L56 0 L44 20 M32 16 L32 2 M24 16 L20 4 M40 16 L44 4" stroke="#cfc3a0" strokeWidth="2.2" strokeLinecap="round" />
+    <path d="M20 28 Q32 8 44 28 Q38 22 32 22 Z" fill="#0a0610" />
+    <ellipse cx="32" cy="24" rx="8" ry="8" fill="#07040c" />
+    {eye(28.5, 24, "#f0e8ff", 0.85)}{eye(36, 24, "#f0e8ff", 0.85)}
+    <path d="M26 30 Q32 36 38 30" fill="#1a0a20" />
+    <path d="M12 40 L4 36 L14 48 Z M52 40 L62 34 L50 50 Z" fill="#1a0e24" />
+    <path d="M24 44 L40 44" stroke="#d06bff" strokeWidth="0.8" opacity={0.5} />
+    <circle cx="32" cy="40" r="10" fill="#7a2aff" opacity={0.12} />
+  </g>),
+  garcher: () => (<g>{SPR.goblin()}
+    <path d="M6 16 Q-4 32 6 50" stroke="#3a2a1a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+    <path d="M6 16 L6 50" stroke={BONED} strokeWidth="0.8" />
+    <path d="M6 32 L22 32" stroke="#cfc3a0" strokeWidth="1.1" />
+    <path d="M20 30 L26 32 L20 34 Z" fill="#4a3a28" />
+  </g>),
+  sarcher: () => (<g>{SPR.skel()}
+    <path d="M6 14 Q-4 32 6 52" stroke="#3a2a1a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
+    <path d="M6 14 L6 52" stroke={BONE} strokeWidth="0.8" />
+    <path d="M6 32 L20 32" stroke={BONE} strokeWidth="1.1" />
+  </g>),
+  spitter: () => (<g>
+    {shd(18)}
+    <path d="M12 52 Q6 36 18 26 Q32 14 48 26 Q58 36 52 52 Q32 60 12 52 Z" fill="#1a2a10" />
+    <path d="M16 50 Q18 34 32 28 Q46 34 48 50 Q32 56 16 50 Z" fill="#2a4414" />
+    <path d="M20 36 L12 20 L24 34 M44 36 L54 18 L42 34" fill="#1a2a0c" />
+    <path d="M22 32 Q32 26 42 32 Q36 40 32 40 Q26 40 22 32 Z" fill="#0e1608" />
+    {eye(26, 34, "#b6ff3a", 0.9)}{eye(38, 34, "#b6ff3a", 0.9)}
+    <path d="M28 42 Q32 48 36 42" fill="#4a0a10" />
+    <circle cx="32" cy="48" r="3" fill="#8aff3a" opacity={0.7} />
+    <path d="M32 50 Q30 58 28 60 M34 50 Q38 58 40 62" stroke="#8aff3a" strokeWidth="1.2" fill="none" opacity={0.8} />
+  </g>),
+  hexer: () => (<g>
+    {shd(14)}
+    <path d="M24 58 L26 32 L38 32 L40 58 Z" fill="#160c22" />
+    <path d="M20 34 Q32 16 44 34 L42 50 Q32 56 22 50 Z" fill="#1e102c" />
+    <path d="M18 28 Q32 2 46 28 Q38 20 32 20 Z" fill="#0c0814" />
+    <ellipse cx="32" cy="24" rx="6" ry="6" fill="#07040c" />
+    {eye(29.5, 24, "#d06bff", 0.7)}{eye(35, 23, "#d06bff", 0.85)}
+    <path d="M30 28 Q32 32 35 28" fill="#2a1040" />
+    <path d="M44 36 L56 22" stroke="#2a1638" strokeWidth="2.2" />
+    <circle cx="57" cy="20" r="6" fill="#c04cff" opacity={0.28} /><circle cx="57" cy="20" r="2.2" fill="#f0d0ff" />
+    <path d="M28 40 L36 40 M32 36 L32 46" stroke="#c04cff" strokeWidth="0.9" opacity={0.7} />
+  </g>),
   pimp: () => (<g>{shd(11)}
     <path d="M22 50 Q20 34 32 32 Q44 34 42 50 Z" fill="#a8241a" /><circle cx="32" cy="26" r="9" fill="#c8301f" />
     <path d="M24 20 L20 10 L28 18 Z M40 20 L44 10 L36 18 Z" fill="#4a1008" />{eye(28.5, 26, "#ffe03a", 1.2)}{eye(35.5, 26, "#ffe03a", 1.2)}<path d="M28 31 Q32 33 36 31" stroke="#3a0804" strokeWidth="1" fill="none" />
@@ -3122,7 +3209,7 @@ const SPR: Record<string, () => ReactNode> = {
   niche: () => (<g><path d="M18 50 L18 24 Q32 8 46 24 L46 50 Z" fill="#0d0a10" /><circle cx="32" cy="38" r="7" fill={BONE} /><circle cx="29.5" cy="37" r="1.6" fill={BLK} /><circle cx="34.5" cy="37" r="1.6" fill={BLK} /><rect x="29" y="43" width="6" height="3" fill={BONE} /></g>),
   tomb: () => (<g><rect x="14" y="16" width="36" height="34" rx="3" fill="#3a3448" stroke="#1a1522" strokeWidth="1.5" /><path d="M32 22 L32 40 M25 28 L39 28" stroke="#6a5a80" strokeWidth="2.4" /><path d="M14 30 L22 34 L18 42" stroke="#1a1522" strokeWidth="1" fill="none" /></g>),
   bonepile: () => (<g><g stroke={BONE} strokeWidth="2.6" strokeLinecap="round"><path d="M18 46 L30 40" /><path d="M34 48 L46 42" /><path d="M24 50 L40 50" /></g><circle cx="32" cy="38" r="6" fill={BONE} /><circle cx="30" cy="37.5" r="1.3" fill={BLK} /><circle cx="34" cy="37.5" r="1.3" fill={BLK} /></g>),
-  gen: () => (<g>{shd(14)}<path d="M32 8 Q46 10 46 30 L48 56 L16 56 L18 30 Q18 10 32 8 Z" fill="#2a2030" />{eye(28, 22, "#ff2a2a", 1.1)}{eye(36, 22, "#ff2a2a", 1.1)}{blot(30, 40, 1.5)}</g>),
+  gen: () => (<g>{shd(16)}<path d="M20 56 L22 30 Q32 8 44 30 L46 56 Q32 62 20 56 Z" fill="#1a1420" /><path d="M24 32 Q32 16 42 32 L40 50 Q32 54 26 50 Z" fill="#2a2030" /><ellipse cx="32" cy="24" rx="7" ry="8" fill="#0c0a10" />{eye(29, 23, "#ff2a2a", 0.8)}{eye(36, 23, "#ff2a2a", 0.8)}<path d="M28 30 Q32 36 36 30" fill="#3a0a10" />{blot(30, 40, 1.2)}</g>),
 };
 const REM: Record<string, () => ReactNode> = {
   gen: () => (<g>{pud(32, 38, 16, 9, "#5a080d")}{pud(30, 37, 9, 5, "#8f0d13")}</g>),
@@ -3786,7 +3873,7 @@ export default function DungeonOfEchoes() {
       </div>
     </div>
   ) : null;
-  const style = <div style={{ display: "contents" }}>{exitModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5%)}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}"}</style></div>;
+  const style = <div style={{ display: "contents" }}>{exitModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5%)}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}@keyframes doeBreath{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-3%) scaleY(1.05)}}@keyframes doeTwitch{0%,82%,100%{transform:rotate(0)}86%{transform:rotate(-4deg)}90%{transform:rotate(3deg)}}@keyframes doeFlicker{0%,100%{opacity:1}35%{opacity:.68}55%{opacity:.92}78%{opacity:.75}}@keyframes doeLean{0%,100%{transform:rotate(-5deg) translateY(0)}50%{transform:rotate(-8deg) translateY(-2%)}}@keyframes doeAura{0%,100%{opacity:.4}50%{opacity:.85}}"}</style></div>;
   const back = (): void => { if (g) run((gg: Game) => { gg.screen = gg.prev; }); else setUi("title"); };
   // ---------- INPUT: keyboard, gamepad, real-time loop ----------
   const isPlay = (): boolean => { const gg = G.current; return !!gg && !exitAsk && !sheet && !bigMap && gg.screen === "map"; };
@@ -4528,8 +4615,17 @@ export default function DungeonOfEchoes() {
     if (Math.abs(mm.x - g.px) > VHX || Math.abs(mm.y - g.py) > VHY || !g.seen[mm.y]?.[mm.x]) continue;
     const vis = litT(g, mm.x, mm.y);
     if (!vis && !mm.boss) continue;
-    const sty: CSSProperties | undefined = mm.boss ? (vis ? { filter: "drop-shadow(0 0 3px rgba(200,0,0,.8))" } : { filter: "brightness(0)", opacity: 0.55 }) : mm.stun > 0 ? { opacity: 0.6 } : mm.el ? { filter: "drop-shadow(0 0 3px rgba(255,200,60,.95))" } : { filter: "drop-shadow(0 2px 2px rgba(0,0,0,.8))" };
-    objs.push(<div key={`m${mm.id}`} style={tPos(mfx - 0.5, mfy - 0.5)}>{spr(mm.boss ? (mm.t === "lord" ? "lord" : "brood") : mm.t, "100%", sty)}</div>);
+    const kind = mm.boss ? (mm.t === "lord" ? "lord" : (mm.t === "brood" ? "brood" : mm.t)) : mm.t;
+    const ghost = kind === "wraith" || kind === "shade" || kind === "lich";
+    const chasing = mm.awake && vis;
+    const sty: CSSProperties | undefined = !vis && mm.boss ? { filter: "brightness(0)", opacity: 0.55 } : mm.stun > 0 ? { opacity: 0.6 } : mm.el ? { filter: "drop-shadow(0 0 6px rgba(200,30,30,.95)) drop-shadow(0 0 10px rgba(255,160,40,.65))" } : mm.boss ? { filter: "drop-shadow(0 0 7px rgba(140,0,0,.95)) drop-shadow(0 0 12px rgba(80,0,40,.7))" } : { filter: "drop-shadow(0 2px 3px rgba(0,0,0,.9))" };
+    const anim = ghost ? "doeFlicker 2.1s ease-in-out infinite" : chasing ? "doeLean 0.7s ease-in-out infinite" : "doeBreath 2.4s ease-in-out infinite";
+    objs.push(
+      <div key={`m${mm.id}`} data-mon={kind} data-elite={mm.el ? "1" : undefined} style={{ ...tPos(mfx - 0.5, mfy - 0.5), overflow: "visible" }}>
+        {mm.el || mm.boss ? <div style={{ position: "absolute", left: "-20%", top: "-10%", width: "140%", height: "120%", borderRadius: "50%", background: mm.el ? "radial-gradient(circle, rgba(180,20,20,.35), rgba(255,140,40,.12) 45%, transparent 70%)" : "radial-gradient(circle, rgba(80,0,0,.4), transparent 70%)", animation: "doeAura 1.6s ease-in-out infinite", pointerEvents: "none" }} /> : null}
+        <div style={{ position: "absolute", inset: mm.boss ? "-16% -10% 0" : "-10% -6% 0", transformOrigin: "50% 88%", animation: anim, overflow: "visible" }}>{spr(kind, "100%", sty)}</div>
+      </div>
+    );
   }
   const nowMs = Date.now();
   const c = g.combat;
@@ -4567,9 +4663,9 @@ export default function DungeonOfEchoes() {
       }
       const on = i === c.target;
       objs.push(
-        <div key={`e${e.uid}`} data-enemy={e.uid} data-noj="1" onPointerDown={() => run((gg: Game) => { const cc = gg.combat; if (!cc) return; const k = cc.enemies.findIndex((x: Enemy) => x.uid === e.uid && !x.dead); if (k >= 0) cc.target = k; })} style={{ ...wBox(ex, ey, sz), zIndex: 4, pointerEvents: "auto", cursor: "pointer" }}>
+        <div key={`e${e.uid}`} data-enemy={e.uid} data-noj="1" onPointerDown={() => run((gg: Game) => { const cc = gg.combat; if (!cc) return; const k = cc.enemies.findIndex((x: Enemy) => x.uid === e.uid && !x.dead); if (k >= 0) cc.target = k; })} style={{ ...wBox(ex, ey, sz), zIndex: 4, pointerEvents: "auto", cursor: "pointer", overflow: "visible" }}>
           {on && <div style={{ position: "absolute", inset: "-12%", borderRadius: "50%", border: "2px dashed #ffcc4d", pointerEvents: "none" }} />}
-          <div style={{ position: "absolute", inset: 0, filter: e.stun > 0 ? "brightness(1.5) saturate(.4)" : e.boss ? "drop-shadow(0 0 4px rgba(190,0,0,.8))" : "drop-shadow(0 2px 2px rgba(0,0,0,.7))", animation: (e.wk === "cast" || e.wk === "hex" || e.wk === "spit") && (e.wind ?? 0) > 0 ? "doePulse .4s infinite" : undefined }}>{spr(sprOf(e), "100%")}</div>
+          <div style={{ position: "absolute", inset: e.boss ? "-8% -4% 0" : "-8% -4% 0", transformOrigin: "50% 88%", filter: e.stun > 0 ? "brightness(1.5) saturate(.4)" : e.elite ? "drop-shadow(0 0 6px rgba(200,30,30,.95)) drop-shadow(0 0 10px rgba(255,160,40,.6))" : e.boss ? "drop-shadow(0 0 8px rgba(160,0,0,1)) drop-shadow(0 0 14px rgba(80,0,40,.8))" : "drop-shadow(0 2px 3px rgba(0,0,0,.9))", animation: (e.wk === "cast" || e.wk === "hex" || e.wk === "spit") && (e.wind ?? 0) > 0 ? "doePulse .4s infinite" : (e.wk === "melee" && (e.wind ?? 0) > 0) ? "doeLean 0.45s ease-in-out infinite" : (sprOf(e) === "wraith" || sprOf(e) === "shade" || sprOf(e) === "lich") ? "doeFlicker 2.1s ease-in-out infinite" : "doeBreath 2.4s ease-in-out infinite" }}>{spr(sprOf(e), "100%")}</div>
           <div style={{ position: "absolute", left: "5%", right: "5%", top: "-14%", height: 4, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden", outline: e.elite ? "1px solid #ffcc4d" : undefined }}><div style={{ width: `${(Math.max(0, e.hp) / e.max) * 100}%`, height: "100%", background: e.boss ? "#a855f7" : e.elite ? "#f5a524" : "#e5484d" }} /></div>
           {e.elite && <div data-elite="1" style={{ position: "absolute", left: "-12%", top: "-30%", fontSize: 10, color: "#ffcc4d", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>★</div>}
           {(e.stun > 0 || e.burnT > 0 || e.poisT > 0) && <div style={{ position: "absolute", left: 0, right: 0, bottom: "-30%", textAlign: "center", fontSize: 10, pointerEvents: "none" }}>{e.stun > 0 ? "😵" : ""}{e.burnT > 0 ? "🔥" : ""}{e.poisT > 0 ? "☠️" : ""}</div>}
