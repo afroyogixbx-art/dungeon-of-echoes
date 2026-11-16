@@ -31,7 +31,8 @@ interface Buffs { rage: number; holy: number; evade: number; shield: number; fre
 // companions that fight on the map
 interface Pet { k: string; hp: number; max: number; x: number; y: number; ko: number; cd: number; aT?: number; tx?: number; ty?: number; }
 interface PetT { name: string; icon: string; hpF: number; mult: number; spd: number; reach: number; rate: number; desc: string; }
-interface Inv { uid: number; id: string; ident: boolean; bon: Stats; freed: boolean; }
+interface RolledAff { id: string; pre: boolean; tier: number; stat: StatKey | "mpreg"; v: number; name: string; lo: number; hi: number; }
+interface Inv { uid: number; id: string; ident: boolean; bon: Stats; freed: boolean; ilvl?: number; affs?: RolledAff[]; aname?: string; mpreg?: number; }
 interface LogL { t: string; c: string; ts?: number; }
 interface Fx { id: number; text: string; c: string; at: string; ts: number; }
 interface Full { maxHp: number; maxMp: number; atk: number; def: number; crit: number; dodge: number; ls: number; fire: number; ice: number; holy: number; poison: number; th: number; sp: string[]; curses: string[]; }
@@ -687,41 +688,193 @@ function nounOf(it: ItemT): string {
   const m: Record<Slot, string> = { weapon: NOUN[it.icon] ?? "Sword", armor: "Armor", helmet: "Helm", ring: "Ring", amulet: "Amulet", consumable: "Item" };
   return m[it.slot];
 }
+type AffStat = StatKey | "mpreg";
+type LootSrc = "mob" | "elite" | "chest" | "boss" | "shop";
+interface AffTier { lv: number; lo: number; hi: number; }
+interface AffDef { id: string; kind: "pre" | "suf"; name: string; stat: AffStat; tiers: AffTier[]; slots?: GearSlot[]; w?: number; }
+function itemLevel(f: number, src?: string): number {
+  const b = src === "elite" || src === "chest" ? 2 : src === "boss" ? 4 : 0;
+  return Math.max(1, Math.floor(f) + b);
+}
+const ATK_T: AffTier[] = [{ lv: 1, lo: 1, hi: 3 }, { lv: 5, lo: 3, hi: 6 }, { lv: 10, lo: 6, hi: 10 }, { lv: 18, lo: 10, hi: 15 }, { lv: 28, lo: 15, hi: 22 }, { lv: 40, lo: 22, hi: 30 }, { lv: 55, lo: 30, hi: 40 }];
+const DEF_T: AffTier[] = [{ lv: 1, lo: 1, hi: 3 }, { lv: 5, lo: 3, hi: 6 }, { lv: 10, lo: 6, hi: 10 }, { lv: 18, lo: 10, hi: 15 }, { lv: 28, lo: 15, hi: 22 }, { lv: 40, lo: 22, hi: 30 }, { lv: 55, lo: 30, hi: 40 }];
+const HP_T: AffTier[] = [{ lv: 1, lo: 5, hi: 15 }, { lv: 5, lo: 15, hi: 30 }, { lv: 10, lo: 30, hi: 50 }, { lv: 18, lo: 50, hi: 75 }, { lv: 28, lo: 75, hi: 110 }, { lv: 40, lo: 110, hi: 150 }, { lv: 55, lo: 150, hi: 200 }];
+const MP_T: AffTier[] = [{ lv: 1, lo: 4, hi: 12 }, { lv: 5, lo: 12, hi: 24 }, { lv: 10, lo: 24, hi: 40 }, { lv: 18, lo: 40, hi: 60 }, { lv: 28, lo: 60, hi: 88 }, { lv: 40, lo: 88, hi: 120 }, { lv: 55, lo: 120, hi: 160 }];
+const CRT_T: AffTier[] = [{ lv: 1, lo: 1, hi: 3 }, { lv: 5, lo: 2, hi: 5 }, { lv: 10, lo: 4, hi: 8 }, { lv: 18, lo: 6, hi: 12 }, { lv: 28, lo: 9, hi: 16 }, { lv: 40, lo: 13, hi: 22 }, { lv: 55, lo: 18, hi: 28 }];
+const DOG_T: AffTier[] = [{ lv: 1, lo: 1, hi: 2 }, { lv: 5, lo: 2, hi: 4 }, { lv: 10, lo: 3, hi: 6 }, { lv: 18, lo: 5, hi: 9 }, { lv: 28, lo: 7, hi: 12 }, { lv: 40, lo: 10, hi: 16 }, { lv: 55, lo: 14, hi: 20 }];
+const LS_T: AffTier[] = [{ lv: 1, lo: 1, hi: 2 }, { lv: 5, lo: 2, hi: 3 }, { lv: 10, lo: 3, hi: 5 }, { lv: 18, lo: 5, hi: 8 }, { lv: 28, lo: 7, hi: 11 }, { lv: 40, lo: 10, hi: 14 }, { lv: 55, lo: 13, hi: 18 }];
+const ELE_T: AffTier[] = [{ lv: 1, lo: 1, hi: 3 }, { lv: 5, lo: 3, hi: 6 }, { lv: 10, lo: 6, hi: 10 }, { lv: 18, lo: 10, hi: 15 }, { lv: 28, lo: 15, hi: 22 }, { lv: 40, lo: 22, hi: 30 }, { lv: 55, lo: 30, hi: 40 }];
+const TH_T: AffTier[] = [{ lv: 1, lo: 1, hi: 3 }, { lv: 5, lo: 2, hi: 5 }, { lv: 10, lo: 4, hi: 8 }, { lv: 18, lo: 6, hi: 12 }, { lv: 28, lo: 9, hi: 16 }, { lv: 40, lo: 13, hi: 22 }, { lv: 55, lo: 18, hi: 28 }];
+const MAN_T: AffTier[] = [{ lv: 8, lo: 0.3, hi: 0.5 }, { lv: 16, lo: 0.5, hi: 0.8 }, { lv: 28, lo: 0.8, hi: 1.2 }, { lv: 40, lo: 1.2, hi: 1.6 }];
+const WRM: GearSlot[] = ["weapon", "ring", "amulet"];
+const AH: GearSlot[] = ["armor", "helmet"];
+const WR: GearSlot[] = ["weapon", "ring"];
+const RAM: GearSlot[] = ["ring", "amulet", "helmet"];
+const AFFIXES: AffDef[] = [
+  { id: "p_atk", kind: "pre", name: "Sharp", stat: "atk", tiers: ATK_T, slots: WRM },
+  { id: "p_def", kind: "pre", name: "Sturdy", stat: "def", tiers: DEF_T, slots: AH },
+  { id: "p_hp", kind: "pre", name: "Stout", stat: "hp", tiers: HP_T },
+  { id: "p_mp", kind: "pre", name: "Glowing", stat: "mp", tiers: MP_T },
+  { id: "p_crit", kind: "pre", name: "Lucky", stat: "crit", tiers: CRT_T, slots: WRM },
+  { id: "p_dodge", kind: "pre", name: "Swift", stat: "dodge", tiers: DOG_T },
+  { id: "p_ls", kind: "pre", name: "Cruel", stat: "ls", tiers: LS_T, slots: WR },
+  { id: "p_fire", kind: "pre", name: "Fiery", stat: "fire", tiers: ELE_T, slots: WRM },
+  { id: "p_ice", kind: "pre", name: "Frozen", stat: "ice", tiers: ELE_T, slots: WRM },
+  { id: "p_holy", kind: "pre", name: "Blessed", stat: "holy", tiers: ELE_T, slots: WRM },
+  { id: "p_pois", kind: "pre", name: "Venomous", stat: "poison", tiers: ELE_T, slots: WRM },
+  { id: "p_th", kind: "pre", name: "Barbed", stat: "th", tiers: TH_T, slots: AH },
+  { id: "s_atk", kind: "suf", name: "of the Bear", stat: "atk", tiers: ATK_T, slots: WRM },
+  { id: "s_def", kind: "suf", name: "of the Turtle", stat: "def", tiers: DEF_T, slots: AH },
+  { id: "s_hp", kind: "suf", name: "of the Whale", stat: "hp", tiers: HP_T },
+  { id: "s_mp", kind: "suf", name: "of the Magus", stat: "mp", tiers: MP_T },
+  { id: "s_crit", kind: "suf", name: "of Precision", stat: "crit", tiers: CRT_T, slots: WRM },
+  { id: "s_dodge", kind: "suf", name: "of the Fox", stat: "dodge", tiers: DOG_T },
+  { id: "s_ls", kind: "suf", name: "of Leeching", stat: "ls", tiers: LS_T, slots: WR },
+  { id: "s_fire", kind: "suf", name: "of Flames", stat: "fire", tiers: ELE_T, slots: WRM },
+  { id: "s_ice", kind: "suf", name: "of Frost", stat: "ice", tiers: ELE_T, slots: WRM },
+  { id: "s_holy", kind: "suf", name: "of Light", stat: "holy", tiers: ELE_T, slots: WRM },
+  { id: "s_pois", kind: "suf", name: "of Venom", stat: "poison", tiers: ELE_T, slots: WRM },
+  { id: "s_th", kind: "suf", name: "of Thorns", stat: "th", tiers: TH_T, slots: AH },
+  { id: "s_mana", kind: "suf", name: "of Channeling", stat: "mpreg", tiers: MAN_T, slots: RAM, w: 0.28 },
+];
+const AFF_BY = Object.fromEntries(AFFIXES.map((a: AffDef) => [a.id, a])) as Record<string, AffDef>;
+const RARE_ADJ = ["Grim", "Rune", "Shadow", "Blight", "Storm", "Iron", "Bone", "Dusk", "Blood", "Ash", "Gloom", "Widow", "Fang", "Dire", "Hex", "Oath", "Frost", "Ember", "Void", "Pale"];
+const RARE_NOUN = ["Shroud", "Fang", "Keeper", "Spire", "Coil", "Warden", "Grasp", "Crest", "Requiem", "Nexus", "Brand", "Veil", "Relic", "Howl", "Aegis", "Covenant", "Knell", "Mantle", "Collar", "Edge"];
+function rareName(uid: number, id: string): string {
+  let h = (uid * 2654435761) >>> 0;
+  for (let i = 0; i < id.length; i++) h = (h * 33 + id.charCodeAt(i)) >>> 0;
+  return `${RARE_ADJ[h % RARE_ADJ.length]} ${RARE_NOUN[(h >>> 5) % RARE_NOUN.length]}`;
+}
+function affixLegal(def: AffDef, slot: GearSlot, ilvl: number, minT: number): AffTier[] {
+  if (def.slots && !def.slots.includes(slot)) return [];
+  return def.tiers.filter((t: AffTier, i: number) => t.lv <= ilvl && i + 1 >= minT);
+}
+function pickAffTier(legal: AffTier[]): AffTier {
+  // weight toward the highest legal tier, but still allow lower ones
+  const w = legal.map((_: AffTier, i: number) => Math.pow(1.7, i));
+  let r = Math.random() * w.reduce((a: number, b: number) => a + b, 0);
+  for (let i = 0; i < legal.length; i++) { r -= w[i]; if (r <= 0) return legal[i]; }
+  return legal[legal.length - 1];
+}
+function qualityScale(it: ItemT): number {
+  // Rares and epics roll more affixes than the old system, so their per-affix ranges
+  // are scaled down so total affix power stays near (or only slightly above) the old curve.
+  if (it.set) return 1;
+  return [1, 1, 0.55, 0.7, 1][it.r] ?? 1;
+}
+function scaleBand(lo: number, hi: number, scale: number): [number, number] {
+  if (scale === 1) return [lo, hi];
+  return [Math.max(1, Math.round(lo * scale)), Math.max(1, Math.round(hi * scale))];
+}
+function rollAffVal(t: AffTier, stat: AffStat, scale: number): number {
+  if (stat === "mpreg") {
+    const v = t.lo + Math.random() * (t.hi - t.lo);
+    return Math.round(v * 10) / 10;
+  }
+  const [lo, hi] = scaleBand(t.lo, t.hi, scale);
+  return lo + rnd(Math.max(1, hi - lo + 1));
+}
+function affixRange(k: AffStat, ilvl: number, minT = 1): [number, number] {
+  const defs = AFFIXES.filter((d: AffDef) => d.stat === k);
+  let lo = 0, hi = 0;
+  for (const d of defs) {
+    const legal = d.tiers.filter((t: AffTier, i: number) => t.lv <= ilvl && i + 1 >= minT);
+    if (!legal.length) continue;
+    const top = legal[legal.length - 1];
+    if (lo === 0 && hi === 0) { lo = top.lo; hi = top.hi; }
+    else { lo = Math.min(lo, top.lo); hi = Math.max(hi, top.hi); }
+  }
+  if (hi === 0) return [1, 1];
+  return [lo, hi];
+}
+function rollAffixes(it: ItemT, ilvl: number): { bon: Stats; affs: RolledAff[]; mpreg: number } {
+  const empty = { bon: {} as Stats, affs: [] as RolledAff[], mpreg: 0 };
+  if (it.slot === "consumable") return empty;
+  const slot = it.slot as GearSlot;
+  // Unique/legendary: keep the designed unique stats, no random affixes
+  if (it.r >= 4 && !it.set) return empty;
+  let n = 0, maxPre = 1, maxSuf = 1, minT = 1;
+  if (it.set) { n = 1 + rnd(2); maxPre = 1; maxSuf = 1; }
+  else if (it.r === 0) n = 0;
+  else if (it.r === 1) { n = 1 + rnd(2); maxPre = 1; maxSuf = 1; }
+  else if (it.r === 2) { n = 3 + rnd(2); maxPre = 2; maxSuf = 2; }
+  else { n = 4 + rnd(2); maxPre = 3; maxSuf = 3; minT = 2; }
+  if (n <= 0) return empty;
+  const used = new Set<string>();
+  const affs: RolledAff[] = [];
+  let nPre = 0, nSuf = 0;
+  for (let i = 0; i < n; i++) {
+    const prefer: "pre" | "suf" | "any" = (nPre >= maxPre) ? "suf" : (nSuf >= maxSuf) ? "pre" : (i === 0 && it.r >= 2 ? (Math.random() < 0.5 ? "pre" : "suf") : "any");
+    const pool = AFFIXES.filter((d: AffDef) => {
+      if (used.has(d.stat)) return false;
+      if (prefer !== "any" && d.kind !== prefer) return false;
+      return affixLegal(d, slot, ilvl, d.stat === "mpreg" ? 1 : minT).length > 0;
+    });
+    if (pool.length === 0) {
+      const any = AFFIXES.filter((d: AffDef) => !used.has(d.stat) && affixLegal(d, slot, ilvl, 1).length > 0 && (nPre < maxPre || d.kind !== "pre") && (nSuf < maxSuf || d.kind !== "suf"));
+      if (any.length === 0) break;
+      pool.push(...any);
+    }
+    const w = pool.map((d: AffDef) => d.w ?? 1);
+    let r = Math.random() * w.reduce((a: number, b: number) => a + b, 0);
+    let def = pool[pool.length - 1];
+    for (let k = 0; k < pool.length; k++) { r -= w[k]; if (r <= 0) { def = pool[k]; break; } }
+    let legal = affixLegal(def, slot, ilvl, def.stat === "mpreg" ? 1 : minT);
+    if (legal.length === 0) legal = affixLegal(def, slot, ilvl, 1);
+    if (legal.length === 0) continue;
+    const t = pickAffTier(legal);
+    const scale = def.stat === "mpreg" ? 1 : qualityScale(it);
+    const v = rollAffVal(t, def.stat, scale);
+    const [lo, hi] = def.stat === "mpreg" ? [t.lo, t.hi] : scaleBand(t.lo, t.hi, scale);
+    const ti = def.tiers.indexOf(t) + 1;
+    affs.push({ id: def.id, pre: def.kind === "pre", tier: ti, stat: def.stat, v, name: def.name, lo, hi });
+    used.add(def.stat);
+    if (def.kind === "pre") nPre++; else nSuf++;
+  }
+  const bon: Stats = {};
+  let mpreg = 0;
+  for (const a of affs) {
+    if (a.stat === "mpreg") mpreg += a.v;
+    else bon[a.stat as StatKey] = (bon[a.stat as StatKey] ?? 0) + a.v;
+  }
+  return { bon, affs, mpreg };
+}
 function affix(b: Stats): string {
   const e: [StatKey, string][] = [["fire", "of Flames"], ["ice", "of Frost"], ["holy", "of Light"], ["poison", "of Venom"]];
   let best = "", bv = 0;
   for (const [k, s] of e) { const v = b[k] ?? 0; if (v > bv) { bv = v; best = s; } }
   return best;
 }
-function instName(inv: Inv): string { const it = IT[inv.id]; if (!inv.ident) return `Unidentified ${nounOf(it)} ???`; const a = affix(inv.bon); return a ? `${it.name} ${a}` : it.name; }
+function instName(inv: Inv): string {
+  const it = IT[inv.id];
+  if (!inv.ident) return `Unidentified ${nounOf(it)} ???`;
+  if (inv.aname) return inv.aname;
+  const affs = inv.affs ?? [];
+  const pre = affs.find((a: RolledAff) => a.pre);
+  const suf = affs.find((a: RolledAff) => !a.pre);
+  if (pre || suf) return [pre?.name, it.name, suf?.name].filter(Boolean).join(" ");
+  const a = affix(inv.bon);
+  return a ? `${it.name} ${a}` : it.name;
+}
 function instIcon(inv: Inv): string { const it = IT[inv.id]; return inv.ident || it.slot === "consumable" ? it.icon : SLOT_ICON[it.slot as GearSlot]; }
 function priceOf(inv: Inv): number { return Math.round(IT[inv.id].price * (1 + 0.15 * Object.keys(inv.bon).length)); }
 function sellOf(inv: Inv): number { return inv.ident ? Math.max(1, Math.floor(priceOf(inv) * 0.4)) : 12; }
 function idFee(inv: Inv, f: number): number { return Math.round(IDFEE[IT[inv.id].r] * (1 + 0.1 * f)); }
 function locked(inv: Inv): boolean { return !!IT[inv.id].cursed && !inv.freed; }
-// random affix base values (per unit of floor/rarity scaling); "th" = thorns % reflected
-const UNIT: Record<StatKey, number> = { hp: 5, mp: 4, atk: 1, def: 1, crit: 1.2, dodge: 0.8, ls: 0.6, fire: 1, ice: 1, holy: 1, poison: 1, th: 1.2 };
-function affixRange(k: StatKey, f: number, r: number): [number, number] { const b = UNIT[k] * (1 + tierOf(f) * 0.5) * (1 + r * 0.3); return [Math.max(1, Math.round(b * 0.6)), Math.max(1, Math.round(b * 1.4))]; }
-const NEGOK: StatKey[] = ["hp", "mp", "atk", "def", "crit", "dodge"];
-function rollBonus(it: ItemT, f: number): Stats {
-  const out: Stats = {};
-  if (it.slot === "consumable") return out;
-  const n = [rnd(2), 1 + rnd(2), 1 + rnd(2), 2 + rnd(2), 2 + rnd(2)][it.r];
-  const keys = shuffle(Object.keys(UNIT) as StatKey[]);
-  for (let i = 0; i < n; i++) {
-    const k = keys[i];
-    let v = Math.max(1, Math.round(UNIT[k] * (1 + tierOf(f) * 0.5) * (1 + it.r * 0.3) * (0.6 + Math.random() * 0.8)));
-    if (NEGOK.includes(k) && Math.random() < (it.cursed ? 0.5 : 0.18)) v = -Math.max(1, Math.round(v * 0.8));
-    out[k] = v;
-  }
-  return out;
-}
-function makeInst(id: string, f: number, roll: boolean): Inv {
+
+function makeInst(id: string, f: number, roll: boolean, src?: string): Inv {
   const it = IT[id];
   const hideP = it.cursed ? 0.9 : HIDE[it.r];
-  const ident = !roll || it.slot === "consumable" || Math.random() >= hideP;
-  return { uid: UID++, id, ident, bon: roll ? rollBonus(it, f) : {}, freed: false };
+  const ident = src === "shop" || !roll || it.slot === "consumable" || Math.random() >= hideP;
+  const ilvl = itemLevel(f, src);
+  if (!roll || it.slot === "consumable" || (it.r >= 4 && !it.set)) {
+    return { uid: UID++, id, ident, bon: {}, freed: false, ilvl };
+  }
+  const { bon, affs, mpreg } = rollAffixes(it, ilvl);
+  const aname = it.r >= 2 && !it.set && affs.length > 0 ? rareName(UID, it.id) : undefined;
+  return { uid: UID++, id, ident, bon, freed: false, ilvl, affs: affs.length ? affs : undefined, mpreg: mpreg || undefined, aname };
 }
+
 // limited shop stock: gear is one-of-a-kind, common consumables 3, uncommon 2, rarer ones 1
 function stockOf(inv: Inv): number { const it = IT[inv.id]; return it.slot !== "consumable" || it.r >= 3 ? 1 : it.r <= 1 ? 3 : 2; }
 // shop premium (Epic/Legendary) odds scale with floor/depth: chance of a 1st premium slot,
@@ -851,14 +1004,14 @@ function lootRoll(g: Game, src: string): Inv[] {
   const sc = g.perks.includes("scavenger") ? 1.2 : 1;
   const f = g.floor;
   if (src === "boss") {
-    for (let k = 0; k < 2; k++) out.push(makeInst(rollItem(f, 3, g.cls, "gear"), f, true));
-    out.push(makeInst("c_ident", f, false));
-    if (Math.random() < L.p2) out.push(makeInst(rollItem(f, 2, g.cls, "any"), f, true));
+    for (let k = 0; k < 2; k++) out.push(makeInst(rollItem(f, 3, g.cls, "gear"), f, true, "boss"));
+    out.push(makeInst("c_ident", f, false, "boss"));
+    if (Math.random() < L.p2) out.push(makeInst(rollItem(f, 2, g.cls, "any"), f, true, "boss"));
     return out;
   }
   const minR = src === "chest" ? (f >= 5 ? 1 : 0) : L.minR;
-  if (Math.random() < Math.min(0.95, L.p * sc)) out.push(makeInst(rollItem(f, minR, g.cls, "any"), f, true));
-  if (L.p2 > 0 && Math.random() < L.p2 * sc) out.push(makeInst(rollItem(f, 0, g.cls, src === "chest" ? "gear" : "any"), f, true));
+  if (Math.random() < Math.min(0.95, L.p * sc)) out.push(makeInst(rollItem(f, minR, g.cls, "any"), f, true, src));
+  if (L.p2 > 0 && Math.random() < L.p2 * sc) out.push(makeInst(rollItem(f, 0, g.cls, src === "chest" ? "gear" : "any"), f, true, src));
   return out;
 }
 function rollItem(f: number, minR: number, cls: ClassId, kind: "any" | "gear" | "cons", maxR = 4): string {
@@ -968,14 +1121,14 @@ function genFloor(g: Game): void {
     if (s) {
       map[s.y][s.x] = 4;
       const cons = shuffle(ITEMS.filter((i: ItemT) => i.slot === "consumable" && i.r <= 2 && i.minF <= tierOf(g.floor))).slice(0, 5);
-      for (const c of cons) g.shop.push(makeInst(c.id, g.floor, false));
+      for (const c of cons) g.shop.push(makeInst(c.id, g.floor, false, "shop"));
       // regular wares top out at Rare; Epic/Legendary only come from the capped premium rolls below
-      for (let k = 0; k < 4; k++) { const id = rollItem(g.floor, k === 0 ? 2 : 1, g.cls, "gear", 2); if (!IT[id].cursed) { const inv = makeInst(id, g.floor, true); inv.ident = true; g.shop.push(inv); } }
+      for (let k = 0; k < 4; k++) { const id = rollItem(g.floor, k === 0 ? 2 : 1, g.cls, "gear", 2); if (!IT[id].cursed) { const inv = makeInst(id, g.floor, true, "shop"); inv.ident = true; g.shop.push(inv); } }
       const pc = premiumChance(g.floor), taken: string[] = [];
       for (let k = 0; k < SHOP_PREMIUM_MAX && Math.random() < pc; k++) {
         const id = rollPremium(g.floor, g.cls, taken); if (!id) break;
         taken.push(id);
-        const inv = makeInst(id, g.floor, IT[id].slot !== "consumable"); inv.ident = true; g.shop.push(inv);
+        const inv = makeInst(id, g.floor, IT[id].slot !== "consumable", "shop"); inv.ident = true; g.shop.push(inv);
       }
       g.stock = g.shop.map(stockOf);
     }
@@ -2778,6 +2931,7 @@ function gearManaRegen(g: Game): number {
   for (const k of GEAR) {
     const it = g.eq[k]; if (!it) continue;
     const t = IT[it.id]; if (t && t.mpreg) r += t.mpreg;
+    if (it.mpreg) r += it.mpreg;
   }
   return r;
 }
@@ -2821,7 +2975,7 @@ const HELP: [string, string][] = [
   ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
   ["✨ Abilities", "Each class starts with only a basic attack. Class abilities unlock as you level: the first at level 3, then 6, 9 and (if a class has a fourth) 12. Locked buttons show a lock and the required level, and a banner announces “New ability unlocked” when one opens. Warriors learn Shield Bash, a frontal-cone Cleave, Battle Cry, then Smash (a circular shockwave). Clerics learn Heal, Smite, Holy Shield, then the same Smash. Mage, Rogue and Ranger keep their three class abilities. Abilities cost MP and have cooldowns in seconds — each button shows a sweep and the time left. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
-  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls random affixes (✦ lines: crit, lifesteal, thorns, fire/ice/holy/poison, HP, DEF…), larger on deeper floors and rarer items; hover/long-press an affix to see its range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag."],
+  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its name, roll, and range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
   ["💰 Merchant", "Buy potions, scrolls and gear, sell loot, identify items, and lift curses. Merchants appear on even floors."],
@@ -3318,7 +3472,32 @@ function saveRun(g: Game): boolean {
 function rawRun(): string | null { return kvGet(RUN_KEY) ?? MEMRUN; }
 function isObj(x: unknown): x is Record<string, unknown> { return typeof x === "object" && x !== null && !Array.isArray(x); }
 function okInv(i: unknown): boolean { if (!isObj(i)) return false; const id = i.id; return typeof id === "string" && !!IT[id] && typeof i.uid === "number"; }
-function normInv(i: Inv): Inv { return { uid: i.uid, id: i.id, ident: i.ident !== false, bon: isObj(i.bon) ? (i.bon as Stats) : {}, freed: i.freed === true }; }
+function estIlvl(i: Inv): number {
+  const it = IT[i.id];
+  if (typeof i.ilvl === "number" && isFinite(i.ilvl) && i.ilvl >= 1) return Math.floor(i.ilvl);
+  const byTier = ((it?.minF ?? 1) * 2) - 1;
+  const byRar = [1, 3, 6, 10, 14][it?.r ?? 0] ?? 1;
+  return Math.max(1, byTier, byRar);
+}
+function normAff(a: unknown): RolledAff | null {
+  if (!isObj(a)) return null;
+  const id = typeof a.id === "string" ? a.id : "";
+  const stat = a.stat;
+  const okStat = stat === "mpreg" || (typeof stat === "string" && stat in STAT_LABEL);
+  if (!id || !okStat) return null;
+  const v = Number(a.v), lo = Number(a.lo), hi = Number(a.hi), tier = Number(a.tier);
+  if (![v, lo, hi, tier].every((n: number) => isFinite(n))) return null;
+  return { id, pre: a.pre === true, tier: Math.max(1, Math.floor(tier)), stat: stat as RolledAff["stat"], v, name: typeof a.name === "string" ? a.name : id, lo, hi };
+}
+function normInv(i: Inv): Inv {
+  const affs = Array.isArray(i.affs) ? (i.affs as unknown[]).map(normAff).filter((a: RolledAff | null): a is RolledAff => !!a) : undefined;
+  const mpreg = typeof i.mpreg === "number" && isFinite(i.mpreg) ? i.mpreg : (affs ? affs.reduce((s: number, a: RolledAff) => s + (a.stat === "mpreg" ? a.v : 0), 0) : 0);
+  return {
+    uid: i.uid, id: i.id, ident: i.ident !== false, bon: isObj(i.bon) ? (i.bon as Stats) : {}, freed: i.freed === true,
+    ilvl: estIlvl(i), affs: affs && affs.length ? affs : undefined, aname: typeof i.aname === "string" && i.aname ? i.aname : undefined,
+    mpreg: mpreg || undefined,
+  };
+}
 function validRun(x: unknown): Game | null {
   if (!isObj(x)) return null;
   const g = x as unknown as Game;
@@ -3696,9 +3875,15 @@ export default function DungeonOfEchoes() {
     if (keys.length === 0) return null;
     return <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = ss[k] ?? 0; return <span key={k} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600 }}>{v >= 0 ? "+" : ""}{v} {STAT_LABEL[k]}</span>; })}</div>;
   };
-  const affixChips = (b: Stats, r: number, f: number): ReactNode => {
-    const keys = Object.keys(b) as StatKey[]; if (keys.length === 0) return null;
-    return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = b[k] ?? 0; const [lo, hi] = affixRange(k, f, r); return <span key={k} title={`Random affix: ${STAT_LABEL[k]} rolls about ${lo}–${hi} for a ${RAR[r]} item on floor ${f} (scales with floor and rarity)`} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>✦ {v >= 0 ? "+" : ""}{v} {STAT_LABEL[k]}</span>; })}</div>;
+  const affixChips = (inv: Inv, f: number): ReactNode => {
+    const ilvl = inv.ilvl ?? f;
+    const labelOf = (stat: RolledAff["stat"]): string => stat === "mpreg" ? "Mana regen" : STAT_LABEL[stat];
+    const fmt = (stat: RolledAff["stat"], v: number): string => stat === "mpreg" ? `${v >= 0 ? "+" : ""}${v}/s` : `${v >= 0 ? "+" : ""}${v}`;
+    if (inv.affs && inv.affs.length) {
+      return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{inv.affs.map((a: RolledAff) => <span key={a.id} title={`T${a.tier} ${a.name}: ${labelOf(a.stat)} rolls ${a.lo}–${a.hi} (iLvl ${ilvl})`} style={{ color: a.v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>✦ {a.name}: {fmt(a.stat, a.v)} {labelOf(a.stat)}</span>)}</div>;
+    }
+    const keys = Object.keys(inv.bon) as StatKey[]; if (keys.length === 0) return null;
+    return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = inv.bon[k] ?? 0; const [lo, hi] = affixRange(k, ilvl); return <span key={k} title={`Random affix: ${STAT_LABEL[k]} rolls about ${lo}–${hi} at iLvl ${ilvl}`} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>✦ {v >= 0 ? "+" : ""}{v} {STAT_LABEL[k]}</span>; })}</div>;
   };
   const setLines = (sid: string, n: number): ReactNode => {
     const S = SETS[sid]; const parts = S.desc.split(" · ");
@@ -3740,10 +3925,11 @@ export default function DungeonOfEchoes() {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         <div style={{ fontSize: 15, color: RCOL[it.r], fontWeight: 600 }}>{it.icon} {instName(inv)}</div>
-        <div style={small}>{RAR[it.r]} {SLOT_NAME[it.slot]} · {clsLabel(it)}{it.cursed ? " · " : ""}{it.cursed && <span style={{ color: t.text.danger, fontWeight: 700 }}>{inv.freed ? "Cursed (lifted)" : "Cursed"}</span>}</div>
+        <div style={small}>{RAR[it.r]} {SLOT_NAME[it.slot]} · {clsLabel(it)} · iLvl {inv.ilvl ?? "?"}{inv.aname ? ` · ${it.name}` : ""}{it.cursed ? " · " : ""}{it.cursed && <span style={{ color: t.text.danger, fontWeight: 700 }}>{inv.freed ? "Cursed (lifted)" : "Cursed"}</span>}</div>
         {statChips(it.st)}
-        {Object.keys(inv.bon).length > 0 && <div style={{ fontSize: 11, color: t.text.tertiary }}>Random affixes (rolled on this drop):</div>}
-        {affixChips(inv.bon, it.r, g.floor)}
+        {((inv.affs && inv.affs.length > 0) || Object.keys(inv.bon).length > 0 || inv.mpreg) && <div style={{ fontSize: 11, color: t.text.tertiary }}>Affixes (rolled at iLvl {inv.ilvl ?? "?"}):</div>}
+        {affixChips(inv, g.floor)}
+        {inv.mpreg && !(inv.affs && inv.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div style={{ fontSize: 13, color: t.text.success, fontWeight: 600 }}>✦ +{inv.mpreg}/s Mana regen</div>}
         {it.set && setLines(it.set, sc)}
         {it.desc && <div style={{ fontSize: 13, color: it.cursed ? t.text.danger : it.r === 4 ? RCOL[4] : t.text.primary }}>{it.sp ? "★ " : ""}{it.desc}</div>}
         {it.cls && !it.cls.includes(g.cls) && <div style={{ fontSize: 12, color: t.text.danger }}>Your class can't equip this (sell it).</div>}
@@ -4464,7 +4650,7 @@ export default function DungeonOfEchoes() {
               if (gg.inv.length >= MAXINV) { log(gg, "Your bag is full."); return; }
               gg.gold -= p;
               st[i] = st[i] - 1;
-              addItem(gg, consumable ? makeInst(inv.id, gg.floor, false) : { ...inv, bon: { ...inv.bon }, uid: UID++ });
+              addItem(gg, consumable ? makeInst(inv.id, gg.floor, false, "shop") : { ...inv, bon: { ...inv.bon }, affs: inv.affs ? inv.affs.map((a: RolledAff) => ({ ...a })) : undefined, uid: UID++ });
               log(gg, `Bought ${instName(inv)}.${st[i] <= 0 ? " (sold out)" : ""}`, "loot");
             }), { disabled: g.gold < priceOf(inv), tone: "accent" })}
           </div>
