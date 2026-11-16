@@ -884,7 +884,7 @@ function genFloor(g: Game): void {
     map[y][x] = g.biome === "warren" ? 5 : 6; k++;
   }
   const pool = poolFor(g.floor, g.biome);
-  const nm = Math.min(18, 6 + tierOf(g.floor) + Math.floor(Math.max(0, g.floor - 2) / 3));
+  const nm = monCount(g.floor);
   for (let k = 0; k < nm; k++) { const s = spot(1, rooms.length); if (s) g.mons.push({ id: UID++, x: s.x, y: s.y, t: pick(pool).id, boss: false, awake: false, stun: 0, el: g.floor >= 3 && Math.random() < ELITE_P }); }
   g.usedUndying = false; g.usedShadow = false; g.usedPhoenix = false; g.usedRes = false;
 }
@@ -1119,11 +1119,12 @@ function newCombat(): Combat {
   return { enemies: [], target: 0, monId: -1, turn: 0, boss: false, phase: 1, charging: false, itemOpen: false, proj: [], tele: [], shots: [], grace: 0, bossT: 3, tick: 0, v2: true, calm: 0 };
 }
 // real-time + difficulty scaling, applied once per enemy
-function rtScale(e: Enemy): void {
+function rtScale(e: Enemy, f: number): void {
   if (e.rt) return;
   e.rt = true;
-  const m = (e.boss ? 1.8 : 1.5) * EHP;
-  e.max = Math.round(e.max * m); e.hp = Math.round(e.hp * m); e.atk = Math.max(1, Math.round(e.atk * EATK));
+  const d = floorDiff(f);
+  const m = (e.boss ? 1.8 : 1.5) * EHP * d;
+  e.max = Math.round(e.max * m); e.hp = Math.round(e.hp * m); e.atk = Math.max(1, Math.round(e.atk * EATK * d));
 }
 // a map monster gains aggro: it joins the (possibly new) encounter right where it stands
 function engage(g: Game, m: MapMon): void {
@@ -1131,7 +1132,7 @@ function engage(g: Game, m: MapMon): void {
   if (!g.combat) { g.combat = newCombat(); g.buffs = freshBuffs(); }
   const c = g.combat;
   const e = m.boss ? makeBoss(g.floor) : makeEnemy(MON[m.t], g.floor);
-  rtScale(e);
+  rtScale(e, g.floor);
   // elites: tougher, better loot odds, same gold
   if (m.el && !m.boss) { e.elite = true; e.name = `Elite ${e.name}`; e.max = Math.round(e.max * 1.5); e.hp = e.max; e.atk = Math.round(e.atk * 1.15); e.xp = Math.round(e.xp * 1.5); }
   if (typeof m.hp === "number" && typeof m.max === "number" && isFinite(m.hp) && m.max > 0) { e.max = m.max; e.hp = Math.max(1, Math.min(m.max, m.hp)); }
@@ -1220,9 +1221,34 @@ function bossPhase(g: Game, e: Enemy): void {
 // ---------- REAL-TIME COMBAT ----------
 // Combat happens on the exploration map, in tile units. U converts the old arena units (26 u/s ≈ 3.25 tiles/s).
 const U = 8;
-// ---- difficulty knobs (modest bump, see README) ----
+// ---- difficulty knobs ----
 const EHP = 1.12;        // enemy HP ×1.12 (on top of the real-time ×1.5, bosses ×1.8)
 const EATK = 1.1;        // enemy damage ×1.1
+// Floor 1 stays close to the original; the +20% damage / +50% pack bump
+// is fully in by floor 4, then HP/ATK compound 7%/floor and packs grow 4%/floor.
+const DIFF_DMG = 0.20;
+const DIFF_PACK = 0.50;
+const DIFF_COMPOUND = 1.07;
+const DIFF_DENSITY = 1.04;
+const MON_CAP = 28;
+function earlyRamp(f: number, extra: number): number {
+  const start = 1 + 0.15 * extra;
+  if (f <= 1) return start;
+  if (f >= 4) return 1 + extra;
+  return start + ((1 + extra) - start) * (f - 1) / 3;
+}
+function floorDiff(f: number): number {
+  const early = earlyRamp(f, DIFF_DMG);
+  return f <= 4 ? early : (1 + DIFF_DMG) * Math.pow(DIFF_COMPOUND, f - 4);
+}
+function packMult(f: number): number {
+  const early = earlyRamp(f, DIFF_PACK);
+  return f <= 4 ? early : (1 + DIFF_PACK) * Math.pow(DIFF_DENSITY, f - 4);
+}
+function monCount(f: number): number {
+  const base = 6 + tierOf(f) + Math.floor(Math.max(0, f - 2) / 3);
+  return Math.min(MON_CAP, Math.max(1, Math.round(base * packMult(f))));
+}
 const WIND = 0.9;        // telegraph / wind-up durations ×0.9
 const WAKE = 4.5;        // sleeping monsters notice you (was 4)
 const AGGRO = 5.5;       // awake monsters with line of sight join the fight
