@@ -330,11 +330,11 @@ const SETS: Record<string, SetT> = {
   ashen: { name: "Ashen Covenant", n: 3, b2: { mp: 30, fire: 4 }, bf: { atk: 6 }, sp: "flameHit", desc: "2 pc: +30 MP, +4 fire · 3 pc: +6 ATK and attacks can ignite foes" },
 };
 const PETS: Record<string, PetT> = {
-  wolf: { name: "Wolf", icon: "🐺", hpF: 0.5, mult: 0.45, spd: 4.4, reach: 0.95, rate: 1.5, desc: "bites hard" },
-  hawk: { name: "Hawk", icon: "🦅", hpF: 0.32, mult: 0.4, spd: 5.2, reach: 1.05, rate: 1.4, desc: "swift talons" },
-  owl: { name: "Spirit Owl", icon: "🦉", hpF: 0.3, mult: 0.32, spd: 5, reach: 1.0, rate: 1.3, desc: "strikes can stun" },
-  imp: { name: "Fire Imp", icon: "😈", hpF: 0.32, mult: 0.36, spd: 4, reach: 3.4, rate: 1.9, desc: "fire bolts from range, burns" },
-  hound: { name: "Bone Hound", icon: "🐕", hpF: 0.8, mult: 0.38, spd: 4.2, reach: 0.95, rate: 1.6, desc: "sturdy, draws attacks" },
+  wolf: { name: "Wolf", icon: "🐺", hpF: 0.1, mult: 0.45, spd: 4.4, reach: 0.95, rate: 1.5, desc: "bites hard" },
+  hawk: { name: "Hawk", icon: "🦅", hpF: 0.064, mult: 0.4, spd: 5.2, reach: 1.05, rate: 1.4, desc: "swift talons" },
+  owl: { name: "Spirit Owl", icon: "🦉", hpF: 0.06, mult: 0.32, spd: 5, reach: 1.0, rate: 1.3, desc: "strikes can stun" },
+  imp: { name: "Fire Imp", icon: "😈", hpF: 0.064, mult: 0.36, spd: 4, reach: 3.4, rate: 1.9, desc: "fire bolts from range, burns" },
+  hound: { name: "Bone Hound", icon: "🐕", hpF: 0.16, mult: 0.38, spd: 4.2, reach: 0.95, rate: 1.6, desc: "sturdy, draws attacks" },
 };
 
 const CLS: Record<ClassId, ClassT> = {
