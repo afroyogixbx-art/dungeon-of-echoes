@@ -49,7 +49,7 @@ interface Game {
   usedUndying: boolean; usedShadow: boolean; usedPhoenix: boolean; shop: Inv[]; stock?: number[];
   offers: Perk[]; kills: number; sel: number; fx: Fx[]; turns: number; tokensEarned: number; stains?: number[]; rem?: string[]; hurtTs?: number; usedRes?: boolean; biome?: Biome; bannerTs?: number; qs?: string;
   pets?: Pet[]; cpet?: string; startPick?: boolean; vaultOffer?: boolean; vaultThen?: Screen; vaultSel?: number;
-  skills?: string[]; skillPts?: number;
+  skills?: string[]; skillPts?: number; slots?: (string | null)[]; skillVer?: number;
 }
 
 const W = 32, H = 32, R = 4, MAXINV = 24, STORY_END = 10;
@@ -350,7 +350,6 @@ const CLS: Record<ClassId, ClassT> = {
       { id: "cry", name: "Battle Cry", icon: "📣", mp: 10, cd: 12, desc: "+50% ATK for 8 s, heal 15%." },
       { id: "smash", name: "Smash", icon: "💥", mp: 10, cd: 12, desc: "120% damage in a circle around you, with a shockwave." },
       { id: "lslam", name: "Leaping Slam", icon: "⬇️", mp: 16, cd: 10, desc: "Leap up to 5 tiles; 140% AoE (r 2.0) and a 1.2 s stun on landing." },
-      { id: "march", name: "War March", icon: "🥁", mp: 12, cd: 90, desc: "+35% move speed for 60 s." },
       { id: "whirl", name: "Whirlwind", icon: "🌀", mp: 18, cd: 12, desc: "Spin for 2 s: 55% damage every 0.4 s in a 2.2-tile radius.", tree: true },
       { id: "gpull", name: "Ground Pull", icon: "🧲", mp: 14, cd: 12, desc: "Yank enemies within 5 tiles in toward you.", tree: true },
       { id: "reflect", name: "Shield Reflect", icon: "🪞", mp: 12, cd: 16, desc: "Reflect enemy projectiles for 4 s.", tree: true },
@@ -364,7 +363,6 @@ const CLS: Record<ClassId, ClassT> = {
       { id: "arcane", name: "Arcane Shield", icon: "🔮", mp: 10, cd: 14, desc: "Absorb shield worth 40% of max MP." },
       { id: "blink", name: "Blink", icon: "✨", mp: 10, cd: 8, desc: "Teleport 4 tiles in your move direction and drop distant aggro." },
       { id: "chain", name: "Chain Lightning", icon: "⚡", mp: 16, cd: 6, desc: "Hit up to 4 enemies; 115% then 75% per bounce." },
-      { id: "haste", name: "Haste", icon: "⏳", mp: 12, cd: 90, desc: "+35% move speed for 60 s." },
       { id: "meteor", name: "Meteor", icon: "☄️", mp: 22, cd: 14, desc: "After 0.9 s, 220% impact (r 2.4) then a 3 s burn patch.", tree: true },
       { id: "iwall", name: "Ice Wall", icon: "🧊", mp: 16, cd: 16, desc: "Raise a blocking barrier in front of you for 5 s.", tree: true },
       { id: "gwell", name: "Gravity Well", icon: "🌌", mp: 16, cd: 14, desc: "4 s pull and 50% slow in a 2.8-tile well.", tree: true },
@@ -377,7 +375,6 @@ const CLS: Record<ClassId, ClassT> = {
       { id: "poison", name: "Poison Blade", icon: "🧪", mp: 8, cd: 6, desc: "100% damage + strong poison for 6 s." },
       { id: "evade", name: "Evade", icon: "💨", mp: 6, cd: 10, desc: "Automatically dodge the next 2 attacks." },
       { id: "sstep", name: "Shadow Step", icon: "👤", mp: 12, cd: 9, desc: "Teleport behind the target; next hit within 3 s is a crit." },
-      { id: "sprint", name: "Sprint", icon: "🏃", mp: 12, cd: 90, desc: "+35% move speed for 60 s." },
       { id: "fan", name: "Fan of Knives", icon: "🗡️", mp: 14, cd: 9, desc: "85% radial burst (r 3.2) that applies poison for 3 s.", tree: true },
       { id: "smoke", name: "Smoke Bomb", icon: "☁️", mp: 12, cd: 14, desc: "Foes in 2.8 tiles miss often for 5 s; you slip into stealth.", tree: true },
       { id: "caltr", name: "Caltrops", icon: "✴️", mp: 10, cd: 12, desc: "Drop a 5 s field (r 2.2) that slows enemies 50%.", tree: true },
@@ -391,7 +388,6 @@ const CLS: Record<ClassId, ClassT> = {
       { id: "holy", name: "Holy Shield", icon: "🔆", mp: 12, cd: 14, desc: "Halve all damage taken for 6 s." },
       { id: "smash", name: "Smash", icon: "💥", mp: 10, cd: 12, desc: "120% damage in a circle around you, with a shockwave." },
       { id: "sanct", name: "Sanctuary", icon: "🕊️", mp: 20, cd: 18, desc: "A 6 s circle (r 2.8) that heals you and pets and slows foes inside." },
-      { id: "swift", name: "Blessed Swiftness", icon: "🌟", mp: 12, cd: 90, desc: "+35% move speed for 60 s." },
       { id: "hnova", name: "Holy Nova", icon: "☀️", mp: 16, cd: 10, desc: "100% holy damage in 3 tiles and heal 12% HP for you and pets.", tree: true },
       { id: "chains", name: "Divine Chains", icon: "⛓️", mp: 14, cd: 14, desc: "Root up to 4 enemies within 4.5 tiles for 2.5 s.", tree: true },
       { id: "drain", name: "Life Drain", icon: "🩸", mp: 12, cd: 8, desc: "100% damage; heal for 60% of the damage dealt.", tree: true },
@@ -404,7 +400,6 @@ const CLS: Record<ClassId, ClassT> = {
       { id: "trap", name: "Snare Trap", icon: "⛓️", mp: 8, cd: 10, desc: "Stun target for 3 s + bleed for 4.5 s." },
       { id: "frenzy", name: "Call of the Wild", icon: "📯", mp: 10, cd: 12, desc: "150% shot; pets deal triple for 8 s." },
       { id: "xtrap", name: "Explosive Trap", icon: "💣", mp: 12, cd: 8, desc: "Place a trap (max 2): roots the first foe 2 s, then explodes (120%, r 2)." },
-      { id: "wstr", name: "Wind Stride", icon: "🍃", mp: 12, cd: 90, desc: "+35% move speed for 60 s." },
       { id: "rain", name: "Rain of Arrows", icon: "🏹", mp: 16, cd: 12, desc: "4 ticks of 45% damage over 2.5 s in a 2.6-tile circle.", tree: true },
       { id: "pierce", name: "Piercing Shot", icon: "🎯", mp: 12, cd: 8, desc: "A 120% line shot through every enemy in its path (8 tiles).", tree: true },
       { id: "hook", name: "Grappling Hook", icon: "🪝", mp: 10, cd: 10, desc: "Dash up to 6 tiles toward a point or your target.", tree: true },
@@ -762,22 +757,52 @@ function skillNodesOf(cls: ClassId): SkillNode[] { return SKILLS[cls] ?? []; }
 function skillNode(cls: ClassId, id: string): SkillNode | undefined { return skillNodesOf(cls).find((n: SkillNode) => n.id === id); }
 function ownedSkills(g: Game): string[] { return Array.isArray(g.skills) ? g.skills : []; }
 function skillOwnsAb(g: Game, id: string): boolean {
+  if (SPEED_ABS.has(id)) return false;
   return ownedSkills(g).some((nid: string) => skillNode(g.cls, nid)?.ab === id);
 }
-function barAbs(g: Game): Ab[] {
-  return CLS[g.cls].abs.filter((a: Ab) => !a.tree || skillOwnsAb(g, a.id));
+function learnedAbs(g: Game): Ab[] {
+  return CLS[g.cls].abs.filter((a: Ab) => !SPEED_ABS.has(a.id) && skillOwnsAb(g, a.id));
+}
+function normSlots(g: Game): (string | null)[] {
+  const out: (string | null)[] = [null, null, null, null, null];
+  const raw = Array.isArray(g.slots) ? g.slots : [];
+  for (let i = 0; i < 5; i++) {
+    const id = raw[i];
+    out[i] = typeof id === "string" && id && skillOwnsAb(g, id) && !SPEED_ABS.has(id) ? id : null;
+  }
+  return out;
+}
+function barAbs(g: Game): (Ab | null)[] {
+  return normSlots(g).map((id: string | null) => {
+    if (!id) return null;
+    return CLS[g.cls].abs.find((a: Ab) => a.id === id) ?? null;
+  });
+}
+function setSlot(g: Game, i: number, id: string | null): void {
+  const slots = normSlots(g);
+  if (i < 0 || i > 4) return;
+  if (id && !skillOwnsAb(g, id)) return;
+  if (id) {
+    const prev = slots.indexOf(id);
+    if (prev >= 0 && prev !== i) slots[prev] = null;
+  }
+  slots[i] = id;
+  g.slots = slots;
+}
+function autoSlot(g: Game, id: string): void {
+  const slots = normSlots(g);
+  if (slots.includes(id)) { g.slots = slots; return; }
+  const empty = slots.findIndex((s: string | null) => !s);
+  if (empty >= 0) slots[empty] = id;
+  g.slots = slots;
 }
 function abUnlockLv(cls: ClassId, a: Ab): number {
-  if (a.tree) return 99;
   const i = levelAbs(cls).findIndex((x: Ab) => x.id === a.id);
   return i < 0 ? 99 : (AB_LVLS[i] ?? (3 * (i + 1)));
 }
-function abReadyAb(g: Game, a: Ab): boolean {
-  if (a.tree) return skillOwnsAb(g, a.id);
-  return g.lvl >= abUnlockLv(g.cls, a);
-}
+function abReadyAb(g: Game, a: Ab): boolean { return !SPEED_ABS.has(a.id) && skillOwnsAb(g, a.id); }
 function abReady(g: Game, i: number): boolean { const a = barAbs(g)[i]; return !!a && abReadyAb(g, a); }
-function abIdxOf(g: Game, id: string): number { return barAbs(g).findIndex((a: Ab) => a.id === id); }
+function abIdxOf(g: Game, id: string): number { return barAbs(g).findIndex((a: Ab | null) => !!a && a.id === id); }
 function abReadyId(g: Game, id: string): boolean { const a = CLS[g.cls].abs.find((x: Ab) => x.id === id); return !!a && abReadyAb(g, a); }
 
 interface AbPop { icon: string; name: string; ts: number }
@@ -787,164 +812,245 @@ function noteAbUnlock(g: Game, a: Ab): void {
   addFx(g, `NEW: ${a.name}`, "good", "p");
   AB_POPS.push({ icon: a.icon, name: a.name, ts: Date.now() });
 }
-function checkAbUnlocks(g: Game, from: number, to: number): void {
-  CLS[g.cls].abs.forEach((a: Ab) => { if (a.tree) return; const lv = abUnlockLv(g.cls, a); if (from < lv && to >= lv) noteAbUnlock(g, a); });
-}
+function checkAbUnlocks(_g: Game, _from: number, _to: number): void { /* abilities are learned in the skill tree, never auto-granted */ }
+
+const SPEED_ABS: Set<string> = new Set(["march", "haste", "sprint", "wstr", "swift"]);
+const SKILL_VER = 2;
+/** old linear-tree node ids that unlocked an ability, mapped to that ability id */
+const OLD_SKILL_AB: Record<string, string> = {
+  w_j4: "reflect", w_b4: "exec", w_b6: "whirl", w_o3: "troar", w_o5: "gpull",
+  m_e3: "missiles", m_e5: "meteor", m_c3: "iwall", m_c5: "gwell", m_c7: "poly",
+  r_a4: "mdeath", r_t3: "smoke", r_t5: "caltr", r_l3: "fan", r_l5: "shuri",
+  n_m3: "pierce", n_m5: "rain", n_m7: "hmark", n_t5: "hook", n_b3: "bfren",
+  c_r3: "hnova", c_r5: "purify", c_s5: "spirit", c_w3: "chains", c_w5: "drain",
+};
+
 interface SkillNode {
-  id: string; path: string; row: number; name: string; icon: string; desc: string;
+  id: string; name: string; icon: string; desc: string;
+  x: number; y: number; req?: string[]; lv?: number;
   st?: Stats; ab?: string; cd?: { id: string; v: number }; dmg?: { id: string; v: number };
   rad?: { id: string; v: number }; dur?: { id: string; v: number }; misc?: Record<string, number>; cap?: boolean;
 }
-function N(id: string, path: string, row: number, name: string, icon: string, desc: string, extra: Partial<SkillNode> = {}): SkillNode {
-  return { id, path, row, name, icon, desc, ...extra };
+function N(id: string, name: string, icon: string, desc: string, x: number, y: number, extra: Partial<SkillNode> = {}): SkillNode {
+  return { id, name, icon, desc, x, y, ...extra };
 }
 const SKILLS: Record<ClassId, SkillNode[]> = {
   warrior: [
-    N("w_j1", "Juggernaut", 0, "Iron Hide", "🛡️", "+12 HP and +2 DEF.", { st: { hp: 12, def: 2 } }),
-    N("w_j2", "Juggernaut", 1, "Fortify", "🧱", "+18 HP.", { st: { hp: 18 } }),
-    N("w_j3", "Juggernaut", 2, "Bash Training", "🛡️", "Shield Bash cooldown −2 s.", { cd: { id: "bash", v: 2 } }),
-    N("w_j4", "Juggernaut", 3, "Shield Reflect", "🪞", "Unlock Shield Reflect: bounce projectiles for 4 s.", { ab: "reflect" }),
-    N("w_j5", "Juggernaut", 4, "Mirror Guard", "🪞", "Shield Reflect lasts 1.5 s longer.", { dur: { id: "reflect", v: 1.5 } }),
-    N("w_j6", "Juggernaut", 5, "Thick Skull", "🪖", "+8 HP and +4 DEF.", { st: { hp: 8, def: 4 } }),
-    N("w_j7", "Juggernaut", 6, "Bulwark", "🏰", "+20 HP.", { st: { hp: 20 } }),
-    N("w_j8", "Juggernaut", 7, "Second Skin", "🧥", "+5 DEF.", { st: { def: 5 } }),
-    N("w_j9", "Juggernaut", 8, "Aegis Eternal", "🛡️", "Capstone: +25 HP, +6 DEF, Shield Reflect cooldown −4 s.", { st: { hp: 25, def: 6 }, cd: { id: "reflect", v: 4 }, cap: true }),
-    N("w_b1", "Berserker", 0, "Bloodlust", "🩸", "+3 ATK.", { st: { atk: 3 } }),
-    N("w_b2", "Berserker", 1, "Fury", "😡", "+4 ATK and +2% crit.", { st: { atk: 4, crit: 2 } }),
-    N("w_b3", "Berserker", 2, "Cleave Training", "🪓", "Cleave cooldown −1.5 s and +15% damage.", { cd: { id: "cleave", v: 1.5 }, dmg: { id: "cleave", v: 0.15 } }),
-    N("w_b4", "Berserker", 3, "Execute", "☠️", "Unlock Execute: bonus damage on targets below 25% HP.", { ab: "exec" }),
-    N("w_b5", "Berserker", 4, "Killing Edge", "⚔️", "Execute also triggers below 35% HP and deals +20% damage.", { misc: { execTh: 0.1 }, dmg: { id: "exec", v: 0.2 } }),
-    N("w_b6", "Berserker", 5, "Whirlwind", "🌀", "Unlock Whirlwind: spinning damage around you.", { ab: "whirl" }),
-    N("w_b7", "Berserker", 6, "Wider Whirl", "🌀", "Whirlwind radius +0.5 tiles.", { rad: { id: "whirl", v: 0.5 } }),
-    N("w_b8", "Berserker", 7, "Savagery", "💢", "+5 ATK and +3% crit.", { st: { atk: 5, crit: 3 } }),
-    N("w_b9", "Berserker", 8, "Rampage", "🔥", "Capstone: +8 ATK, Whirlwind cooldown −3 s, Execute +30% damage.", { st: { atk: 8 }, cd: { id: "whirl", v: 3 }, dmg: { id: "exec", v: 0.3 }, cap: true }),
-    N("w_o1", "Warlord", 0, "Command", "📣", "+2 ATK and +6 HP.", { st: { atk: 2, hp: 6 } }),
-    N("w_o2", "Warlord", 1, "Cry Training", "📣", "Battle Cry cooldown −3 s.", { cd: { id: "cry", v: 3 } }),
-    N("w_o3", "Warlord", 2, "Taunting Roar", "🦁", "Unlock Taunting Roar: force nearby foes to attack you.", { ab: "troar" }),
-    N("w_o4", "Warlord", 3, "Louder Roar", "🦁", "Taunting Roar radius +1 tile.", { rad: { id: "troar", v: 1 } }),
-    N("w_o5", "Warlord", 4, "Ground Pull", "🧲", "Unlock Ground Pull: yank enemies in.", { ab: "gpull" }),
-    N("w_o6", "Warlord", 5, "Deep Hook", "🧲", "Ground Pull range +1.2 tiles.", { rad: { id: "gpull", v: 1.2 } }),
-    N("w_o7", "Warlord", 6, "Rally", "🚩", "+10 HP and +2 ATK.", { st: { hp: 10, atk: 2 } }),
-    N("w_o8", "Warlord", 7, "Smash Training", "💥", "Smash cooldown −2 s and +15% damage.", { cd: { id: "smash", v: 2 }, dmg: { id: "smash", v: 0.15 } }),
-    N("w_o9", "Warlord", 8, "War Banner", "🚩", "Capstone: +4 ATK, Ground Pull and Taunting Roar cooldown −3 s.", { st: { atk: 4 }, cd: { id: "gpull", v: 3 }, cap: true }),
+    N("w_bash", "Shield Bash", "🛡️", "Learn Shield Bash: 130% damage and a 2 s stun.", 1, 0, { ab: "bash", lv: 3 }),
+    N("w_hide", "Iron Hide", "🧱", "+12 HP and +2 DEF.", 0, 1, { req: ["w_bash"], st: { hp: 12, def: 2 } }),
+    N("w_bashcd", "Bash Training", "🛡️", "Shield Bash cooldown −2 s.", 2, 1, { req: ["w_bash"], cd: { id: "bash", v: 2 } }),
+    N("w_reflect", "Shield Reflect", "🪞", "Learn Shield Reflect: bounce projectiles for 4 s.", 2, 2, { req: ["w_bashcd"], ab: "reflect" }),
+    N("w_refdur", "Mirror Guard", "🪞", "Shield Reflect lasts 1.5 s longer.", 2, 3, { req: ["w_reflect"], dur: { id: "reflect", v: 1.5 } }),
+    N("w_aegis", "Aegis Eternal", "🛡️", "Capstone: +25 HP, +6 DEF, Shield Reflect cooldown −4 s.", 2, 4, { req: ["w_refdur"], st: { hp: 25, def: 6 }, cd: { id: "reflect", v: 4 }, cap: true }),
+    N("w_cleave", "Cleave", "🪓", "Learn Cleave: 100% damage in a frontal cone.", 5, 0, { ab: "cleave", lv: 3 }),
+    N("w_clvcd", "Cleave Training", "🪓", "Cleave cooldown −1.5 s and +15% damage.", 4, 1, { req: ["w_cleave"], cd: { id: "cleave", v: 1.5 }, dmg: { id: "cleave", v: 0.15 } }),
+    N("w_whirl", "Whirlwind", "🌀", "Learn Whirlwind: spinning damage around you.", 4, 2, { req: ["w_clvcd"], ab: "whirl" }),
+    N("w_whirlr", "Wider Whirl", "🌀", "Whirlwind radius +0.5 tiles.", 4, 3, { req: ["w_whirl"], rad: { id: "whirl", v: 0.5 } }),
+    N("w_rampage", "Rampage", "🔥", "Capstone: +8 ATK, Whirlwind cooldown −3 s, Execute +30% damage.", 4, 4, { req: ["w_whirlr"], st: { atk: 8 }, cd: { id: "whirl", v: 3 }, dmg: { id: "exec", v: 0.3 }, cap: true }),
+    N("w_exec", "Execute", "☠️", "Learn Execute: bonus damage on targets below 25% HP.", 6, 1, { req: ["w_cleave"], ab: "exec" }),
+    N("w_edge", "Killing Edge", "⚔️", "Execute also triggers below 35% HP and deals +20% damage.", 6, 2, { req: ["w_exec"], misc: { execTh: 0.1 }, dmg: { id: "exec", v: 0.2 } }),
+    N("w_cry", "Battle Cry", "📣", "Learn Battle Cry: +50% ATK for 8 s and heal 15%.", 9, 0, { ab: "cry", lv: 6 }),
+    N("w_crycd", "Cry Training", "📣", "Battle Cry cooldown −3 s.", 8, 1, { req: ["w_cry"], cd: { id: "cry", v: 3 } }),
+    N("w_troar", "Taunting Roar", "🦁", "Learn Taunting Roar: force nearby foes to attack you.", 8, 2, { req: ["w_crycd"], ab: "troar" }),
+    N("w_roarr", "Louder Roar", "🦁", "Taunting Roar radius +1 tile.", 8, 3, { req: ["w_troar"], rad: { id: "troar", v: 1 } }),
+    N("w_banner", "War Banner", "🚩", "Capstone: +4 ATK, Ground Pull and Taunting Roar cooldown −3 s.", 8, 4, { req: ["w_roarr"], st: { atk: 4 }, cd: { id: "gpull", v: 3 }, cap: true }),
+    N("w_rally", "Rally", "🚩", "+10 HP and +2 ATK.", 10, 1, { req: ["w_cry"], st: { hp: 10, atk: 2 } }),
+    N("w_smash", "Smash", "💥", "Learn Smash: 120% damage in a circle around you.", 13, 0, { ab: "smash", lv: 9 }),
+    N("w_smashcd", "Smash Training", "💥", "Smash cooldown −2 s and +15% damage.", 12, 1, { req: ["w_smash"], cd: { id: "smash", v: 2 }, dmg: { id: "smash", v: 0.15 } }),
+    N("w_gpull", "Ground Pull", "🧲", "Learn Ground Pull: yank enemies in.", 14, 1, { req: ["w_smash"], ab: "gpull" }),
+    N("w_hook", "Deep Hook", "🧲", "Ground Pull range +1.2 tiles.", 14, 2, { req: ["w_gpull"], rad: { id: "gpull", v: 1.2 } }),
+    N("w_lslam", "Leaping Slam", "⬇️", "Learn Leaping Slam: leap in and stun foes on landing.", 17, 0, { ab: "lslam", lv: 12 }),
+    N("w_land", "Heavy Landing", "⬇️", "Leaping Slam +20% damage and +0.4 radius.", 17, 1, { req: ["w_lslam"], dmg: { id: "lslam", v: 0.2 }, rad: { id: "lslam", v: 0.4 } }),
   ],
   mage: [
-    N("m_e1", "Evoker", 0, "Spark", "🔥", "+3 ATK.", { st: { atk: 3 } }),
-    N("m_e2", "Evoker", 1, "Fire Training", "🔥", "Fireball +20% damage.", { dmg: { id: "fireball", v: 0.2 } }),
-    N("m_e3", "Evoker", 2, "Arcane Missiles", "🔮", "Unlock Arcane Missiles: three rapid bolts.", { ab: "missiles" }),
-    N("m_e4", "Evoker", 3, "Quick Cast", "⚡", "Arcane Missiles and Chain Lightning cooldown −1 s.", { cd: { id: "missiles", v: 1 } }),
-    N("m_e5", "Evoker", 4, "Meteor", "☄️", "Unlock Meteor: delayed impact and a burn patch.", { ab: "meteor" }),
-    N("m_e6", "Evoker", 5, "Wider Blast", "☄️", "Meteor radius +0.5 tiles.", { rad: { id: "meteor", v: 0.5 } }),
-    N("m_e7", "Evoker", 6, "Kindling", "🔥", "+4 ATK and +8 MP.", { st: { atk: 4, mp: 8 } }),
-    N("m_e8", "Evoker", 7, "Chain Mastery", "⚡", "Chain Lightning +20% damage.", { dmg: { id: "chain", v: 0.2 } }),
-    N("m_e9", "Evoker", 8, "Devastation", "☄️", "Capstone: +6 ATK, Meteor cooldown −3 s and +25% damage.", { st: { atk: 6 }, cd: { id: "meteor", v: 3 }, dmg: { id: "meteor", v: 0.25 }, cap: true }),
-    N("m_c1", "Cryomancer", 0, "Chill", "❄️", "+10 MP and +2 DEF.", { st: { mp: 10, def: 2 } }),
-    N("m_c2", "Cryomancer", 1, "Nova Training", "❄️", "Frost Nova cooldown −2 s.", { cd: { id: "nova", v: 2 } }),
-    N("m_c3", "Cryomancer", 2, "Ice Wall", "🧊", "Unlock Ice Wall: a blocking barrier.", { ab: "iwall" }),
-    N("m_c4", "Cryomancer", 3, "Thick Ice", "🧊", "Ice Wall lasts 1.5 s longer.", { dur: { id: "iwall", v: 1.5 } }),
-    N("m_c5", "Cryomancer", 4, "Gravity Well", "🌌", "Unlock Gravity Well: pull and slow.", { ab: "gwell" }),
-    N("m_c6", "Cryomancer", 5, "Deep Well", "🌌", "Gravity Well radius +0.6 tiles.", { rad: { id: "gwell", v: 0.6 } }),
-    N("m_c7", "Cryomancer", 6, "Polymorph", "🐑", "Unlock Polymorph: a non-boss foe becomes harmless for 4 s.", { ab: "poly" }),
-    N("m_c8", "Cryomancer", 7, "Long Hex", "🐑", "Polymorph lasts 1.5 s longer.", { dur: { id: "poly", v: 1.5 } }),
-    N("m_c9", "Cryomancer", 8, "Winter's Grasp", "❄️", "Capstone: +20 MP, Gravity Well and Ice Wall cooldown −3 s.", { st: { mp: 20 }, cd: { id: "gwell", v: 3 }, cap: true }),
-    N("m_a1", "Arcanist", 0, "Ward", "🔮", "+12 MP and +2 DEF.", { st: { mp: 12, def: 2 } }),
-    N("m_a2", "Arcanist", 1, "Mana Pool", "💧", "+20 MP.", { st: { mp: 20 } }),
-    N("m_a3", "Arcanist", 2, "Shield Training", "🔮", "Arcane Shield cooldown −3 s.", { cd: { id: "arcane", v: 3 } }),
-    N("m_a4", "Arcanist", 3, "Blink Training", "✨", "Blink cooldown −2 s.", { cd: { id: "blink", v: 2 } }),
-    N("m_a5", "Arcanist", 4, "Insight", "📘", "+8 MP and +2 ATK.", { st: { mp: 8, atk: 2 } }),
-    N("m_a6", "Arcanist", 5, "Quick Step", "✨", "Haste cooldown −15 s.", { cd: { id: "haste", v: 15 } }),
-    N("m_a7", "Arcanist", 6, "Warding Ring", "🔮", "+4 DEF.", { st: { def: 4 } }),
-    N("m_a8", "Arcanist", 7, "Deep Reserve", "💧", "+16 MP and +8 HP.", { st: { mp: 16, hp: 8 } }),
-    N("m_a9", "Arcanist", 8, "Archon", "🌟", "Capstone: +25 MP, +4 ATK, Blink cooldown −2 s.", { st: { mp: 25, atk: 4 }, cd: { id: "blink", v: 2 }, cap: true }),
+    N("m_fire", "Fireball", "🔥", "Learn Fireball: 220% fire damage and a burn.", 1, 0, { ab: "fireball", lv: 3 }),
+    N("m_ftrain", "Fire Training", "🔥", "Fireball +20% damage.", 0, 1, { req: ["m_fire"], dmg: { id: "fireball", v: 0.2 } }),
+    N("m_meteor", "Meteor", "☄️", "Learn Meteor: delayed impact and a burn patch.", 0, 2, { req: ["m_ftrain"], ab: "meteor" }),
+    N("m_wide", "Wider Blast", "☄️", "Meteor radius +0.5 tiles.", 0, 3, { req: ["m_meteor"], rad: { id: "meteor", v: 0.5 } }),
+    N("m_deva", "Devastation", "☄️", "Capstone: +6 ATK, Meteor cooldown −3 s and +25% damage.", 0, 4, { req: ["m_wide"], st: { atk: 6 }, cd: { id: "meteor", v: 3 }, dmg: { id: "meteor", v: 0.25 }, cap: true }),
+    N("m_missiles", "Arcane Missiles", "🔮", "Learn Arcane Missiles: three rapid bolts.", 2, 1, { req: ["m_fire"], ab: "missiles" }),
+    N("m_quick", "Quick Cast", "⚡", "Arcane Missiles cooldown −1 s.", 2, 2, { req: ["m_missiles"], cd: { id: "missiles", v: 1 } }),
+    N("m_nova", "Frost Nova", "❄️", "Learn Frost Nova: 120% to nearby foes and a 3 s freeze.", 6, 0, { ab: "nova", lv: 3 }),
+    N("m_ntrain", "Nova Training", "❄️", "Frost Nova cooldown −2 s.", 5, 1, { req: ["m_nova"], cd: { id: "nova", v: 2 } }),
+    N("m_iwall", "Ice Wall", "🧊", "Learn Ice Wall: a blocking barrier.", 4, 2, { req: ["m_ntrain"], ab: "iwall" }),
+    N("m_thick", "Thick Ice", "🧊", "Ice Wall lasts 1.5 s longer.", 4, 3, { req: ["m_iwall"], dur: { id: "iwall", v: 1.5 } }),
+    N("m_gwell", "Gravity Well", "🌌", "Learn Gravity Well: pull and slow.", 6, 2, { req: ["m_ntrain"], ab: "gwell" }),
+    N("m_deep", "Deep Well", "🌌", "Gravity Well radius +0.6 tiles.", 6, 3, { req: ["m_gwell"], rad: { id: "gwell", v: 0.6 } }),
+    N("m_winter", "Winter's Grasp", "❄️", "Capstone: +20 MP, Gravity Well and Ice Wall cooldown −3 s.", 5, 4, { req: ["m_deep"], st: { mp: 20 }, cd: { id: "gwell", v: 3 }, cap: true }),
+    N("m_poly", "Polymorph", "🐑", "Learn Polymorph: a non-boss foe becomes harmless for 4 s.", 8, 1, { req: ["m_nova"], ab: "poly" }),
+    N("m_hex", "Long Hex", "🐑", "Polymorph lasts 1.5 s longer.", 8, 2, { req: ["m_poly"], dur: { id: "poly", v: 1.5 } }),
+    N("m_arcane", "Arcane Shield", "🔮", "Learn Arcane Shield: absorb hits worth 40% of max MP.", 11, 0, { ab: "arcane", lv: 6 }),
+    N("m_mana", "Mana Pool", "💧", "+20 MP.", 11, 1, { req: ["m_arcane"], st: { mp: 20 } }),
+    N("m_shcd", "Shield Training", "🔮", "Arcane Shield cooldown −3 s.", 11, 2, { req: ["m_mana"], cd: { id: "arcane", v: 3 } }),
+    N("m_archon", "Archon", "🌟", "Capstone: +25 MP, +4 ATK, Blink cooldown −2 s.", 11, 3, { req: ["m_shcd"], st: { mp: 25, atk: 4 }, cd: { id: "blink", v: 2 }, cap: true }),
+    N("m_blink", "Blink", "✨", "Learn Blink: a short teleport that drops distant aggro.", 14, 0, { ab: "blink", lv: 9 }),
+    N("m_blinkcd", "Blink Training", "✨", "Blink cooldown −2 s.", 14, 1, { req: ["m_blink"], cd: { id: "blink", v: 2 } }),
+    N("m_insight", "Insight", "📘", "+8 MP and +2 ATK.", 14, 2, { req: ["m_blinkcd"], st: { mp: 8, atk: 2 } }),
+    N("m_chain", "Chain Lightning", "⚡", "Learn Chain Lightning: up to 4 foes, damage fading per bounce.", 17, 0, { ab: "chain", lv: 12 }),
+    N("m_cmaster", "Chain Mastery", "⚡", "Chain Lightning +20% damage.", 17, 1, { req: ["m_chain"], dmg: { id: "chain", v: 0.2 } }),
   ],
   rogue: [
-    N("r_a1", "Assassin", 0, "Keen Edge", "🗡️", "+3 ATK.", { st: { atk: 3 } }),
-    N("r_a2", "Assassin", 1, "Backstab Training", "🗡️", "Backstab +15% damage.", { dmg: { id: "backstab", v: 0.15 } }),
-    N("r_a3", "Assassin", 2, "Shadow Step", "👤", "Shadow Step cooldown −2 s. (learned at level 12; this shortens it.)", { cd: { id: "sstep", v: 2 } }),
-    N("r_a4", "Assassin", 3, "Mark for Death", "💀", "Unlock Mark for Death: the target takes +25% damage.", { ab: "mdeath" }),
-    N("r_a5", "Assassin", 4, "Deep Mark", "💀", "Mark for Death lasts 3 s longer.", { dur: { id: "mdeath", v: 3 } }),
-    N("r_a6", "Assassin", 5, "Quiet Kill", "🤫", "+3% crit and +2 ATK.", { st: { crit: 3, atk: 2 } }),
-    N("r_a7", "Assassin", 6, "Long Step", "👤", "Shadow Step's guaranteed crit window +1 s.", { dur: { id: "sstep", v: 1 } }),
-    N("r_a8", "Assassin", 7, "Opportunist", "🗡️", "+4 ATK and +2% crit.", { st: { atk: 4, crit: 2 } }),
-    N("r_a9", "Assassin", 8, "Deathblow", "💀", "Capstone: +6 ATK, Mark for Death and Shadow Step cooldown −2 s.", { st: { atk: 6 }, cd: { id: "mdeath", v: 2 }, cap: true }),
-    N("r_t1", "Trickster", 0, "Light Foot", "👟", "+3 dodge.", { st: { dodge: 3 } }),
-    N("r_t2", "Trickster", 1, "Evade Training", "💨", "Evade cooldown −2 s.", { cd: { id: "evade", v: 2 } }),
-    N("r_t3", "Trickster", 2, "Smoke Bomb", "☁️", "Unlock Smoke Bomb: enemies miss, and you slip into stealth.", { ab: "smoke" }),
-    N("r_t4", "Trickster", 3, "Thick Smoke", "☁️", "Smoke Bomb radius +0.6 tiles.", { rad: { id: "smoke", v: 0.6 } }),
-    N("r_t5", "Trickster", 4, "Caltrops", "✴️", "Unlock Caltrops: a slowing field.", { ab: "caltr" }),
-    N("r_t6", "Trickster", 5, "Wider Snare", "✴️", "Caltrops radius +0.5 tiles.", { rad: { id: "caltr", v: 0.5 } }),
-    N("r_t7", "Trickster", 6, "Sprint Training", "🏃", "Sprint cooldown −15 s.", { cd: { id: "sprint", v: 15 } }),
-    N("r_t8", "Trickster", 7, "Slippery", "👟", "+4 dodge and +8 HP.", { st: { dodge: 4, hp: 8 } }),
-    N("r_t9", "Trickster", 8, "Vanishing Act", "☁️", "Capstone: +6 dodge, Smoke Bomb and Caltrops cooldown −3 s.", { st: { dodge: 6 }, cd: { id: "smoke", v: 3 }, cap: true }),
-    N("r_l1", "Blade", 0, "Venom", "🧪", "+2 ATK and +8 HP.", { st: { atk: 2, hp: 8 } }),
-    N("r_l2", "Blade", 1, "Poison Training", "🧪", "Poison Blade +20% damage.", { dmg: { id: "poison", v: 0.2 } }),
-    N("r_l3", "Blade", 2, "Fan of Knives", "🗡️", "Unlock Fan of Knives: a poisonous radial burst.", { ab: "fan" }),
-    N("r_l4", "Blade", 3, "Wider Fan", "🗡️", "Fan of Knives radius +0.5 tiles.", { rad: { id: "fan", v: 0.5 } }),
-    N("r_l5", "Blade", 4, "Shuriken Ricochet", "⭐", "Unlock Shuriken Ricochet: a bouncing blade.", { ab: "shuri" }),
-    N("r_l6", "Blade", 5, "Extra Bounce", "⭐", "Shuriken Ricochet +20% damage.", { dmg: { id: "shuri", v: 0.2 } }),
-    N("r_l7", "Blade", 6, "Bleed Out", "🩸", "+3 ATK.", { st: { atk: 3 } }),
-    N("r_l8", "Blade", 7, "Quick Hands", "⭐", "Fan of Knives and Shuriken cooldown −1.5 s.", { cd: { id: "fan", v: 1.5 } }),
-    N("r_l9", "Blade", 8, "Flurry", "🗡️", "Capstone: +5 ATK, Fan of Knives +25% damage and cooldown −2 s.", { st: { atk: 5 }, dmg: { id: "fan", v: 0.25 }, cd: { id: "fan", v: 2 }, cap: true }),
+    N("r_back", "Backstab", "🗡️", "Learn Backstab: 220% damage, guaranteed crit early or vs stunned.", 1, 0, { ab: "backstab", lv: 3 }),
+    N("r_keen", "Keen Edge", "🗡️", "+3 ATK.", 0, 1, { req: ["r_back"], st: { atk: 3 } }),
+    N("r_bstr", "Backstab Training", "🗡️", "Backstab +15% damage.", 2, 1, { req: ["r_back"], dmg: { id: "backstab", v: 0.15 } }),
+    N("r_mdeath", "Mark for Death", "💀", "Learn Mark for Death: the target takes +25% damage.", 2, 2, { req: ["r_bstr"], ab: "mdeath" }),
+    N("r_deep", "Deep Mark", "💀", "Mark for Death lasts 3 s longer.", 2, 3, { req: ["r_mdeath"], dur: { id: "mdeath", v: 3 } }),
+    N("r_death", "Deathblow", "💀", "Capstone: +6 ATK, Mark for Death and Shadow Step cooldown −2 s.", 2, 4, { req: ["r_deep"], st: { atk: 6 }, cd: { id: "mdeath", v: 2 }, cap: true }),
+    N("r_pois", "Poison Blade", "🧪", "Learn Poison Blade: 100% damage and a strong poison.", 6, 0, { ab: "poison", lv: 3 }),
+    N("r_ptrain", "Poison Training", "🧪", "Poison Blade +20% damage.", 5, 1, { req: ["r_pois"], dmg: { id: "poison", v: 0.2 } }),
+    N("r_fan", "Fan of Knives", "🗡️", "Learn Fan of Knives: a poisonous radial burst.", 5, 2, { req: ["r_ptrain"], ab: "fan" }),
+    N("r_wfan", "Wider Fan", "🗡️", "Fan of Knives radius +0.5 tiles.", 4, 3, { req: ["r_fan"], rad: { id: "fan", v: 0.5 } }),
+    N("r_shuri", "Shuriken Ricochet", "⭐", "Learn Shuriken Ricochet: a bouncing blade.", 7, 2, { req: ["r_ptrain"], ab: "shuri" }),
+    N("r_bounce", "Extra Bounce", "⭐", "Shuriken Ricochet +20% damage.", 7, 3, { req: ["r_shuri"], dmg: { id: "shuri", v: 0.2 } }),
+    N("r_flurry", "Flurry", "🗡️", "Capstone: +5 ATK, Fan of Knives +25% damage and cooldown −2 s.", 6, 4, { req: ["r_bounce"], st: { atk: 5 }, dmg: { id: "fan", v: 0.25 }, cd: { id: "fan", v: 2 }, cap: true }),
+    N("r_evade", "Evade", "💨", "Learn Evade: automatically dodge the next 2 attacks.", 11, 0, { ab: "evade", lv: 6 }),
+    N("r_ecd", "Evade Training", "💨", "Evade cooldown −2 s.", 10, 1, { req: ["r_evade"], cd: { id: "evade", v: 2 } }),
+    N("r_smoke", "Smoke Bomb", "☁️", "Learn Smoke Bomb: enemies miss, and you slip into stealth.", 10, 2, { req: ["r_ecd"], ab: "smoke" }),
+    N("r_thick", "Thick Smoke", "☁️", "Smoke Bomb radius +0.6 tiles.", 9, 3, { req: ["r_smoke"], rad: { id: "smoke", v: 0.6 } }),
+    N("r_vanish", "Vanishing Act", "☁️", "Capstone: +6 dodge, Smoke Bomb and Caltrops cooldown −3 s.", 10, 4, { req: ["r_thick"], st: { dodge: 6 }, cd: { id: "smoke", v: 3 }, cap: true }),
+    N("r_caltr", "Caltrops", "✴️", "Learn Caltrops: a slowing field.", 12, 2, { req: ["r_ecd"], ab: "caltr" }),
+    N("r_snare", "Wider Snare", "✴️", "Caltrops radius +0.5 tiles.", 12, 3, { req: ["r_caltr"], rad: { id: "caltr", v: 0.5 } }),
+    N("r_sstep", "Shadow Step", "👤", "Learn Shadow Step: teleport behind the target; next hit is a crit.", 15, 0, { ab: "sstep", lv: 9 }),
+    N("r_scd", "Step Training", "👤", "Shadow Step cooldown −2 s.", 15, 1, { req: ["r_sstep"], cd: { id: "sstep", v: 2 } }),
+    N("r_long", "Long Step", "👤", "Shadow Step's guaranteed crit window +1 s.", 15, 2, { req: ["r_scd"], dur: { id: "sstep", v: 1 } }),
   ],
   ranger: [
-    N("n_m1", "Marksman", 0, "Steady Aim", "🎯", "+3 ATK.", { st: { atk: 3 } }),
-    N("n_m2", "Marksman", 1, "Multi Training", "🏹", "Multi-Shot cooldown −1 s.", { cd: { id: "multi", v: 1 } }),
-    N("n_m3", "Marksman", 2, "Piercing Shot", "🎯", "Unlock Piercing Shot: a line through every foe.", { ab: "pierce" }),
-    N("n_m4", "Marksman", 3, "Heavy Bolt", "🎯", "Piercing Shot +20% damage.", { dmg: { id: "pierce", v: 0.2 } }),
-    N("n_m5", "Marksman", 4, "Rain of Arrows", "🏹", "Unlock Rain of Arrows: ticking damage in a circle.", { ab: "rain" }),
-    N("n_m6", "Marksman", 5, "Wider Rain", "🏹", "Rain of Arrows radius +0.5 tiles.", { rad: { id: "rain", v: 0.5 } }),
-    N("n_m7", "Marksman", 6, "Hunter's Mark", "👁️", "Unlock Hunter's Mark: reveal and slow a foe.", { ab: "hmark" }),
-    N("n_m8", "Marksman", 7, "Long Mark", "👁️", "Hunter's Mark lasts 3 s longer.", { dur: { id: "hmark", v: 3 } }),
-    N("n_m9", "Marksman", 8, "Deadeye", "🎯", "Capstone: +6 ATK, Piercing Shot and Rain cooldown −2 s.", { st: { atk: 6 }, cd: { id: "pierce", v: 2 }, cap: true }),
-    N("n_t1", "Trapper", 0, "Careful Step", "👣", "+8 HP and +2 DEF.", { st: { hp: 8, def: 2 } }),
-    N("n_t2", "Trapper", 1, "Snare Training", "⛓️", "Snare Trap cooldown −2 s.", { cd: { id: "trap", v: 2 } }),
-    N("n_t3", "Trapper", 2, "Explosive Trap", "💣", "Explosive Trap cooldown −2 s. (learned at level 12; this shortens it.)", { cd: { id: "xtrap", v: 2 } }),
-    N("n_t4", "Trapper", 3, "Bigger Boom", "💣", "Explosive Trap radius +0.5 tiles and +15% damage.", { rad: { id: "xtrap", v: 0.5 }, dmg: { id: "xtrap", v: 0.15 } }),
-    N("n_t5", "Trapper", 4, "Grappling Hook", "🪝", "Unlock Grappling Hook: dash to a point.", { ab: "hook" }),
-    N("n_t6", "Trapper", 5, "Long Line", "🪝", "Grappling Hook reach +1.5 tiles.", { rad: { id: "hook", v: 1.5 } }),
-    N("n_t7", "Trapper", 6, "Wind Training", "🍃", "Wind Stride cooldown −15 s.", { cd: { id: "wstr", v: 15 } }),
-    N("n_t8", "Trapper", 7, "Set Line", "👣", "+10 HP and +2 ATK.", { st: { hp: 10, atk: 2 } }),
-    N("n_t9", "Trapper", 8, "Master Trapper", "💣", "Capstone: +4 ATK, Explosive Trap and Hook cooldown −2 s.", { st: { atk: 4 }, cd: { id: "xtrap", v: 2 }, cap: true }),
-    N("n_b1", "Beastmaster", 0, "Pack Bond", "🐺", "+10 HP.", { st: { hp: 10 } }),
-    N("n_b2", "Beastmaster", 1, "Wild Call", "📯", "Call of the Wild cooldown −2 s.", { cd: { id: "frenzy", v: 2 } }),
-    N("n_b3", "Beastmaster", 2, "Beast Frenzy", "🐺", "Unlock Beast Frenzy: pets attack 40% faster.", { ab: "bfren" }),
-    N("n_b4", "Beastmaster", 3, "Long Frenzy", "🐺", "Beast Frenzy lasts 3 s longer.", { dur: { id: "bfren", v: 3 } }),
-    N("n_b5", "Beastmaster", 4, "Thick Hide", "🐾", "+14 HP and +2 DEF.", { st: { hp: 14, def: 2 } }),
-    N("n_b6", "Beastmaster", 5, "Keen Pack", "🦅", "+3 ATK.", { st: { atk: 3 } }),
-    N("n_b7", "Beastmaster", 6, "Swift Beasts", "🐺", "Beast Frenzy cooldown −4 s.", { cd: { id: "bfren", v: 4 } }),
-    N("n_b8", "Beastmaster", 7, "Alpha", "🐺", "+8 HP and +2 ATK.", { st: { hp: 8, atk: 2 } }),
-    N("n_b9", "Beastmaster", 8, "Apex Pack", "🦅", "Capstone: +16 HP, +4 ATK, Beast Frenzy and Call of the Wild cooldown −3 s.", { st: { hp: 16, atk: 4 }, cd: { id: "bfren", v: 3 }, cap: true }),
+    N("n_multi", "Multi-Shot", "🏹", "Learn Multi-Shot: 4 arrows at random foes, 70% each.", 1, 0, { ab: "multi", lv: 3 }),
+    N("n_mtrain", "Multi Training", "🏹", "Multi-Shot cooldown −1 s.", 0, 1, { req: ["n_multi"], cd: { id: "multi", v: 1 } }),
+    N("n_pierce", "Piercing Shot", "🎯", "Learn Piercing Shot: a line through every foe.", 0, 2, { req: ["n_mtrain"], ab: "pierce" }),
+    N("n_heavy", "Heavy Bolt", "🎯", "Piercing Shot +20% damage.", 0, 3, { req: ["n_pierce"], dmg: { id: "pierce", v: 0.2 } }),
+    N("n_rain", "Rain of Arrows", "🏹", "Learn Rain of Arrows: ticking damage in a circle.", 2, 2, { req: ["n_mtrain"], ab: "rain" }),
+    N("n_wrain", "Wider Rain", "🏹", "Rain of Arrows radius +0.5 tiles.", 2, 3, { req: ["n_rain"], rad: { id: "rain", v: 0.5 } }),
+    N("n_deadeye", "Deadeye", "🎯", "Capstone: +6 ATK, Piercing Shot and Rain cooldown −2 s.", 1, 4, { req: ["n_wrain"], st: { atk: 6 }, cd: { id: "pierce", v: 2 }, cap: true }),
+    N("n_hmark", "Hunter's Mark", "👁️", "Learn Hunter's Mark: reveal and slow a foe.", 4, 1, { req: ["n_multi"], ab: "hmark" }),
+    N("n_lmark", "Long Mark", "👁️", "Hunter's Mark lasts 3 s longer.", 4, 2, { req: ["n_hmark"], dur: { id: "hmark", v: 3 } }),
+    N("n_trap", "Snare Trap", "⛓️", "Learn Snare Trap: stun the target and make it bleed.", 6, 0, { ab: "trap", lv: 3 }),
+    N("n_strain", "Snare Training", "⛓️", "Snare Trap cooldown −2 s.", 6, 1, { req: ["n_trap"], cd: { id: "trap", v: 2 } }),
+    N("n_hook", "Grappling Hook", "🪝", "Learn Grappling Hook: dash to a point.", 6, 2, { req: ["n_strain"], ab: "hook" }),
+    N("n_line", "Long Line", "🪝", "Grappling Hook reach +1.5 tiles.", 6, 3, { req: ["n_hook"], rad: { id: "hook", v: 1.5 } }),
+    N("n_master", "Master Trapper", "💣", "Capstone: +4 ATK, Explosive Trap and Hook cooldown −2 s.", 6, 4, { req: ["n_line"], st: { atk: 4 }, cd: { id: "xtrap", v: 2 }, cap: true }),
+    N("n_frenzy", "Call of the Wild", "📯", "Learn Call of the Wild: a heavy shot, and pets deal triple for 8 s.", 11, 0, { ab: "frenzy", lv: 6 }),
+    N("n_wcall", "Wild Call", "📯", "Call of the Wild cooldown −2 s.", 11, 1, { req: ["n_frenzy"], cd: { id: "frenzy", v: 2 } }),
+    N("n_bfren", "Beast Frenzy", "🐺", "Learn Beast Frenzy: pets attack 40% faster.", 11, 2, { req: ["n_wcall"], ab: "bfren" }),
+    N("n_longf", "Long Frenzy", "🐺", "Beast Frenzy lasts 3 s longer.", 11, 3, { req: ["n_bfren"], dur: { id: "bfren", v: 3 } }),
+    N("n_apex", "Apex Pack", "🦅", "Capstone: +16 HP, +4 ATK, Beast Frenzy and Call of the Wild cooldown −3 s.", 11, 4, { req: ["n_longf"], st: { hp: 16, atk: 4 }, cd: { id: "bfren", v: 3 }, cap: true }),
+    N("n_xtrap", "Explosive Trap", "💣", "Learn Explosive Trap: roots the first foe, then explodes.", 15, 0, { ab: "xtrap", lv: 9 }),
+    N("n_boom", "Bigger Boom", "💣", "Explosive Trap radius +0.5 tiles and +15% damage.", 15, 1, { req: ["n_xtrap"], rad: { id: "xtrap", v: 0.5 }, dmg: { id: "xtrap", v: 0.15 } }),
+    N("n_xcd", "Trap Training", "💣", "Explosive Trap cooldown −2 s.", 15, 2, { req: ["n_boom"], cd: { id: "xtrap", v: 2 } }),
   ],
   cleric: [
-    N("c_r1", "Radiant", 0, "Zeal", "⚡", "+3 ATK.", { st: { atk: 3 } }),
-    N("c_r2", "Radiant", 1, "Smite Training", "⚡", "Smite +15% damage.", { dmg: { id: "smite", v: 0.15 } }),
-    N("c_r3", "Radiant", 2, "Holy Nova", "☀️", "Unlock Holy Nova: damage foes and heal allies.", { ab: "hnova" }),
-    N("c_r4", "Radiant", 3, "Wider Nova", "☀️", "Holy Nova radius +0.5 tiles.", { rad: { id: "hnova", v: 0.5 } }),
-    N("c_r5", "Radiant", 4, "Purify", "💧", "Unlock Purify: cleanse yourself and stun undead.", { ab: "purify" }),
-    N("c_r6", "Radiant", 5, "Holy Fire", "☀️", "Holy Nova +20% damage.", { dmg: { id: "hnova", v: 0.2 } }),
-    N("c_r7", "Radiant", 6, "Smash Training", "💥", "Smash cooldown −2 s.", { cd: { id: "smash", v: 2 } }),
-    N("c_r8", "Radiant", 7, "Conviction", "⚡", "+4 ATK and +8 HP.", { st: { atk: 4, hp: 8 } }),
-    N("c_r9", "Radiant", 8, "Dawnbreak", "☀️", "Capstone: +6 ATK, Holy Nova and Purify cooldown −3 s.", { st: { atk: 6 }, cd: { id: "hnova", v: 3 }, cap: true }),
-    N("c_s1", "Shepherd", 0, "Kind Hands", "✨", "+10 HP and +8 MP.", { st: { hp: 10, mp: 8 } }),
-    N("c_s2", "Shepherd", 1, "Heal Training", "✨", "Heal cooldown −1.5 s.", { cd: { id: "heal", v: 1.5 } }),
-    N("c_s3", "Shepherd", 2, "Sanctuary Training", "🕊️", "Sanctuary cooldown −3 s.", { cd: { id: "sanct", v: 3 } }),
-    N("c_s4", "Shepherd", 3, "Wide Haven", "🕊️", "Sanctuary radius +0.5 tiles.", { rad: { id: "sanct", v: 0.5 } }),
-    N("c_s5", "Shepherd", 4, "Guardian Spirit", "👻", "Unlock Guardian Spirit: revive a pet or summon an ally.", { ab: "spirit" }),
-    N("c_s6", "Shepherd", 5, "Long Watch", "👻", "Guardian Spirit lasts 4 s longer.", { dur: { id: "spirit", v: 4 } }),
-    N("c_s7", "Shepherd", 6, "Blessed Pace", "🌟", "Blessed Swiftness cooldown −15 s.", { cd: { id: "swift", v: 15 } }),
-    N("c_s8", "Shepherd", 7, "Gentle Strength", "✨", "+14 HP and +10 MP.", { st: { hp: 14, mp: 10 } }),
-    N("c_s9", "Shepherd", 8, "High Priest", "🕊️", "Capstone: +20 HP, +16 MP, Sanctuary and Spirit cooldown −4 s.", { st: { hp: 20, mp: 16 }, cd: { id: "sanct", v: 4 }, cap: true }),
-    N("c_w1", "Warden", 0, "Oath", "🔆", "+8 HP and +2 DEF.", { st: { hp: 8, def: 2 } }),
-    N("c_w2", "Warden", 1, "Shield Training", "🔆", "Holy Shield cooldown −3 s.", { cd: { id: "holy", v: 3 } }),
-    N("c_w3", "Warden", 2, "Divine Chains", "⛓️", "Unlock Divine Chains: root several enemies.", { ab: "chains" }),
-    N("c_w4", "Warden", 3, "Wider Bind", "⛓️", "Divine Chains radius +0.8 tiles.", { rad: { id: "chains", v: 0.8 } }),
-    N("c_w5", "Warden", 4, "Life Drain", "🩸", "Unlock Life Drain: deal damage and heal for part of it.", { ab: "drain" }),
-    N("c_w6", "Warden", 5, "Deep Drain", "🩸", "Life Drain +20% damage.", { dmg: { id: "drain", v: 0.2 } }),
-    N("c_w7", "Warden", 6, "Iron Faith", "🔆", "+4 DEF and +8 HP.", { st: { def: 4, hp: 8 } }),
-    N("c_w8", "Warden", 7, "Binding Word", "⛓️", "Divine Chains cooldown −3 s.", { cd: { id: "chains", v: 3 } }),
-    N("c_w9", "Warden", 8, "Sanctified Arms", "🔆", "Capstone: +5 DEF, +4 ATK, Life Drain and Chains cooldown −2 s.", { st: { def: 5, atk: 4 }, cd: { id: "drain", v: 2 }, cap: true }),
+    N("c_heal", "Heal", "✨", "Learn Heal: restore 35% HP and cleanse poison/burn.", 1, 0, { ab: "heal", lv: 3 }),
+    N("c_htrain", "Heal Training", "✨", "Heal cooldown −1.5 s.", 0, 1, { req: ["c_heal"], cd: { id: "heal", v: 1.5 } }),
+    N("c_spirit", "Guardian Spirit", "👻", "Learn Guardian Spirit: revive a pet or summon an ally.", 1, 2, { req: ["c_htrain"], ab: "spirit" }),
+    N("c_watch", "Long Watch", "👻", "Guardian Spirit lasts 4 s longer.", 1, 3, { req: ["c_spirit"], dur: { id: "spirit", v: 4 } }),
+    N("c_priest", "High Priest", "🕊️", "Capstone: +20 HP, +16 MP, Sanctuary and Spirit cooldown −4 s.", 1, 4, { req: ["c_watch"], st: { hp: 20, mp: 16 }, cd: { id: "sanct", v: 4 }, cap: true }),
+    N("c_kind", "Kind Hands", "✨", "+10 HP and +8 MP.", 2, 1, { req: ["c_heal"], st: { hp: 10, mp: 8 } }),
+    N("c_smite", "Smite", "⚡", "Learn Smite: 180% holy damage (250% vs undead).", 6, 0, { ab: "smite", lv: 3 }),
+    N("c_strain", "Smite Training", "⚡", "Smite +15% damage.", 5, 1, { req: ["c_smite"], dmg: { id: "smite", v: 0.15 } }),
+    N("c_hnova", "Holy Nova", "☀️", "Learn Holy Nova: damage foes and heal allies.", 5, 2, { req: ["c_strain"], ab: "hnova" }),
+    N("c_wnova", "Wider Nova", "☀️", "Holy Nova radius +0.5 tiles.", 4, 3, { req: ["c_hnova"], rad: { id: "hnova", v: 0.5 } }),
+    N("c_dawn", "Dawnbreak", "☀️", "Capstone: +6 ATK, Holy Nova and Purify cooldown −3 s.", 5, 4, { req: ["c_wnova"], st: { atk: 6 }, cd: { id: "hnova", v: 3 }, cap: true }),
+    N("c_purify", "Purify", "💧", "Learn Purify: cleanse yourself and stun undead.", 7, 2, { req: ["c_strain"], ab: "purify" }),
+    N("c_holy", "Holy Shield", "🔆", "Learn Holy Shield: halve damage taken for 6 s.", 11, 0, { ab: "holy", lv: 6 }),
+    N("c_shcd", "Shield Training", "🔆", "Holy Shield cooldown −3 s.", 10, 1, { req: ["c_holy"], cd: { id: "holy", v: 3 } }),
+    N("c_chains", "Divine Chains", "⛓️", "Learn Divine Chains: root several enemies.", 10, 2, { req: ["c_shcd"], ab: "chains" }),
+    N("c_bind", "Wider Bind", "⛓️", "Divine Chains radius +0.8 tiles.", 9, 3, { req: ["c_chains"], rad: { id: "chains", v: 0.8 } }),
+    N("c_drain", "Life Drain", "🩸", "Learn Life Drain: deal damage and heal for part of it.", 12, 2, { req: ["c_shcd"], ab: "drain" }),
+    N("c_deep", "Deep Drain", "🩸", "Life Drain +20% damage.", 12, 3, { req: ["c_drain"], dmg: { id: "drain", v: 0.2 } }),
+    N("c_arms", "Sanctified Arms", "🔆", "Capstone: +5 DEF, +4 ATK, Life Drain and Chains cooldown −2 s.", 11, 4, { req: ["c_deep"], st: { def: 5, atk: 4 }, cd: { id: "drain", v: 2 }, cap: true }),
+    N("c_smash", "Smash", "💥", "Learn Smash: 120% damage in a circle around you.", 15, 0, { ab: "smash", lv: 9 }),
+    N("c_scd", "Smash Training", "💥", "Smash cooldown −2 s.", 15, 1, { req: ["c_smash"], cd: { id: "smash", v: 2 } }),
+    N("c_sanct", "Sanctuary", "🕊️", "Learn Sanctuary: a healing circle that slows foes.", 18, 0, { ab: "sanct", lv: 12 }),
+    N("c_scd2", "Sanctuary Training", "🕊️", "Sanctuary cooldown −3 s.", 18, 1, { req: ["c_sanct"], cd: { id: "sanct", v: 3 } }),
+    N("c_haven", "Wide Haven", "🕊️", "Sanctuary radius +0.5 tiles.", 18, 2, { req: ["c_scd2"], rad: { id: "sanct", v: 0.5 } }),
   ],
 };
+function nodeByAb(cls: ClassId, ab: string): SkillNode | undefined {
+  return skillNodesOf(cls).find((n: SkillNode) => n.ab === ab);
+}
+function canTakeSkill(g: Game, n: SkillNode): boolean {
+  if ((g.skillPts ?? 0) < 1) return false;
+  if (ownedSkills(g).includes(n.id)) return false;
+  if (n.ab && SPEED_ABS.has(n.ab)) return false;
+  if ((n.lv ?? 0) > g.lvl) return false;
+  const reqs = n.req ?? [];
+  return reqs.every((id: string) => ownedSkills(g).includes(id));
+}
+function takeSkill(g: Game, id: string): boolean {
+  const n = skillNode(g.cls, id); if (!n || !canTakeSkill(g, n)) return false;
+  g.skills = ownedSkills(g).concat(id);
+  g.skillPts = Math.max(0, (g.skillPts ?? 0) - 1);
+  if (n.ab && !SPEED_ABS.has(n.ab)) {
+    const a = CLS[g.cls].abs.find((x: Ab) => x.id === n.ab);
+    if (a) { noteAbUnlock(g, a); autoSlot(g, a.id); }
+  }
+  log(g, `🌳 Learned ${n.icon} ${n.name}.`, "good");
+  return true;
+}
+function migrateSkills(g: Game): void {
+  if (g.buffs) g.buffs.haste = 0;
+  const legal = new Set(skillNodesOf(g.cls).map((n: SkillNode) => n.id));
+  const raw = Array.isArray(g.skills) ? g.skills.filter((id: string) => typeof id === "string") : [];
+  const have = new Set<string>();
+  for (const id of raw) {
+    if (legal.has(id)) {
+      const n = skillNode(g.cls, id);
+      if (n?.ab && SPEED_ABS.has(n.ab)) continue; // refunded by not keeping
+      have.add(id);
+      continue;
+    }
+    const ab = OLD_SKILL_AB[id];
+    if (ab && !SPEED_ABS.has(ab)) {
+      const n = nodeByAb(g.cls, ab);
+      if (n) have.add(n.id);
+    }
+  }
+  // Grant nodes for abilities this character already had under the old level-unlock rules (not speed boosts)
+  for (const a of levelAbs(g.cls)) {
+    if (SPEED_ABS.has(a.id)) continue;
+    if (g.lvl >= abUnlockLv(g.cls, a)) {
+      const n = nodeByAb(g.cls, a.id);
+      if (n) have.add(n.id);
+    }
+  }
+  // Also keep any already-owned tree abilities that map by ab from leftover slots/known skills
+  const slotIds = Array.isArray(g.slots) ? g.slots : [];
+  for (const id of slotIds) {
+    if (typeof id === "string" && id && !SPEED_ABS.has(id) && skillNodesOf(g.cls).some((n: SkillNode) => n.ab === id)) {
+      const n = nodeByAb(g.cls, id);
+      if (n) have.add(n.id);
+    }
+  }
+  g.skills = [...have];
+  const earned = Math.max(0, g.lvl - 1);
+  const spent = g.skills.length;
+  if (g.skillVer !== SKILL_VER || typeof g.skillPts !== "number" || !isFinite(g.skillPts)) {
+    g.skillPts = Math.max(0, earned - spent);
+  } else {
+    // already on v2: still drop speed nodes (handled above) and refund any shortfall
+    g.skillPts = Math.max(0, Math.floor(g.skillPts));
+    const need = Math.max(0, earned - spent);
+    // If we just stripped speed-boost nodes this load, refund the difference
+  }
+  // First-time v2 (or coming from v1): fair pool is earned - learned
+  if (g.skillVer !== SKILL_VER) {
+    g.skillPts = Math.max(0, earned - spent);
+    const learned = learnedAbs(g);
+    const slots: (string | null)[] = [null, null, null, null, null];
+    for (let i = 0; i < 5 && i < learned.length; i++) slots[i] = learned[i].id;
+    g.slots = slots;
+    g.skillVer = SKILL_VER;
+  } else {
+    g.slots = normSlots(g);
+    // refund points for speed abilities that were in the previous slot/skill lists
+    // (already dropped); if spent dropped this load we can't see old count, so
+    // bump points if the character is short of a fair pool after a speed refund
+    const fair = Math.max(0, earned - spent);
+    if ((g.skillPts ?? 0) < fair && raw.some((id: string) => SPEED_ABS.has(id) || (OLD_SKILL_AB[id] && SPEED_ABS.has(OLD_SKILL_AB[id])) || id === "march" || id === "haste" || id === "sprint" || id === "wstr" || id === "swift")) {
+      g.skillPts = fair;
+    }
+  }
+}
 function skillUp(g: Game, id: string): { cd: number; dmg: number; rad: number; dur: number; misc: Record<string, number> } {
   const out = { cd: 0, dmg: 0, rad: 0, dur: 0, misc: {} as Record<string, number> };
   for (const nid of ownedSkills(g)) {
@@ -969,32 +1075,8 @@ function skillStats(g: Game): Stats {
   }
   return st;
 }
-function canTakeSkill(g: Game, n: SkillNode): boolean {
-  if ((g.skillPts ?? 0) < 1) return false;
-  if (ownedSkills(g).includes(n.id)) return false;
-  if (n.row <= 0) return true;
-  const prev = skillNodesOf(g.cls).find((x: SkillNode) => x.path === n.path && x.row === n.row - 1);
-  return !!prev && ownedSkills(g).includes(prev.id);
-}
-function takeSkill(g: Game, id: string): boolean {
-  const n = skillNode(g.cls, id); if (!n || !canTakeSkill(g, n)) return false;
-  g.skills = ownedSkills(g).concat(id);
-  g.skillPts = Math.max(0, (g.skillPts ?? 0) - 1);
-  if (n.ab) {
-    const a = CLS[g.cls].abs.find((x: Ab) => x.id === n.ab);
-    if (a) noteAbUnlock(g, a);
-  }
-  log(g, `🌳 Learned ${n.icon} ${n.name}.`, "good");
-  return true;
-}
-function migrateSkills(g: Game): void {
-  const legal = new Set(skillNodesOf(g.cls).map((n: SkillNode) => n.id));
-  const have = (Array.isArray(g.skills) ? g.skills : []).filter((id: string) => typeof id === "string" && legal.has(id));
-  g.skills = have;
-  const earned = Math.max(0, g.lvl - 1);
-  if (typeof g.skillPts !== "number" || !isFinite(g.skillPts)) g.skillPts = Math.max(0, earned - have.length);
-  else g.skillPts = Math.max(0, Math.floor(g.skillPts));
-}
+
+
 function heroXY(g: Game): [number, number] { return [g.wx ?? g.px + 0.5, g.wy ?? g.py + 0.5]; }
 function distToSeg(px: number, py: number, x: number, y: number, dx: number, dy: number, len: number): number {
   const m = Math.hypot(dx, dy) || 1;
@@ -1062,12 +1144,6 @@ function healPetsIn(g: Game, amt: number, x: number, y: number, r: number): void
     if (p.hp > before) addFx(g, `+${p.hp - before}`, "heal", "m");
   }
 }
-function hasten(g: Game, name: string, icon: string): void {
-  g.buffs.haste = Math.max(g.buffs.haste ?? 0, 60);
-  log(g, `${icon} ${name}! +35% move speed for 60 s.`, "good");
-  addFx(g, name, "good", "p");
-  addPulseEx("haste", 0, 1.2, "rgba(140,220,255,.55)");
-}
 function castExtra(g: Game, id: string, label: string): boolean {
   const c = g.combat;
   const f = full(g); const b = g.buffs; const t = c ? tgt(c) : undefined;
@@ -1077,11 +1153,6 @@ function castExtra(g: Game, id: string, label: string): boolean {
   const dmg = (base: number): number => base * (1 + up.dmg);
   const dur = (base: number): number => base + up.dur;
   switch (id) {
-    case "march": case "haste": case "sprint": case "wstr": case "swift": {
-      const a = CLS[g.cls].abs.find((x: Ab) => x.id === id);
-      hasten(g, a?.name ?? "Haste", a?.icon ?? "⏳");
-      return true;
-    }
     case "lslam": {
       const e = t;
       const tx = e ? (e.x ?? px) : px + Math.cos(FACE) * rad(5), ty = e ? (e.y ?? py) : py + Math.sin(FACE) * rad(5);
@@ -1484,7 +1555,7 @@ const BIOME: Record<Biome, { name: string; sub: string }> = {
 const FAV: Record<Biome, string[]> = { warren: ["spider", "rat", "bat", "slime", "goblin"], crypt: ["skel", "wraith", "necro", "lich", "demon", "shade"] };
 function freshBuffs(): Buffs { return { rage: 0, holy: 0, evade: 0, shield: 0, frenzy: 0, fury: 0, iron: 0, defend: false, dotT: 0, dotD: 0, haste: 0, pethaste: 0, reflect: 0, nextCrit: 0, whirl: 0 }; }
 const FURY_T = 20, IRON_T = 25;
-function keepScrollBuffs(b: Buffs): Buffs { const n = freshBuffs(); n.fury = b.fury; n.iron = b.iron; n.haste = b.haste ?? 0; n.pethaste = b.pethaste ?? 0; return n; }
+function keepScrollBuffs(b: Buffs): Buffs { const n = freshBuffs(); n.fury = b.fury; n.iron = b.iron; n.pethaste = b.pethaste ?? 0; return n; }
 function tickScrollBuffs(g: Game, dt: number): void {
   const b = g.buffs;
   if (b.fury > 0) b.fury = Math.max(0, b.fury - dt);
@@ -2033,7 +2104,7 @@ function newGame(cls: ClassId, mode: Mode): Game {
   const c = CLS[cls];
   const g: Game = {
     screen: "map", prev: "map", mode, cls, lvl: 1, xp: 0, hp: 1, mp: 1, gold: 30, inv: [], eq: {}, floor: 1, map: [], seen: [], px: 0, py: 0, mons: [], sx: 0, sy: 0,
-    log: [], combat: null, cds: {}, buffs: freshBuffs(), perks: [], bonus: {}, goldMult: 1, inAb: false, usedUndying: false, usedShadow: false, usedPhoenix: false, skills: [], skillPts: 0,
+    log: [], combat: null, cds: {}, buffs: freshBuffs(), perks: [], bonus: {}, goldMult: 1, inAb: false, usedUndying: false, usedShadow: false, usedPhoenix: false, skills: [], skillPts: 0, slots: [null, null, null, null, null], skillVer: 2,
     shop: [], stock: [], offers: [], kills: 0, sel: -1, fx: [], turns: 0, tokensEarned: 0,
   };
   g.eq.weapon = makeInst(c.start[0], 1, false);
@@ -2114,8 +2185,7 @@ function gainXp(g: Game, n: number): void {
   }
   if (g.lvl > from) {
     g.skillPts = (g.skillPts ?? 0) + (g.lvl - from);
-    log(g, `🌳 You gained ${g.lvl - from} skill point${g.lvl - from === 1 ? "" : "s"} (${g.skillPts} unspent). Open Skills to spend them.`, "good");
-    checkAbUnlocks(g, from, g.lvl);
+    log(g, `🌳 You gained ${g.lvl - from} skill point${g.lvl - from === 1 ? "" : "s"} (${g.skillPts} unspent). Open Skills to learn and slot abilities.`, "good");
   }
 }
 function healPlayer(g: Game, amt: number, combatHeal: boolean): number {
@@ -2474,7 +2544,7 @@ function rtAttack(g: Game): void {
 function rtAbility(g: Game, id: string): void {
   if (g.screen !== "map") return;
   const ab = CLS[g.cls].abs.find((a: Ab) => a.id === id);
-  if (!abReadyId(g, id)) { addFx(g, ab ? `Lv ${abUnlockLv(g.cls, ab)}` : "locked", "sys", "p"); return; }
+  if (!abReadyId(g, id)) { addFx(g, "skill tree", "sys", "p"); return; }
   const c = g.combat;
   if (c) syncPos(g);
   const r = ABR[id] !== undefined ? ABR[id] / U : undefined;
@@ -3321,7 +3391,7 @@ function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   I.slowT = Math.max(0, I.slowT - dt);
   for (const k of Object.keys(g.cds)) if (g.cds[k] > 0) g.cds[k] = Math.max(0, g.cds[k] - dt);
   const cb = g.combat;
-  const sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1) * (full(g).curses.includes("c_slow") ? 0.7 : 1) * (cb ? 1 + Math.min(50, full(g).dodge) / 250 : 1) * ((g.buffs.haste ?? 0) > 0 ? 1.35 : 1);
+  const sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1) * (full(g).curses.includes("c_slow") ? 0.7 : 1) * (cb ? 1 + Math.min(50, full(g).dodge) / 250 : 1);
   const mag = Math.hypot(mx, my);
   let tvx = 0, tvy = 0;
   if (cb && (cb.dashT ?? 0) > 0) {
@@ -3722,7 +3792,7 @@ function abNeedsTarget(id: string): boolean {
 }
 function useAbility(g: Game, id: string): ActRes {
   const ab = CLS[g.cls].abs.find((a: Ab) => a.id === id); if (!ab) return "none";
-  if (!abReadyId(g, id)) { log(g, ab.tree ? `${ab.name} is unlocked on the skill tree.` : `${ab.name} unlocks at level ${abUnlockLv(g.cls, ab)}.`); addFx(g, ab.tree ? "skill tree" : `Lv ${abUnlockLv(g.cls, ab)}`, "sys", "p"); return "none"; }
+  if (!abReadyId(g, id)) { log(g, `${ab.name} is learned on the skill tree.`); addFx(g, "skill tree", "sys", "p"); return "none"; }
   if ((g.cds[id] ?? 0) > 0) { log(g, `${ab.name} is on cooldown.`); return "none"; }
   const cost = abCost(g, ab);
   if (g.mp < cost) { log(g, `Not enough MP for ${ab.name}.`); return "none"; }
@@ -3917,7 +3987,7 @@ function unequip(g: Game, slot: GearSlot): void {
 
 const HELP: [string, string][] = [
   ["🕹️ Controls (touch)", "Touch and drag anywhere on the LEFT half of the screen to spawn a floating joystick; hold it to keep moving (analog, 8 directions). Out of combat the right side holds your abilities, 🎒 Bag, 🌳 Skills, 📖 Codex and ❓ Help. The ⚙ Menu button lives on the HUD, away from those actions — use it for 💾 Save code and 🏠 Title (with a confirm). When a fight starts the same view swaps to combat controls: ⚔️ Attack (hold to keep swinging), your abilities with cooldown rings, 💨 Dodge roll and a 🧪 potion quick-slot. Menu, title and save are fully locked in combat. Tap an enemy to target it. Tap the minimap (top-right of the dungeon view) for the full map, which pauses the game. Item pickups float above your hero. Works in portrait and landscape."],
-  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving, you glide along walls). Exploring: M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. Abilities (keys 1–9, then 0 for the tenth) can be used while moving, in or out of a fight. In combat: Space or J = attack (hold), Enter = attack once, Shift or K = dodge roll, R = quick-slot potion, Tab or Q/E = switch target. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc on the map opens the ⚙ Menu (not mid-fight, and not the title screen by itself). Title requires a confirm from that menu."],
+  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving, you glide along walls). Exploring: M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. Abilities (keys 1–5, matching your five loadout slots) can be used while moving, in or out of a fight. In combat: Space or J = attack (hold), Enter = attack once, Shift or K = dodge roll, R = quick-slot potion, Tab or Q/E = switch target. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc on the map opens the ⚙ Menu (not mid-fight, and not the title screen by itself). Title requires a confirm from that menu."],
   ["🎮 Gamepad", "Left stick or D-pad moves. Exploring: A/✕ trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. In combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, RT/R2 ability 4, LB/L1 switch target, View/Select quick-slot potion. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options opens the Menu when you are not in a fight (title requires a confirm). It does nothing mid-fight."],
   ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant (stock is limited: each piece of gear sells once, potions and scrolls 1–3 each, then the slot shows SOLD OUT; leaving or reloading doesn't restock — the next merchant floor has fresh wares; Epic/Legendary wares are rare early, more common deeper, at most 2 per shop), 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You do not regenerate health or mana over time; look for potions, abilities, and gear marked ♻ Mana regen."],
   ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Ranged foes keep their distance: 🏹 archers show a red aim line before loosing a fast arrow, 🐸 Acid Spitters mark a green ring where their acid glob will land, and 🧙 Hex Cultists send a slow purple bolt that hexes you (−25% damage for 4 s). Their aim locks when the wind-up starts, so step aside. ★ Elite monsters (gold glow) are tougher and drop better loot. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. A Smoke Bomb or Shadowmeld breaks off a fight instantly (not against bosses)."],
@@ -3927,8 +3997,8 @@ const HELP: [string, string][] = [
   ["✨ Starting perk", "Every new run (Story and Endless) opens with a choice of 3 random Common perks. The roll is saved, so reloading won't change it."],
   ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
-  ["✨ Abilities", "Each class starts with only a basic attack. Core class abilities unlock as you level: the first at level 3, then 6, 9 and 12, then further signature skills at 15 and a move-speed boost at 18 (Mage, Rogue and Ranger also learn a new skill at 12). Locked buttons show a lock and the required level, and a banner announces “New ability unlocked” when one opens. Every ability can be used while moving (hotkey or tap); movement is not stopped, and aimed skills go to your current or nearest target. New powers also come from the in-run skill tree (three paths with a capstone each) — those appear on the bar once learned. Abilities cost MP and have cooldowns in seconds. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
-  ["🌳 Skill tree", "Each time you level up you gain one skill point (old saves get all unspent points from levels already earned). Open Skills out of combat to spend them on one of three class paths (about nine nodes each): stat bumps, cooldown and damage upgrades, new abilities, and a capstone. Nodes on a path must be taken in order. This does not replace the Endless token upgrade tree."],
+  ["✨ Abilities", "Each class starts with only a basic attack, which is always free. Every other ability — including former level unlocks such as Shield Bash, Fireball, or Leaping Slam — is learned by spending skill points on the in-run skill tree. Equip up to five learned abilities in the Skills loadout; only those appear on the bar (keys 1–5). You can change the loadout out of combat. Every ability can be used while moving (hotkey or tap); movement is not stopped, and aimed skills go to your current or nearest target. Abilities cost MP and have cooldowns in seconds. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
+  ["🌳 Skill tree", "Each time you level up you gain one skill point. Open Skills out of combat to spend points on a branching tree: main skills are roots (some with a level gate), and sub-skills branch off with prerequisites. You can choose between branches; you do not have to fill one line to reach another. Existing characters keep every ability they already had, marked as learned, with the first five auto-slotted and a fair pool of unspent points. Speed-boost skills (War March, Haste, Sprint, Wind Stride, Blessed Swiftness) were removed; any points spent on them are refunded on load. This tree is separate from the Endless token upgrade tree."],
   ["✨ Dust salvage", "In your bag, Break down turns identified unequipped gear into Dust at a flat rarity rate: Common 1, Uncommon 2, Rare 3, Epic 4, Set 5, Legendary 6 (cursed items use the same tier; iLvl does not matter). 1 Dust = 1 gold, added immediately. Each rarity has a Break down all button that shows the item count and total Dust and asks for confirmation. A lock toggle on every item (inventory grid and item details) — and on equipped gear — stops it from being salvaged or sold, including merchant sell-from-bag. Curse-bound and equipped items are also protected. The lock is saved; old items default to unlocked."],
   ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its name, roll, and range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Later general sets, rarer than the earlier ones: Gravebloom Vestments (from floor 6), Rimeward Pall (from floor 10), and Ashen Covenant (from floor 14, Endless). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag. The dungeon holds 67 weapons, 42 armor, 37 helmets, 34 rings and 33 amulets, including 73 set pieces across 19 sets, 24 legendaries (uniques), and 11 cursed items."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
@@ -4593,6 +4663,7 @@ export default function DungeonOfEchoes() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [homeAsk, setHomeAsk] = useState(false);
   const [salvAsk, setSalvAsk] = useState<{ title: string; body: string; uids: number[] } | null>(null);
+  const [loadSel, setLoadSel] = useState<number>(0);
   const [codeText, setCodeText] = useState<string>("");
   const [imp, setImp] = useState<string>("");
   const [msg, setMsg] = useState<string>("");
@@ -4617,6 +4688,71 @@ export default function DungeonOfEchoes() {
   const refresh = useCallback((): void => setTick((n: number) => n + 1), []);
   const run = useCallback((fn: (g: Game) => void): void => { const g = G.current; if (!g) return; fn(g); LAST_SAVE = saveRun(g); refresh(); }, [refresh]);
   const toTitle = (): void => { if (G.current) LAST_SAVE = saveRun(G.current); G.current = null; setConfirm(null); setUi("title"); refresh(); };
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    type DoeWin = Window & {
+      __G?: () => Game | null;
+      __I?: typeof inp;
+      __T?: Record<string, unknown>;
+      __R?: Record<string, unknown>;
+    };
+    const w = window as DoeWin;
+    const snap = (g: Game | null) => {
+      if (!g) return null;
+      return {
+        cls: g.cls, lvl: g.lvl, floor: g.floor, screen: g.screen, hp: g.hp, mp: g.mp,
+        skillPts: g.skillPts ?? 0, skills: ownedSkills(g).slice(), slots: normSlots(g),
+        bar: barAbs(g).map((a: Ab | null) => a ? a.id : null),
+        cds: { ...g.cds }, wx: g.wx ?? g.px + 0.5, wy: g.wy ?? g.py + 0.5,
+        combat: !!g.combat, log: (g.log ?? []).slice(-6).map((l: LogL) => l.t),
+      };
+    };
+    const boot = (cls: ClassId, mode: Mode = "story"): Game => {
+      try { localStorage.removeItem(RUN_KEY); } catch (e) { void e; }
+      const ng = newGame(cls, mode);
+      ng.offers = []; ng.startPick = false; ng.vaultOffer = false; ng.screen = "map";
+      G.current = ng; LAST_SAVE = saveRun(ng); refresh();
+      return ng;
+    };
+    w.__G = () => G.current;
+    w.__I = inp;
+    w.__T = { run, refresh, boot, toTitle, snap: () => snap(G.current) };
+    w.__R = {
+      takeSkill, setSlot, gainXp, descend, engage, rtAbility, canTakeSkill, skillNodesOf, migrateSkills,
+      need, levelAbs,
+      learn: (id: string) => { const g = G.current; if (!g) return false; const ok = takeSkill(g, id); LAST_SAVE = saveRun(g); refresh(); return ok; },
+      slot: (i: number, id: string | null) => { const g = G.current; if (!g) return; setSlot(g, i, id); LAST_SAVE = saveRun(g); refresh(); },
+      xp: (n: number) => { const g = G.current; if (!g) return; gainXp(g, n); LAST_SAVE = saveRun(g); refresh(); },
+      lvlTo: (n: number) => { const g = G.current; if (!g) return; let guard = 0; while (g.lvl < n && guard++ < 80) gainXp(g, Math.max(1, need(g.lvl) - g.xp)); LAST_SAVE = saveRun(g); refresh(); },
+      clearFloor: () => { const g = G.current; if (!g) return; g.combat = null; g.mons = []; LAST_SAVE = saveRun(g); refresh(); },
+      nextFloor: () => { const g = G.current; if (!g) return; g.combat = null; descend(g); LAST_SAVE = saveRun(g); refresh(); },
+      poke: () => {
+        const g = G.current; if (!g) return false;
+        const fx = (g.wx ?? g.px + 0.5) + 1, fy = g.wy ?? g.py + 0.5;
+        let mon = g.mons.find((mm: MapMon) => !mm.boss);
+        if (!mon) {
+          mon = { id: 9001, t: Object.keys(MON)[0], x: Math.floor(fx), y: Math.floor(fy), fx, fy, stun: 0, awake: true, boss: false };
+          g.mons.push(mon);
+        } else {
+          mon.fx = fx; mon.fy = fy; mon.x = Math.floor(fx); mon.y = Math.floor(fy); mon.awake = true;
+        }
+        engage(g, mon); LAST_SAVE = saveRun(g); refresh(); return true;
+      },
+      hold: (x: number, y: number) => { const I = inp.current; I.kx = x; I.ky = y; },
+      stop: () => { const I = inp.current; I.kx = 0; I.ky = 0; I.jx = 0; I.jy = 0; I.gx = 0; I.gy = 0; I.atk = false; I.katk = false; },
+      cast: (i: number) => { const g = G.current; if (!g) return; const a = barAbs(g)[i]; if (a) rtAbility(g, a.id); refresh(); },
+      migrateSample: () => {
+        const g = newGame("warrior", "story");
+        g.offers = []; g.startPick = false; g.screen = "map";
+        g.lvl = 18; g.xp = 0; g.skills = ["w_j4", "march", "haste"]; g.skillPts = 0; delete g.skillVer; g.slots = ["march", "bash", "haste", null, null];
+        if (g.buffs) g.buffs.haste = 30;
+        migrateSkills(g);
+        return { skills: g.skills.slice(), skillPts: g.skillPts, slots: normSlots(g), skillVer: g.skillVer, haste: g.buffs.haste ?? 0, learned: learnedAbs(g).map((a: Ab) => a.id) };
+      },
+    };
+    return () => { delete w.__G; delete w.__I; delete w.__T; delete w.__R; };
+  }, [run, refresh]);
 
   useEffect(() => {
     const gg = G.current;
@@ -5114,8 +5250,8 @@ export default function DungeonOfEchoes() {
   };
   const abil = (i: number): void => {
     const gg = G.current; if (!gg || gg.screen !== "map") return;
-    const a = barAbs(gg)[i]; if (!a) return;
-    if (!abReady(gg, i)) { addFx(gg, a.tree ? "skill tree" : `Lv ${abUnlockLv(gg.cls, a)}`, "sys", "p"); refresh(); return; }
+    const a = barAbs(gg)[i]; if (!a) { addFx(gg, "empty slot", "sys", "p"); refresh(); return; }
+    if (!abReady(gg, i)) { addFx(gg, "not learned", "sys", "p"); refresh(); return; }
     if ((gg.cds[a.id] ?? 0) > 0 || gg.mp < abCost(gg, a)) { addFx(gg, (gg.cds[a.id] ?? 0) > 0 ? "cooldown" : "no MP", "sys", "p"); refresh(); return; }
     run((x: Game) => rtAbility(x, a.id));
   };
@@ -5170,9 +5306,9 @@ export default function DungeonOfEchoes() {
       return;
     }
     if (!gg) return;
-    if (k === "1" || k === "2" || k === "3" || k === "4" || k === "5" || k === "6" || k === "7" || k === "8" || k === "9" || k === "0") {
+    if (k === "1" || k === "2" || k === "3" || k === "4" || k === "5") {
       e.preventDefault();
-      abil(k === "0" ? 9 : Number(k) - 1);
+      abil(Number(k) - 1);
       return;
     }
     if (gg.combat) {
@@ -5266,7 +5402,7 @@ export default function DungeonOfEchoes() {
       drawRef.current(false);
       if (currentAbPop() && (AB_POPS[0]?.ts ?? 0) !== (I as Inp & { abTs?: number }).abTs) { (I as Inp & { abTs?: number }).abTs = AB_POPS[0]?.ts; setToast(`✨ New ability unlocked: ${currentAbPop()!.name}`); }
       if ((gg.screen as Screen) !== "map" || was !== !!gg.combat) { I.rT = 0; refresh(); }
-      else if (chg || currentAbPop() || livePulses(Date.now()).length || gg.buffs.fury > 0 || gg.buffs.iron > 0 || (gg.buffs.haste ?? 0) > 0 || (gg.buffs.pethaste ?? 0) > 0) { I.rT += dt; if (I.rT >= (gg.combat ? 0.066 : 0.033)) { I.rT = 0; refresh(); } }
+      else if (chg || currentAbPop() || livePulses(Date.now()).length || gg.buffs.fury > 0 || gg.buffs.iron > 0 || (gg.buffs.pethaste ?? 0) > 0) { I.rT += dt; if (I.rT >= (gg.combat ? 0.066 : 0.033)) { I.rT = 0; refresh(); } }
     } else return;
     I.saveT += dt;
     if (I.saveT >= 1.5 || (gg.screen as Screen) === "dead") { I.saveT = 0; LAST_SAVE = saveRun(gg); }
@@ -5816,9 +5952,16 @@ export default function DungeonOfEchoes() {
   // ---------- SKILLS (in-run tree; separate from Endless token TREE) ----------
   if (g.screen === "skills") {
     const nodes = skillNodesOf(g.cls);
-    const paths: string[] = [];
-    for (const n of nodes) if (!paths.includes(n.path)) paths.push(n.path);
     const have = ownedSkills(g);
+    const TNW = 92, TNH = 80, TGX = 12, TGY = 46;
+    const nx = (n: SkillNode) => n.x * (TNW + TGX);
+    const ny = (n: SkillNode) => n.y * (TNH + TGY);
+    const maxX = Math.max(0, ...nodes.map((n: SkillNode) => nx(n))) + TNW + 8;
+    const maxY = Math.max(0, ...nodes.map((n: SkillNode) => ny(n))) + TNH + 8;
+    const learned = learnedAbs(g);
+    const slots = normSlots(g);
+    const inFight = inCombatNow();
+    const assign = (id: string): void => { if (inFight) return; run((gg: Game) => { setSlot(gg, loadSel, id); }); };
     return (
       <div style={root}>{style}
         {hud}
@@ -5827,23 +5970,54 @@ export default function DungeonOfEchoes() {
           <div style={{ fontWeight: 800, color: (g.skillPts ?? 0) > 0 ? t.text.accent : t.text.secondary }}>{g.skillPts ?? 0} unspent</div>
           {btn("Back", () => run((gg: Game) => { gg.screen = gg.prev === "skills" ? "map" : (gg.prev || "map"); }), { tone: "primary" })}
         </div>
-        <div style={{ fontSize: 13, color: t.text.secondary }}>Spend one point per node, in order down each path. Level still unlocks your core abilities; this tree adds upgrades, capstones, and extra powers. It is separate from Endless token upgrades.</div>
-        <div style={{ display: "grid", gridTemplateColumns: land ? "1fr 1fr 1fr" : "1fr", gap: 10 }}>
-          {paths.map((path: string) => (
-            <div key={path} style={{ ...card, display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ fontWeight: 800, fontSize: 16 }}>{path}</div>
-              {nodes.filter((n: SkillNode) => n.path === path).sort((a: SkillNode, b: SkillNode) => a.row - b.row).map((n: SkillNode) => {
-                const owned = have.includes(n.id);
-                const open = canTakeSkill(g, n);
-                return (
-                  <button key={n.id} type="button" disabled={!open} onClick={() => run((gg: Game) => { takeSkill(gg, n.id); })} style={{ textAlign: "left", borderRadius: 10, padding: "8px 10px", border: `2px solid ${owned ? "#c9a24a" : open ? t.border.strong : t.border.default}`, background: owned ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: open ? "pointer" : "default", opacity: owned || open ? 1 : 0.55 }}>
-                    <div style={{ fontWeight: 700 }}>{n.icon} {n.name}{n.cap ? " ★" : ""} {owned ? "✓" : open ? "" : "🔒"}</div>
-                    <div style={{ fontSize: 12, color: t.text.secondary }}>{n.desc}</div>
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+        <div style={{ fontSize: 13, color: t.text.secondary }}>Spend a point on any open branch. Roots may require a level; branches need the node they grow from. The basic attack is always free. Equip up to five learned abilities in the loadout — only those appear on the bar (keys 1–5). Change the loadout out of combat.</div>
+        <div style={{ ...card, display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontWeight: 800 }}>Loadout · 5 slots{inFight ? " (change after combat)" : ""}</div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {slots.map((id: string | null, i: number) => {
+              const a = id ? CLS[g.cls].abs.find((x: Ab) => x.id === id) : undefined;
+              const on = loadSel === i;
+              return (
+                <button key={i} type="button" disabled={inFight} onClick={() => setLoadSel(i)} style={{ minWidth: 112, textAlign: "left", borderRadius: 10, padding: "8px 10px", border: `2px solid ${on ? "#c9a24a" : t.border.default}`, background: on ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: inFight ? "default" : "pointer" }}>
+                  <div style={{ fontSize: 11, color: t.text.secondary }}>Slot {i + 1}</div>
+                  <div style={{ fontWeight: 700 }}>{a ? `${a.icon} ${a.name}` : "Empty"}</div>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: t.text.secondary }}>Equip in slot {loadSel + 1}:</span>
+            {learned.map((a: Ab) => (
+              <button key={a.id} type="button" disabled={inFight} onClick={() => assign(a.id)} style={{ borderRadius: 8, padding: "6px 8px", border: `1px solid ${slots.includes(a.id) ? "#c9a24a" : t.border.default}`, background: slots.includes(a.id) ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: inFight ? "default" : "pointer" }}>{a.icon} {a.name}{slots.includes(a.id) ? " ✓" : ""}</button>
+            ))}
+            {learned.length === 0 ? <span style={{ fontSize: 12, color: t.text.secondary }}>Learn an ability on the tree first.</span> : null}
+            {slots[loadSel] && !inFight ? <button type="button" onClick={() => run((gg: Game) => { setSlot(gg, loadSel, null); })} style={{ borderRadius: 8, padding: "6px 8px", border: `1px solid ${t.border.default}`, background: t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: "pointer" }}>Unequip slot {loadSel + 1}</button> : null}
+          </div>
+        </div>
+        <div style={{ ...card, overflow: "auto", maxHeight: land ? "52vh" : "46vh" }}>
+          <div style={{ position: "relative", width: maxX, height: maxY, minWidth: "100%" }}>
+            <svg width={maxX} height={maxY} style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}>
+              {nodes.flatMap((n: SkillNode) => (n.req ?? []).map((rid: string) => {
+                const p = skillNode(g.cls, rid); if (!p) return null;
+                const x1 = nx(p) + TNW / 2, y1 = ny(p) + TNH, x2 = nx(n) + TNW / 2, y2 = ny(n), mid = (y1 + y2) / 2;
+                const lit = have.includes(n.id) || have.includes(p.id);
+                return <path key={`${n.id}-${rid}`} d={`M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`} stroke={lit ? "#c9a24a" : "#555"} strokeWidth={2} fill="none" />;
+              }))}
+            </svg>
+            {nodes.map((n: SkillNode) => {
+              const owned = have.includes(n.id);
+              const open = canTakeSkill(g, n);
+              const missing = (n.req ?? []).filter((r: string) => !have.includes(r)).map((r: string) => skillNode(g.cls, r)?.name ?? r);
+              const why = !owned && !open ? (n.lv && g.lvl < n.lv ? `Lv ${n.lv}` : missing.length ? missing.join(", ") : (g.skillPts ?? 0) < 1 ? "Need a point" : "Locked") : "";
+              const clickable = open || !!(owned && n.ab && !inFight);
+              return (
+                <button key={n.id} type="button" disabled={!clickable} onClick={() => { if (open) run((gg: Game) => { takeSkill(gg, n.id); }); else if (owned && n.ab) assign(n.ab); }} title={n.desc + (why ? ` — ${why}` : owned && n.ab ? " — click to equip" : "")} style={{ position: "absolute", left: nx(n), top: ny(n), width: TNW, height: TNH, textAlign: "left", borderRadius: 10, padding: "6px 7px", border: `2px solid ${owned ? "#c9a24a" : open ? t.border.strong : t.border.default}`, background: owned ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: clickable ? "pointer" : "default", opacity: owned || open ? 1 : 0.55, overflow: "hidden" }}>
+                  <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.2 }}>{n.icon} {n.name}{n.cap ? " ★" : ""} {owned ? "✓" : open ? "" : "🔒"}</div>
+                  <div style={{ fontSize: 10, color: t.text.secondary, marginTop: 2, lineHeight: 1.25 }}>{owned ? n.desc : why || n.desc}</div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
@@ -6065,17 +6239,22 @@ export default function DungeonOfEchoes() {
   const combatActions = c ? (
     <div data-combat-actions="1" style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-        {barAbs(g).map((a: Ab, i: number) => {
-          const locked = !abReady(g, i); const lv = a.tree ? 0 : abUnlockLv(g.cls, a);
-          const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
-          return (
-            <button key={a.id} type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); abil(i); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={locked ? `${a.name} unlocks at level ${lv}` : `${a.name} (key ${i + 1})`} title={locked ? `Unlocks at level ${lv}` : `${a.name}: ${a.desc}`} style={{ ...roundBtn, borderColor: locked ? "#665" : cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: locked ? 0.55 : noMp && cd <= 0 ? 0.55 : 1, filter: locked ? "grayscale(.7)" : undefined }}>
-              <span>{locked ? "🔒" : a.icon}</span>{locked ? null : ring(fr)}
-              <span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: locked ? "#ffe08a" : "#ffe6b0", textShadow: "0 1px 2px #000" }}>{locked ? `Lv ${lv}` : cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
-              <span style={{ position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" }}>{i < 9 ? i + 1 : i === 9 ? 0 : ""}</span>
+        {barAbs(g).map((a: Ab | null, i: number) => {
+          if (!a) return (
+            <button key={"e"+i} type="button" data-noj="1" disabled aria-label={`Empty ability slot ${i + 1}`} title="Empty slot — equip an ability in Skills" style={ { ...roundBtn, borderColor: t.border.default, opacity: 0.4 } }>
+              <span>➕</span>
+              <span style={ { position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#bbb", textShadow: "0 1px 2px #000" } }>empty</span>
+              <span style={ { position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" } }>{i + 1}</span>
             </button>
           );
-        })}
+          const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
+          return (
+            <button key={a.id} type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); abil(i); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={`${a.name} (key ${i + 1})`} title={`${a.name}: ${a.desc}`} style={ { ...roundBtn, borderColor: cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: noMp && cd <= 0 ? 0.55 : 1 } }>
+              <span>{a.icon}</span>{ring(fr)}
+              <span style={ { position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#ffe6b0", textShadow: "0 1px 2px #000" } }>{cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
+              <span style={ { position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" } }>{i + 1}</span>
+            </button>
+          );})}
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
         <button data-potion="1" onClick={quick} disabled={!qi} aria-label={qi ? `Quick-slot: ${IT[qi.id].name} ×${qn} (R)` : "No potion"} title={qi ? `${IT[qi.id].name} (R / 4 / Select)` : "No potion"} style={{ ...roundBtn, width: 50, height: 50, borderColor: qi ? "#e5484d" : t.border.default, opacity: qi ? 1 : 0.45, fontSize: 20 }}>
@@ -6096,17 +6275,22 @@ export default function DungeonOfEchoes() {
   const mapActions = c ? combatActions : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-            {barAbs(g).map((a: Ab, i: number) => {
-              const locked = !abReady(g, i); const lv = a.tree ? 0 : abUnlockLv(g.cls, a);
-              const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
-              return (
-                <button key={a.id} type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); abil(i); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={locked ? `${a.name} unlocks at level ${lv}` : `${a.name} (key ${i + 1})`} title={locked ? `Unlocks at level ${lv}` : `${a.name}: ${a.desc}`} style={{ ...roundBtn, borderColor: locked ? "#665" : cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: locked ? 0.55 : noMp && cd <= 0 ? 0.55 : 1, filter: locked ? "grayscale(.7)" : undefined }}>
-                  <span>{locked ? "🔒" : a.icon}</span>{locked ? null : ring(fr)}
-                  <span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: locked ? "#ffe08a" : "#ffe6b0", textShadow: "0 1px 2px #000" }}>{locked ? `Lv ${lv}` : cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
-                  <span style={{ position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" }}>{i < 9 ? i + 1 : i === 9 ? 0 : ""}</span>
+            {barAbs(g).map((a: Ab | null, i: number) => {
+              if (!a) return (
+                <button key={"e"+i} type="button" data-noj="1" disabled aria-label={`Empty ability slot ${i + 1}`} title="Empty slot — equip an ability in Skills" style={ { ...roundBtn, borderColor: t.border.default, opacity: 0.4 } }>
+                  <span>➕</span>
+                  <span style={ { position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#bbb", textShadow: "0 1px 2px #000" } }>empty</span>
+                  <span style={ { position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" } }>{i + 1}</span>
                 </button>
               );
-            })}
+              const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
+              return (
+                <button key={a.id} type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); abil(i); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={`${a.name} (key ${i + 1})`} title={`${a.name}: ${a.desc}`} style={ { ...roundBtn, borderColor: cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: noMp && cd <= 0 ? 0.55 : 1 } }>
+                  <span>{a.icon}</span>{ring(fr)}
+                  <span style={ { position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#ffe6b0", textShadow: "0 1px 2px #000" } }>{cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
+                  <span style={ { position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" } }>{i + 1}</span>
+                </button>
+              );})}
           </div>
           {onMerchant && btn("💰 Trade", interact, { tone: "accent", tall: true })}
           {btn(`🎒 Bag (${g.inv.length})`, () => run((gg: Game) => { gg.screen = "inventory"; gg.sel = -1; }), { tone: "primary", tall: true })}
@@ -6121,7 +6305,6 @@ export default function DungeonOfEchoes() {
   const chips: string[] = [];
   if (b.fury > 0) chips.push(`📜 Fury ${fmtBuff(b.fury)}`);
   if (b.iron > 0) chips.push(`📃 Iron ${fmtBuff(b.iron)}`);
-  if ((b.haste ?? 0) > 0) chips.push(`⚡ Swift ${fmtBuff(b.haste ?? 0)}`);
   if (c) {
     if (b.rage > 0) chips.push(`📣 Rage ${fmtBuff(b.rage)}`);
     if (b.holy > 0) chips.push(`🔆 Holy ${fmtBuff(b.holy)}`);
