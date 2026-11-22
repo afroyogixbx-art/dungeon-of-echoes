@@ -1,6 +1,6 @@
 /**
  * Capture map + combat HUD screenshots and button metrics.
- * Usage: node scripts/ui-shots.mjs before|after
+ * Usage: node scripts/ui-shots.mjs before|after|bigger
  */
 import { spawn } from "node:child_process";
 import { createConnection } from "node:net";
@@ -13,7 +13,8 @@ import puppeteer from "puppeteer-core";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = Number(process.env.PLAYTEST_PORT || 4181);
 const CHROME = process.env.CHROME || "/usr/bin/google-chrome";
-const tag = process.argv[2] === "after" ? "after" : "before";
+const arg = process.argv[2] || "before";
+const tag = arg === "after" || arg === "bigger" ? arg : "before";
 const out = path.join(ROOT, "playtest-shots");
 
 function waitPort(port, timeoutMs) {
@@ -120,12 +121,62 @@ async function main() {
     await page.screenshot({ path: path.join(out, `ui-${tag}-combat-landscape.png`) });
 
     const metrics = { tag, map: mapM, combat: combatM, landscape: landM };
+    const problems = [];
+    const expectHit = {
+      "Bag": [40, 40],
+      "Codex": [40, 40],
+      "Help": [40, 40],
+      "Shield Bash (key 1)": [56, 56],
+      "Empty ability slot 2": [56, 56],
+      "Healing Potion": [56, 56],
+      "Dodge roll": [56, 56],
+      "Attack (hold)": [76, 76],
+      "Switch target": [56, 56],
+    };
+    const keep = { "Menu": true, "Skills": true };
+    function checkBlock(name, block) {
+      const mid = block.vw / 2;
+      const util = block.rows.filter((r) => /Bag|Codex|Help|Skills/.test(r.aria || r.label) && r.w <= 200);
+      const actions = block.rows.filter((r) => /Shield Bash|Empty ability|Healing Potion|Dodge roll|Attack \(hold\)|Switch target/.test(r.aria || r.label));
+      for (const r of block.rows) {
+        const lab = r.aria || r.label;
+        for (const [key, [w, h]] of Object.entries(expectHit)) {
+          if (lab.includes(key) || lab === key) {
+            if (r.w !== w || r.h !== h) problems.push(`${name}: ${lab} is ${r.w}x${r.h}, expected ${w}x${h}`);
+          }
+        }
+        if (/^Menu/.test(lab) && (r.w !== 36 || r.h !== 32)) problems.push(`${name}: Menu changed size ${r.w}x${r.h}`);
+        if (/^Skills/.test(lab) && r.h !== 56) problems.push(`${name}: Skills height changed ${r.w}x${r.h}`);
+      }
+      for (const r of actions) {
+        if (r.x + 0.5 < mid) problems.push(`${name}: ${r.aria || r.label} overlaps joystick half (x=${r.x}, mid=${mid})`);
+      }
+      for (const a of actions) {
+        for (const u of util) {
+          const ox = Math.min(a.x + a.w, u.x + u.w) - Math.max(a.x, u.x);
+          const oy = Math.min(a.y + a.h, u.y + u.h) - Math.max(a.y, u.y);
+          if (ox > 1 && oy > 1) problems.push(`${name}: ${a.aria || a.label} overlaps util ${u.aria || u.label}`);
+        }
+      }
+    }
+    if (tag === "bigger") {
+      checkBlock("map", mapM);
+      checkBlock("combat", combatM);
+      checkBlock("landscape", landM);
+    }
     fs.writeFileSync(path.join(out, `ui-${tag}-sizes.json`), JSON.stringify(metrics, null, 2));
     console.log(JSON.stringify(metrics, null, 2));
     console.log("wrote", out, "tag=", tag);
-    await browser.close();
+    if (problems.length) {
+      console.error("LAYOUT FAIL");
+      for (const p of problems) console.error("  ✗", p);
+      await browser.close();
+      process.exitCode = 1;
+    } else {
+      await browser.close();
+    }
   } finally {
-    vite.kill("SIGTERM");
+    try { vite.kill("SIGKILL"); } catch {}
   }
 }
 

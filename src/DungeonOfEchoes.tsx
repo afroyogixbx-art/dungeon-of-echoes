@@ -6280,7 +6280,7 @@ export default function DungeonOfEchoes() {
             {utils}
           </div>
         ) : null}
-        <div data-play-actions="1" data-noj="1" style={{ position: "absolute", right: padR, bottom: padB, zIndex: 10, maxWidth: "min(220px, 58vw)", display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", pointerEvents: "auto" }}>
+        <div data-play-actions="1" data-noj="1" style={{ position: "absolute", right: padR, bottom: padB, zIndex: 10, maxWidth: `calc(50% - ${padR})`, display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", pointerEvents: "auto" }}>
           {below}
           {actions}
         </div>
@@ -6959,7 +6959,9 @@ export default function DungeonOfEchoes() {
         ) : null; })()}
       </div>
   );
-  const HIT = 40, VIS = 32, ATK_HIT = 52, ATK_VIS = 44; // ~55–57% of prior 56/80 visuals; hit ≥40
+  const HIT = 40, VIS = 32; // bag / codex / help
+  const AB_HIT = 56, AB_VIS = 46; // ability slots, dodge, potion, target
+  const ATK_HIT = 76, ATK_VIS = 66;
   const iconHit = (hit: number): CSSProperties => ({ position: "relative", width: hit, height: hit, minWidth: hit, minHeight: hit, padding: 0, border: "none", background: "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto", cursor: "pointer", touchAction: "manipulation", color: "#fff", fontFamily: "inherit", overflow: "visible" });
   const iconFace = (vis: number, extra?: CSSProperties): CSSProperties => ({ position: "relative", width: vis, height: vis, borderRadius: "50%", border: "1.5px solid #c9a24a", background: "radial-gradient(circle at 40% 35%, #3a2a44, #140e1a)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", fontSize: Math.round(vis * 0.52), pointerEvents: "none", ...extra });
   const ring = (fr: number): ReactNode => fr > 0 ? <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `conic-gradient(rgba(0,0,0,.62) ${Math.round(fr * 360)}deg, transparent 0deg)`, pointerEvents: "none" }} /> : null;
@@ -6986,23 +6988,23 @@ export default function DungeonOfEchoes() {
   const abButtons = (
     <div data-abil-row="1" style={{ display: "flex", gap: 3, justifyContent: "flex-end", flexWrap: "wrap" }}>
       {barAbs(g).map((a: Ab | null, i: number) => {
-        if (!a) return padBtn({ key: "e"+i, aria: `Empty ability slot ${i + 1}`, title: "Empty slot — equip an ability in Skills", icon: "➕", face: { borderColor: t.border.default }, disabled: true, sub: <span style={{ position: "absolute", left: 0, right: 0, top: 1, fontSize: 7, color: "#bbb", textAlign: "center" }}>{i + 1}</span> });
+        if (!a) return padBtn({ key: "e"+i, aria: `Empty ability slot ${i + 1}`, title: "Empty slot — equip an ability in Skills", icon: "➕", vis: AB_VIS, hit: AB_HIT, face: { borderColor: t.border.default }, disabled: true, sub: <span style={{ position: "absolute", left: 0, right: 0, top: 1, fontSize: 7, color: "#bbb", textAlign: "center" }}>{i + 1}</span> });
         const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
-        return padBtn({ key: a.id, aria: `${a.name} (key ${i + 1})`, title: `${a.name}: ${a.desc}`, icon: a.icon, face: { borderColor: cd > 0 || noMp ? t.border.default : "#c9a24a" }, disabled: noMp && cd <= 0, fr, onDown: () => abil(i), sub: cd > 0 ? <span style={{ position: "absolute", left: 0, right: 0, bottom: 1, fontSize: 7, fontWeight: 700, color: "#ffe6b0", textShadow: "0 1px 2px #000", textAlign: "center" }}>{Math.ceil(cd)}</span> : <span style={{ position: "absolute", left: 0, right: 0, top: 1, fontSize: 7, color: "#bbb", textAlign: "center" }}>{i + 1}</span> });
+        return padBtn({ key: a.id, aria: `${a.name} (key ${i + 1})`, title: `${a.name}: ${a.desc}`, icon: a.icon, vis: AB_VIS, hit: AB_HIT, face: { borderColor: cd > 0 || noMp ? t.border.default : "#c9a24a" }, disabled: noMp && cd <= 0, fr, onDown: () => abil(i), sub: cd > 0 ? <span style={{ position: "absolute", left: 0, right: 0, bottom: 1, fontSize: 7, fontWeight: 700, color: "#ffe6b0", textShadow: "0 1px 2px #000", textAlign: "center" }}>{Math.ceil(cd)}</span> : <span style={{ position: "absolute", left: 0, right: 0, top: 1, fontSize: 7, color: "#bbb", textAlign: "center" }}>{i + 1}</span> });
       })}
     </div>
   );
   const mapActions = (
     <div data-combat-actions="1" style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
       {abButtons}
-      <div data-combat-pad="1" style={{ display: "flex", gap: 3, alignItems: "flex-end", justifyContent: "flex-end" }}>
-        {c ? padBtn({ aria: "Switch target", title: "Switch target", icon: "🎯", onDown: () => cycleTarget(1) }) : null}
-        {padBtn({ aria: nPots ? `Healing Potion ×${nPots} (R)` : "No healing potions", title: nPots ? `Healing Potion · restores ${POTION_HEAL_PCT}% HP (R)` : "No healing potions", icon: "🧪", face: { borderColor: nPots ? "#e5484d" : t.border.default }, disabled: nPots <= 0, onDown: () => { if (nPots > 0) quick(); }, badge: <span data-potion-count={nPots} style={{ position: "absolute", right: 0, bottom: 0, fontSize: 9, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>{nPots}</span> })}
-        {qi && !isHealPot(qi.id) ? padBtn({ aria: `Quick-slot: ${IT[qi.id].name} ×${qn}`, title: `${IT[qi.id].name}`, icon: IT[qi.id].icon, face: { borderColor: "#e5484d" }, disabled: !qn, onDown: () => run((gg: Game) => qsUse(gg)), badge: qn > 0 ? <span style={{ position: "absolute", right: 0, bottom: 0, fontSize: 9, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>{qn}</span> : null }) : null}
-        {padBtn({ aria: "Dodge roll", icon: "💨", face: { borderColor: dcd > 0 ? t.border.default : "#7ab8ff" }, fr: Math.min(1, dcd / dashSec(g)), onDown: () => dodge() })}
-        {padBtn({ aria: "Attack (hold)", icon: g.cls === "mage" ? "🪄" : g.cls === "ranger" ? "🏹" : g.cls === "cleric" ? "🔨" : g.cls === "rogue" ? "🗡️" : "⚔️", vis: ATK_VIS, hit: ATK_HIT, face: { border: "2px solid #e0b25a", background: "radial-gradient(circle at 40% 35%, #8a2a1a, #2a0a08)", fontSize: 22 }, fr: c ? Math.min(1, (c.atkCd ?? 0) / ARATE[g.cls]) : 0, hold: true, onDown: () => { inp.current.atk = true; run((gg: Game) => rtAttack(gg)); } })}
+      <div data-combat-pad="1" style={{ display: "flex", gap: 3, alignItems: "flex-end", justifyContent: "flex-end", flexWrap: "wrap", maxWidth: "100%" }}>
+        {c ? padBtn({ aria: "Switch target", title: "Switch target", icon: "🎯", vis: AB_VIS, hit: AB_HIT, onDown: () => cycleTarget(1) }) : null}
+        {padBtn({ aria: nPots ? `Healing Potion ×${nPots} (R)` : "No healing potions", title: nPots ? `Healing Potion · restores ${POTION_HEAL_PCT}% HP (R)` : "No healing potions", icon: "🧪", vis: AB_VIS, hit: AB_HIT, face: { borderColor: nPots ? "#e5484d" : t.border.default }, disabled: nPots <= 0, onDown: () => { if (nPots > 0) quick(); }, badge: <span data-potion-count={nPots} style={{ position: "absolute", right: 0, bottom: 0, fontSize: 9, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>{nPots}</span> })}
+        {qi && !isHealPot(qi.id) ? padBtn({ aria: `Quick-slot: ${IT[qi.id].name} ×${qn}`, title: `${IT[qi.id].name}`, icon: IT[qi.id].icon, vis: AB_VIS, hit: AB_HIT, face: { borderColor: "#e5484d" }, disabled: !qn, onDown: () => run((gg: Game) => qsUse(gg)), badge: qn > 0 ? <span style={{ position: "absolute", right: 0, bottom: 0, fontSize: 9, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>{qn}</span> : null }) : null}
+        {padBtn({ aria: "Dodge roll", icon: "💨", vis: AB_VIS, hit: AB_HIT, face: { borderColor: dcd > 0 ? t.border.default : "#7ab8ff" }, fr: Math.min(1, dcd / dashSec(g)), onDown: () => dodge() })}
+        {padBtn({ aria: "Attack (hold)", icon: g.cls === "mage" ? "🪄" : g.cls === "ranger" ? "🏹" : g.cls === "cleric" ? "🔨" : g.cls === "rogue" ? "🗡️" : "⚔️", vis: ATK_VIS, hit: ATK_HIT, face: { border: "2px solid #e0b25a", background: "radial-gradient(circle at 40% 35%, #8a2a1a, #2a0a08)", fontSize: Math.round(ATK_VIS * 0.5) }, fr: c ? Math.min(1, (c.atkCd ?? 0) / ARATE[g.cls]) : 0, hold: true, onDown: () => { inp.current.atk = true; run((gg: Game) => rtAttack(gg)); } })}
       </div>
-      {g.perks.includes("shadowmeld") && !g.usedShadow && !cBoss ? padBtn({ aria: "Shadowmeld", icon: "🌫️", onDown: () => run((gg: Game) => combatAct(gg, "vanish", "")) }) : null}
+      {g.perks.includes("shadowmeld") && !g.usedShadow && !cBoss ? padBtn({ aria: "Shadowmeld", icon: "🌫️", vis: AB_VIS, hit: AB_HIT, onDown: () => run((gg: Game) => combatAct(gg, "vanish", "")) }) : null}
     </div>
   );
   const utilBtn = (icon: string, aria: string, onDown: () => void, locked: boolean, badge?: ReactNode): ReactNode => padBtn({ aria: locked ? `${aria} (locked in combat)` : aria, icon, locked, onDown, badge });
@@ -7033,7 +7035,7 @@ export default function DungeonOfEchoes() {
   }
   if (b.dotT > 0) chips.push(`☠️ DoT ${b.dotD} for ${fmtBuff(b.dotT * 1.5)}`);
   const legend = chips.length > 0 ? (
-    <div data-buffs="1" style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: "min(220px, 58vw)" }}>{chips.map((x: string) => <span key={x} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 999, background: "rgba(10,8,14,.78)", border: "1px solid rgba(255,230,180,.25)", fontWeight: 700 }}>{x}</span>)}</div>
+    <div data-buffs="1" style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: "100%" }}>{chips.map((x: string) => <span key={x} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 999, background: "rgba(10,8,14,.78)", border: "1px solid rgba(255,230,180,.25)", fontWeight: 700 }}>{x}</span>)}</div>
   ) : null;
   return playLayout(g, mapView, 1, mapActions, legend, utilCluster);
 }
