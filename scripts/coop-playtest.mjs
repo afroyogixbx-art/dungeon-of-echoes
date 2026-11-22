@@ -141,6 +141,29 @@ async function main() {
     const orderB = await B.evaluate(() => [5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((f) => window.__R.bossKind(f)));
     const want = ["brood", "lord", "rotking", "choir", "behemoth", "fisher", "witch", "colossus", "hunger", "brood"];
     check(JSON.stringify(orderA) === JSON.stringify(want) && JSON.stringify(orderB) === JSON.stringify(want), "coop host and guest share endless boss order", JSON.stringify({ orderA, orderB }));
+    const guestCurse = await B.evaluate(() => {
+      const R = window.__R;
+      const g = window.__G();
+      const keep = { ...(g.eq || {}) };
+      for (const k of Object.keys(g.eq || {})) delete g.eq[k];
+      g.eq.weapon = { uid: 8801, id: "x_agony", ident: true, bon: {}, freed: false, ilvl: 4 };
+      const before = R.full(g);
+      const n = R.liftCurses(g);
+      const after = R.full(g);
+      const item = g.eq.weapon;
+      const out = {
+        n,
+        beforeCurses: before.curses.slice(),
+        afterCurses: after.curses.slice(),
+        cursed: R.isCursed(item),
+        locked: R.locked(item),
+        hpUp: after.maxHp > before.maxHp,
+      };
+      g.eq = keep;
+      return out;
+    });
+    check(guestCurse.n === 1 && guestCurse.beforeCurses.includes("c_frail") && guestCurse.afterCurses.length === 0 && guestCurse.cursed === false && guestCurse.locked === false && guestCurse.hpUp, "coop guest curse lift strips effects", JSON.stringify(guestCurse));
+
 
     const playB = await waitSnap(B, (s) => s.phase === "play" && s.playing, 10000, "guest play");
     check(playA.phase === "play" && playB.phase === "play", "both entered play");

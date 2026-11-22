@@ -2467,7 +2467,12 @@ function itemGlyphInv(inv: Inv, size = 22): ReactNode { const it = IT[inv.id]; r
 function priceOf(inv: Inv): number { return Math.round(IT[inv.id].price * (1 + 0.15 * Object.keys(inv.bon).length)); }
 function sellOf(inv: Inv): number { return inv.ident ? Math.max(1, Math.floor(priceOf(inv) * 0.4)) : 12; }
 function idFee(inv: Inv, f: number): number { return Math.round(IDFEE[IT[inv.id].r] * (1 + 0.1 * f)); }
-function locked(inv: Inv): boolean { return !!IT[inv.id].cursed && !inv.freed; }
+/** A catalog-cursed item whose curse has not been lifted. `freed` means the curse is fully gone. */
+function isCursed(inv: Inv): boolean { const it = IT[inv.id]; return !!it && !!it.cursed && !inv.freed; }
+function locked(inv: Inv): boolean { return isCursed(inv); }
+function curseOf(inv: Inv): string | undefined { return isCursed(inv) ? IT[inv.id].curse : undefined; }
+/** Mark a lifted curse as fully stripped. Catalog templates stay cursed for new drops; this instance does not. */
+function stripCurse(inv: Inv): void { if (IT[inv.id]?.cursed) inv.freed = true; }
 function pinned(inv: Inv): boolean { return inv.pin === true; }
 type DustTier = { key: string; name: string; dust: number; test: (it: ItemT) => boolean };
 const DUST_TIERS: DustTier[] = [
@@ -2855,7 +2860,7 @@ function identify(g: Game, inv: Inv): void {
   if (inv.ident) return;
   inv.ident = true; discover(inv.id);
   const it = IT[inv.id];
-  log(g, `🔍 Identified: ${instName(inv)} (${RAR[it.r]})${it.cursed ? " — CURSED!" : ""}`, it.cursed ? "bad" : "loot");
+  log(g, `🔍 Identified: ${instName(inv)} (${RAR[it.r]})${isCursed(inv) ? " — CURSED!" : ""}`, isCursed(inv) ? "bad" : "loot");
 }
 
 function addStats(f: Full, s?: Stats): void {
@@ -2876,7 +2881,7 @@ function full(g: Game): Full {
   addStats(f, skillStats(g));
   for (const k of GEAR) {
     const it = g.eq[k];
-    if (it) { const tt = IT[it.id]; addStats(f, tt.st); addStats(f, it.bon); for (const sp of itemSps(it)) f.sp.push(sp); if (tt.curse) f.curses.push(tt.curse); }
+    if (it) { const tt = IT[it.id]; addStats(f, tt.st); addStats(f, it.bon); for (const sp of itemSps(it)) f.sp.push(sp); const curse = curseOf(it); if (curse) f.curses.push(curse); }
   }
   const sc = setCounts(g);
   for (const sid of Object.keys(sc)) { const S = SETS[sid]; if (sc[sid] >= 2) addStats(f, S.b2); if (S.b3 && sc[sid] >= 3) addStats(f, S.b3); if (sc[sid] >= S.n) { addStats(f, S.bf); f.sp.push(S.sp); } }
@@ -5360,7 +5365,15 @@ function useAbility(g: Game, id: string): ActRes {
   }
   return "turn";
 }
-function liftCurses(g: Game): number { let n = 0; for (const k of GEAR) { const it = g.eq[k]; if (it && locked(it)) { it.freed = true; n++; } } return n; }
+function liftCurses(g: Game): number {
+  let n = 0;
+  for (const k of GEAR) { const it = g.eq[k]; if (it && isCursed(it)) { stripCurse(it); n++; } }
+  if (n > 0) {
+    clamp(g);
+    if (g.combat && full(g).curses.length === 0) g.combat.curseAcc = 0;
+  }
+  return n;
+}
 function useConsumable(g: Game, inv: Inv): ActRes {
   const t = IT[inv.id]; const f = full(g); const c = g.combat;
   const inCombat = !!c;
@@ -6174,6 +6187,7 @@ function normInv(i: Inv): Inv {
   const affs = Array.isArray(i.affs) ? (i.affs as unknown[]).map(normAff).filter((a: RolledAff | null): a is RolledAff => !!a) : undefined;
   const mpreg = typeof i.mpreg === "number" && isFinite(i.mpreg) ? i.mpreg : (affs ? affs.reduce((s: number, a: RolledAff) => s + (a.stat === "mpreg" ? a.v : 0), 0) : 0);
   return {
+    // freed === true means a prior lift fully removed the curse (stats, lock, display, effects). Leave genuinely cursed items (freed missing/false) alone.
     uid: i.uid, id: i.id, ident: i.ident !== false, bon: isObj(i.bon) ? (i.bon as Stats) : {}, freed: i.freed === true,
     ilvl: estIlvl(i), affs: affs && affs.length ? affs : undefined, aname: typeof i.aname === "string" && i.aname ? i.aname : undefined,
     mpreg: mpreg || undefined,
@@ -6579,7 +6593,7 @@ export default function DungeonOfEchoes() {
       hold: (x: number, y: number) => { const I = inp.current; I.kx = x; I.ky = y; },
       stop: () => { const I = inp.current; I.kx = 0; I.ky = 0; I.jx = 0; I.jy = 0; I.gx = 0; I.gy = 0; I.atk = false; I.katk = false; },
       cast: (i: number) => { const g = G.current; if (!g) return; const a = barAbs(g)[i]; if (a) rtAbility(g, a.id); refresh(); },
-      TRANSFER_COST, applyTransfer, xferLines, itemSps, srcBlockReason, dstBlockReason, itemStats, itemMpreg, formatStat, spDesc, applyDot, lethal, full, equip, unequip, findOwned,
+      TRANSFER_COST, applyTransfer, xferLines, itemSps, srcBlockReason, dstBlockReason, itemStats, itemMpreg, formatStat, spDesc, applyDot, lethal, full, equip, unequip, findOwned, liftCurses, isCursed, locked, curseOf, stripCurse, normInv, useConsumable, canSalvage, canSellItem, endRound, tickCombatCurses, healPlayer, goldGain, abCd, clamp,
       migrateSample: () => {
         const g = newGame("warrior", "story");
         g.offers = []; g.startPick = false; g.screen = "map";
@@ -6920,15 +6934,15 @@ export default function DungeonOfEchoes() {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         <div style={{ fontSize: 15, color: RCOL[it.r], fontWeight: 600 }}>{inv.pin ? "🔒 " : ""}{itemGlyphInv(inv, 18)} {instName(inv)}</div>
-        <div style={small}>{RAR[it.r]} {SLOT_NAME[it.slot]} · {clsLabel(it)} · Item Level {inv.ilvl ?? "?"}{it.cursed ? " · " : ""}{it.cursed && <span style={{ color: t.text.danger, fontWeight: 700 }}>{inv.freed ? "Cursed (lifted)" : "Cursed"}</span>}</div>
+        <div style={small}>{RAR[it.r]} {SLOT_NAME[it.slot]} · {clsLabel(it)} · Item Level {inv.ilvl ?? "?"}{isCursed(inv) ? " · " : ""}{isCursed(inv) && <span style={{ color: t.text.danger, fontWeight: 700 }}>Cursed</span>}</div>
         {statChips(it.st, shared)}
         {((inv.affs && inv.affs.length > 0) || Object.keys(inv.bon).length > 0 || inv.mpreg) && <div style={{ fontSize: 11, color: t.text.tertiary }}>Affixes (rolled at Item Level {inv.ilvl ?? "?"}):</div>}
         {affixChips(inv, g.floor, shared)}
         {itemMpreg(inv) !== 0 && !(inv.affs && inv.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div data-stat="mpreg" style={{ fontSize: 13, color: t.text.success, fontWeight: 600 }}>{formatStat("mpreg", itemMpreg(inv))}{sameMark("mpreg", shared)}</div>}
         {it.set && setLines(it.set, sc)}
         {itemSps(inv).map((sp: string) => <div key={"sp-" + sp} data-sp={sp} style={{ fontSize: 13, color: t.text.primary }}>{("★ " + spDesc(sp))}</div>)}
-        {it.cursed && <div style={{ fontSize: 13, color: t.text.danger }}>{inv.freed ? "Curse lifted." : (it.desc && it.desc.includes("Curse:") ? it.desc.slice(it.desc.indexOf("Curse:")) : (it.desc && itemSps(inv).length === 0 ? it.desc : "Cursed."))}</div>}
-        {!it.cursed && itemSps(inv).length === 0 && it.desc && <div style={{ fontSize: 13, color: t.text.primary }}>{it.desc}</div>}
+        {isCursed(inv) && <div style={{ fontSize: 13, color: t.text.danger }}>{it.desc && it.desc.includes("Curse:") ? it.desc.slice(it.desc.indexOf("Curse:")) : (it.desc && itemSps(inv).length === 0 ? it.desc : "Cursed.")}</div>}
+        {!isCursed(inv) && itemSps(inv).length === 0 && it.desc && !it.desc.includes("Curse:") && <div style={{ fontSize: 13, color: t.text.primary }}>{it.desc}</div>}
         {it.cls && !it.cls.includes(g.cls) && <div style={{ fontSize: 12, color: t.text.danger }}>Your class can't equip this (sell it).</div>}
         {compareEl}
       </div>

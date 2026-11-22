@@ -993,6 +993,158 @@ async function runBosses(browser) {
   });
 }
 
+
+async function runCurses(browser) {
+  await withPage(browser, async (page, errors) => {
+    const r = await page.evaluate(() => {
+      const R = window.__R;
+      const mk = (uid, id, freed) => ({ uid, id, ident: true, bon: {}, freed: !!freed, ilvl: 4 });
+      const bootBare = () => {
+        window.__T.boot("warrior");
+        const g = window.__G();
+        for (const k of Object.keys(g.eq || {})) delete g.eq[k];
+        g.inv = [];
+        g.combat = null;
+        g.buffs = g.buffs || {};
+        g.buffs.dotT = 0;
+        g.buffs.dotD = 0;
+        return g;
+      };
+
+      // Merchant / liftCurses path: Blade of Agony (c_frail, -30% max HP, +20 ATK, +25 crit)
+      let g = bootBare();
+      const bare = R.full(g);
+      g.eq.weapon = mk(8001, "x_agony", false);
+      const cursed = R.full(g);
+      const cursedLocked = R.locked(g.eq.weapon);
+      const cursedFlag = R.isCursed(g.eq.weapon);
+      const n = R.liftCurses(g);
+      const lifted = R.full(g);
+      const item = g.eq.weapon;
+      const afterLift = {
+        n,
+        stillCursed: R.isCursed(item),
+        locked: R.locked(item),
+        curseOf: R.curseOf(item),
+        curses: lifted.curses.slice(),
+        maxHp: lifted.maxHp,
+        atk: lifted.atk,
+        crit: lifted.crit,
+        def: lifted.def,
+        bareHp: bare.maxHp,
+        bareAtk: bare.atk,
+        bareCrit: bare.crit,
+        bareDef: bare.def,
+        cursedHp: cursed.maxHp,
+        cursedCurses: cursed.curses.slice(),
+        cursedLocked,
+        cursedFlag,
+        hpRecovered: lifted.maxHp === bare.maxHp && lifted.maxHp > cursed.maxHp,
+        atkKept: lifted.atk === bare.atk + 20,
+        critKept: lifted.crit === bare.crit + 25,
+        defUnchanged: lifted.def === bare.def,
+        transferOk: R.srcBlockReason(g, item) === "Unequip the source item first.",
+      };
+
+      // Unequip, then transfer / salvage / sell should no longer treat it as cursed
+      R.unequip(g, "weapon");
+      const bag = g.inv.find((i) => i.uid === 8001);
+      afterLift.inBag = !!bag;
+      afterLift.bagCursed = bag ? R.isCursed(bag) : true;
+      afterLift.salvageOk = bag ? R.canSalvage(g, bag) : false;
+      afterLift.sellOk = bag ? R.canSellItem(g, bag) : false;
+      afterLift.srcOk = bag ? R.srcBlockReason(g, bag) : "missing";
+
+      // Scroll of Remove Curse path: Glassfang (c_brittle, DEF halved)
+      g = bootBare();
+      g.eq.weapon = mk(8002, "x_glass", false);
+      const frailDef = R.full(g).def;
+      const glassBare = (() => { const eq = g.eq.weapon; delete g.eq.weapon; const f = R.full(g); g.eq.weapon = eq; return f.def; })();
+      g.inv.push({ uid: 8090, id: "c_uncurse", ident: true, bon: {}, freed: false, ilvl: 1 });
+      const scrollRes = R.useConsumable(g, g.inv[0]);
+      const afterScroll = R.full(g);
+      const scroll = {
+        res: scrollRes,
+        used: !g.inv.some((i) => i.id === "c_uncurse"),
+        cursed: R.isCursed(g.eq.weapon),
+        locked: R.locked(g.eq.weapon),
+        curses: afterScroll.curses.slice(),
+        def: afterScroll.def,
+        glassBare,
+        frailDef,
+        defRestored: afterScroll.def === glassBare && afterScroll.def > frailDef,
+      };
+
+      // Combat: Bloodthirster bleed stops after lift
+      g = bootBare();
+      g.hp = 200;
+      g.eq.weapon = mk(8003, "x_blood", false);
+      R.clamp(g);
+      R.poke();
+      const hp0 = g.hp;
+      const fBleed = R.full(g);
+      R.endRound(g);
+      const hpAfterBleed = window.__G().hp;
+      const bled = hpAfterBleed < hp0 && fBleed.curses.includes("c_bleed");
+      const g2 = window.__G();
+      const n2 = R.liftCurses(g2);
+      const hpMid = g2.hp;
+      R.endRound(g2);
+      const hpAfterLift = window.__G().hp;
+      const logs = (window.__G().log || []).map((l) => l.t);
+      const bleedLogs = logs.filter((t) => /Bloodthirster drinks/i.test(t));
+      const combat = {
+        bled,
+        n2,
+        cursesAfter: R.full(window.__G()).curses.slice(),
+        stillCursed: R.isCursed(window.__G().eq.weapon),
+        hp0, hpAfterBleed, hpMid, hpAfterLift,
+        noBleedAfterLift: hpAfterLift === hpMid,
+        bleedLogCount: bleedLogs.length,
+      };
+
+      // Save / reload stays clean
+      g = bootBare();
+      g.eq.weapon = mk(8004, "x_agony", false);
+      R.liftCurses(g);
+      R.saveRun(g);
+      const loaded = R.parseRun(window.localStorage.getItem("dungeon-of-echoes-run-v1"));
+      const loadW = loaded && loaded.eq && loaded.eq.weapon;
+      const saveReload = {
+        ok: !!loaded,
+        freed: loadW && loadW.freed === true,
+        cursed: loadW ? R.isCursed(loadW) : true,
+        locked: loadW ? R.locked(loadW) : true,
+        curses: loaded ? R.full(loaded).curses.slice() : ["missing"],
+      };
+
+      // normInv migration: already-lifted keeps clean; genuine curse is untouched
+      const migrated = R.normInv({ uid: 8010, id: "x_agony", ident: true, bon: {}, freed: true, ilvl: 4 });
+      const genuine = R.normInv({ uid: 8011, id: "x_agony", ident: true, bon: {}, freed: false, ilvl: 4 });
+      const missing = R.normInv({ uid: 8012, id: "x_agony", ident: true, bon: {}, ilvl: 4 });
+      const migrate = {
+        liftedFreed: migrated.freed === true && !R.isCursed(migrated) && !R.locked(migrated) && !R.curseOf(migrated),
+        genuineCursed: genuine.freed === false && R.isCursed(genuine) && R.locked(genuine) && R.curseOf(genuine) === "c_frail",
+        missingStillCursed: !missing.freed && R.isCursed(missing) && R.curseOf(missing) === "c_frail",
+      };
+
+      return { afterLift, scroll, combat, saveReload, migrate, bare, cursed, lifted };
+    });
+
+    check(r.afterLift.cursedFlag && r.afterLift.cursedLocked && r.afterLift.cursedCurses.includes("c_frail"), "curse is active before it is lifted", JSON.stringify({ flag: r.afterLift.cursedFlag, curses: r.afterLift.cursedCurses }));
+    check(r.afterLift.n === 1 && r.afterLift.stillCursed === false && r.afterLift.locked === false && r.afterLift.curseOf === undefined && r.afterLift.curses.length === 0, "merchant lift fully strips the curse flag and lock", JSON.stringify(r.afterLift));
+    check(r.afterLift.hpRecovered && r.afterLift.atkKept && r.afterLift.critKept && r.afterLift.defUnchanged, "lifted item stats match an equivalent uncursed item (bonuses kept, malus gone)", JSON.stringify({ maxHp: r.afterLift.maxHp, atk: r.afterLift.atk, crit: r.afterLift.crit, cursedHp: r.afterLift.cursedHp, bareHp: r.afterLift.bareHp }));
+    check(r.afterLift.inBag && r.afterLift.bagCursed === false && r.afterLift.salvageOk && r.afterLift.sellOk && r.afterLift.srcOk === null, "lifted item can be salvaged, sold, and used as a Stat Transfer source", JSON.stringify({ salvage: r.afterLift.salvageOk, sell: r.afterLift.sellOk, src: r.afterLift.srcOk }));
+    check(r.scroll.used && r.scroll.cursed === false && r.scroll.locked === false && r.scroll.curses.length === 0 && r.scroll.defRestored, "Scroll of Remove Curse fully strips the curse and restores DEF", JSON.stringify(r.scroll));
+    check(r.combat.bled && r.combat.n2 === 1 && r.combat.noBleedAfterLift && r.combat.cursesAfter.length === 0 && r.combat.stillCursed === false && r.combat.bleedLogCount === 1, "curse combat ticks stop after a lift", JSON.stringify(r.combat));
+    check(r.saveReload.ok && r.saveReload.freed && r.saveReload.cursed === false && r.saveReload.locked === false && r.saveReload.curses.length === 0, "save and reload keeps a lifted curse clean", JSON.stringify(r.saveReload));
+    check(r.migrate.liftedFreed && r.migrate.genuineCursed && r.migrate.missingStillCursed, "normInv cleans already-lifted curses and leaves genuine curses alone", JSON.stringify(r.migrate));
+
+    const pageErrs = errors.filter((e) => !/favicon|ResizeObserver/i.test(e));
+    check(pageErrs.length === 0, "curse lift page errors", pageErrs.slice(0, 5).join(" | "));
+  });
+}
+
 async function main() {
 
 
@@ -1030,6 +1182,8 @@ async function main() {
     await runTransfer(browser);
     process.stdout.write("\n== bosses ==\n");
     await runBosses(browser);
+    process.stdout.write("\n== curse lift ==\n");
+    await runCurses(browser);
     process.stdout.write("\n== shots ==\n");
     await runShots(browser);
   } finally {
