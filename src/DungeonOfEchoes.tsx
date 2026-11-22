@@ -7,32 +7,35 @@ type GearSlot = Exclude<Slot, "consumable">;
 type StatKey = "hp" | "mp" | "atk" | "def" | "crit" | "dodge" | "ls" | "fire" | "ice" | "holy" | "poison" | "th";
 type Stats = Partial<Record<StatKey, number>>;
 type Behav = "brute" | "swift" | "tank" | "caster" | "poisoner" | "drainer" | "boss" | "archer" | "spitter" | "hexer";
-type Screen = "map" | "inventory" | "shop" | "upgrade" | "victory" | "dead" | "codex" | "help" | "vault";
+type Screen = "map" | "inventory" | "shop" | "upgrade" | "victory" | "dead" | "codex" | "help" | "vault" | "skills";
 type Ui = "title" | "help" | "tree" | "codex" | "save";
 type Mode = "story" | "endless";
 type ActRes = "none" | "turn" | "end";
 
 interface ItemT { id: string; name: string; icon: string; slot: Slot; r: number; minF: number; price: number; st?: Stats; cls?: ClassId[]; sp?: string; desc?: string; fx?: string; pw?: number; set?: string; cursed?: boolean; curse?: string; pet?: string; ff?: number; mpreg?: number; uranges?: Partial<Record<StatKey, [number, number]>>; }
 interface SetT { name: string; n: number; b2: Stats; bf: Stats; sp: string; desc: string; b3?: Stats; cls?: ClassId; }
-interface Ab { id: string; name: string; icon: string; mp: number; cd: number; desc: string; }
+interface Ab { id: string; name: string; icon: string; mp: number; cd: number; desc: string; tree?: boolean; }
 interface Base { hp: number; mp: number; atk: number; def: number; crit: number; dodge: number; }
 interface ClassT { id: ClassId; name: string; icon: string; tag: string; base: Base; grow: { hp: number; mp: number; atk: number; def: number; crit: number }; abs: Ab[]; passive: string; start: string[]; }
 interface Perk { id: string; name: string; icon: string; desc: string; tier: number; st?: Stats; gold?: number; rar?: string; cls?: ClassId; }
 interface MonT { id: string; name: string; icon: string; hp: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; undead?: boolean; lo: number; hi: number; bio?: Biome; ff?: number; w?: number; }
 interface Room { x: number; y: number; w: number; h: number; }
 interface MapMon { id: number; x: number; y: number; t: string; boss: boolean; awake: boolean; stun: number; fx?: number; fy?: number; hp?: number; max?: number; hx?: number; hy?: number; el?: boolean; }
-interface Enemy { uid: number; spr?: string; name: string; icon: string; hp: number; max: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; bk: string; undead: boolean; boss: boolean; stun: number; burnT: number; burnD: number; poisT: number; poisD: number; dead: boolean; x?: number; y?: number; atkT?: number; wind?: number; wm?: number; wk?: string; rt?: boolean; mid?: number; hx?: number; hy?: number; lost?: number; minion?: boolean; mt?: string; away?: boolean; dt0?: number; elite?: boolean; tpk?: string; ax?: number; ay?: number; }
-interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number; elapsed?: number; boss: boolean; phase: number; charging: boolean; itemOpen: boolean; px?: number; py?: number; proj?: Proj[]; tele?: Tele[]; shots?: Shot[]; atkCd?: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; iT?: number; tick?: number; grace?: number; bossT?: number; fleeCd?: number; v2?: boolean; calm?: number; upg?: boolean; vault?: boolean; opened?: boolean; curseAcc?: number; }
+interface Enemy { uid: number; spr?: string; name: string; icon: string; hp: number; max: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; bk: string; undead: boolean; boss: boolean; stun: number; burnT: number; burnD: number; poisT: number; poisD: number; dead: boolean; x?: number; y?: number; atkT?: number; wind?: number; wm?: number; wk?: string; rt?: boolean; mid?: number; hx?: number; hy?: number; lost?: number; minion?: boolean; mt?: string; away?: boolean; dt0?: number; elite?: boolean; tpk?: string; ax?: number; ay?: number; rootT?: number; slowT?: number; polyT?: number; tauntT?: number; marked?: number; missT?: number; hmark?: number; }
+interface Zone { id: number; x: number; y: number; r: number; t: number; max: number; k: string; dmg?: number; heal?: number; acc?: number; }
+interface WallSeg { id: number; x: number; y: number; dx: number; dy: number; len: number; t: number; }
+interface XTrap { id: number; x: number; y: number; r: number; fuse?: number; uid?: number; }
+interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number; elapsed?: number; boss: boolean; phase: number; charging: boolean; itemOpen: boolean; px?: number; py?: number; proj?: Proj[]; tele?: Tele[]; shots?: Shot[]; atkCd?: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; iT?: number; tick?: number; grace?: number; bossT?: number; fleeCd?: number; v2?: boolean; calm?: number; upg?: boolean; vault?: boolean; opened?: boolean; curseAcc?: number; zones?: Zone[]; walls?: WallSeg[]; traps?: XTrap[]; }
 interface Proj { id: number; x: number; y: number; vx: number; vy: number; dmg: number; from: number; life: number; c: string; k?: string; }
 interface Tele { id: number; x: number; y: number; r: number; t: number; max: number; dmg: number; from: number; kind: string; }
 interface Shot { id: number; x1: number; y1: number; x2: number; y2: number; ts: number; c: string; }
 interface Inp { jx: number; jy: number; kx: number; ky: number; gx: number; gy: number; atk: boolean; katk: boolean; gatk: boolean; stepT: number; monT: number; regT: number; alt: boolean; saveT: number; rT: number; slowT: number; shopL: boolean; vx: number; vy: number; idleT: number; }
-interface Buffs { rage: number; holy: number; evade: number; shield: number; frenzy: number; fury: number; iron: number; defend: boolean; defendT?: number; dotT: number; dotD: number; hex?: number; veil?: number; }
+interface Buffs { rage: number; holy: number; evade: number; shield: number; frenzy: number; fury: number; iron: number; defend: boolean; defendT?: number; dotT: number; dotD: number; hex?: number; veil?: number; haste?: number; pethaste?: number; reflect?: number; nextCrit?: number; whirl?: number; }
 // companions that fight on the map
-interface Pet { k: string; hp: number; max: number; x: number; y: number; ko: number; cd: number; aT?: number; tx?: number; ty?: number; }
+interface Pet { k: string; hp: number; max: number; x: number; y: number; ko: number; cd: number; aT?: number; tx?: number; ty?: number; tmp?: number; }
 interface PetT { name: string; icon: string; hpF: number; mult: number; spd: number; reach: number; rate: number; desc: string; }
 interface RolledAff { id: string; pre: boolean; tier: number; stat: StatKey | "mpreg"; v: number; name: string; lo: number; hi: number; }
-interface Inv { uid: number; id: string; ident: boolean; bon: Stats; freed: boolean; ilvl?: number; affs?: RolledAff[]; aname?: string; mpreg?: number; }
+interface Inv { uid: number; id: string; ident: boolean; bon: Stats; freed: boolean; ilvl?: number; affs?: RolledAff[]; aname?: string; mpreg?: number; pin?: boolean; }
 interface LogL { t: string; c: string; ts?: number; }
 interface Fx { id: number; text: string; c: string; at: string; ts: number; }
 interface Full { maxHp: number; maxMp: number; atk: number; def: number; crit: number; dodge: number; ls: number; fire: number; ice: number; holy: number; poison: number; th: number; sp: string[]; curses: string[]; }
@@ -46,6 +49,7 @@ interface Game {
   usedUndying: boolean; usedShadow: boolean; usedPhoenix: boolean; shop: Inv[]; stock?: number[];
   offers: Perk[]; kills: number; sel: number; fx: Fx[]; turns: number; tokensEarned: number; stains?: number[]; rem?: string[]; hurtTs?: number; usedRes?: boolean; biome?: Biome; bannerTs?: number; qs?: string;
   pets?: Pet[]; cpet?: string; startPick?: boolean; vaultOffer?: boolean; vaultThen?: Screen; vaultSel?: number;
+  skills?: string[]; skillPts?: number;
 }
 
 const W = 32, H = 32, R = 4, MAXINV = 24, STORY_END = 10;
@@ -335,19 +339,78 @@ const PETS: Record<string, PetT> = {
   owl: { name: "Spirit Owl", icon: "🦉", hpF: 0.06, mult: 0.32, spd: 5, reach: 1.0, rate: 1.3, desc: "strikes can stun" },
   imp: { name: "Fire Imp", icon: "😈", hpF: 0.064, mult: 0.36, spd: 4, reach: 3.4, rate: 1.9, desc: "fire bolts from range, burns" },
   hound: { name: "Bone Hound", icon: "🐕", hpF: 0.16, mult: 0.38, spd: 4.2, reach: 0.95, rate: 1.6, desc: "sturdy, draws attacks" },
+  spirit: { name: "Guardian Spirit", icon: "👻", hpF: 0.12, mult: 0.4, spd: 4.6, reach: 1.0, rate: 1.4, desc: "a brief holy ally" },
 };
 
 const CLS: Record<ClassId, ClassT> = {
   warrior: { id: "warrior", name: "Warrior", icon: "🛡️", tag: "Unbreakable frontliner", base: { hp: 120, mp: 30, atk: 12, def: 6, crit: 5, dodge: 3 }, grow: { hp: 14, mp: 3, atk: 2, def: 1.5, crit: 0 }, passive: "Rage: gains 2 MP every time it is struck.", start: ["w_sword", "a_tunic"],
-    abs: [{ id: "bash", name: "Shield Bash", icon: "🛡️", mp: 5, cd: 5, desc: "130% damage and stuns for 2 s." }, { id: "cleave", name: "Cleave", icon: "🪓", mp: 8, cd: 6, desc: "100% damage in a frontal cone." }, { id: "cry", name: "Battle Cry", icon: "📣", mp: 10, cd: 12, desc: "+50% ATK for 8 s, heal 15%." }, { id: "smash", name: "Smash", icon: "💥", mp: 10, cd: 12, desc: "120% damage in a circle around you, with a shockwave." }] },
+    abs: [
+      { id: "bash", name: "Shield Bash", icon: "🛡️", mp: 5, cd: 5, desc: "130% damage and stuns for 2 s." },
+      { id: "cleave", name: "Cleave", icon: "🪓", mp: 8, cd: 6, desc: "100% damage in a frontal cone." },
+      { id: "cry", name: "Battle Cry", icon: "📣", mp: 10, cd: 12, desc: "+50% ATK for 8 s, heal 15%." },
+      { id: "smash", name: "Smash", icon: "💥", mp: 10, cd: 12, desc: "120% damage in a circle around you, with a shockwave." },
+      { id: "lslam", name: "Leaping Slam", icon: "⬇️", mp: 16, cd: 10, desc: "Leap up to 5 tiles; 140% AoE (r 2.0) and a 1.2 s stun on landing." },
+      { id: "march", name: "War March", icon: "🥁", mp: 12, cd: 90, desc: "+35% move speed for 60 s." },
+      { id: "whirl", name: "Whirlwind", icon: "🌀", mp: 18, cd: 12, desc: "Spin for 2 s: 55% damage every 0.4 s in a 2.2-tile radius.", tree: true },
+      { id: "gpull", name: "Ground Pull", icon: "🧲", mp: 14, cd: 12, desc: "Yank enemies within 5 tiles in toward you.", tree: true },
+      { id: "reflect", name: "Shield Reflect", icon: "🪞", mp: 12, cd: 16, desc: "Reflect enemy projectiles for 4 s.", tree: true },
+      { id: "troar", name: "Taunting Roar", icon: "🦁", mp: 10, cd: 14, desc: "Force foes within 5 tiles to attack you for 6 s.", tree: true },
+      { id: "exec", name: "Execute", icon: "☠️", mp: 14, cd: 8, desc: "130% damage, or 260% if the target is below 25% HP.", tree: true },
+    ] },
   mage: { id: "mage", name: "Mage", icon: "🧙", tag: "Glass-cannon spellcaster", base: { hp: 70, mp: 80, atk: 11, def: 2, crit: 5, dodge: 5 }, grow: { hp: 7, mp: 10, atk: 2.3, def: 0.7, crit: 0 }, passive: "Staff strikes are weak but restore 6 MP.", start: ["w_staff", "a_robe"],
-    abs: [{ id: "fireball", name: "Fireball", icon: "🔥", mp: 12, cd: 0, desc: "220% fire damage + burn for 4.5 s." }, { id: "nova", name: "Frost Nova", icon: "❄️", mp: 16, cd: 10, desc: "120% to ALL enemies, freezes for 3 s." }, { id: "arcane", name: "Arcane Shield", icon: "🔮", mp: 10, cd: 14, desc: "Absorb shield worth 40% of max MP." }] },
+    abs: [
+      { id: "fireball", name: "Fireball", icon: "🔥", mp: 12, cd: 0, desc: "220% fire damage + burn for 4.5 s." },
+      { id: "nova", name: "Frost Nova", icon: "❄️", mp: 16, cd: 10, desc: "120% to ALL enemies, freezes for 3 s." },
+      { id: "arcane", name: "Arcane Shield", icon: "🔮", mp: 10, cd: 14, desc: "Absorb shield worth 40% of max MP." },
+      { id: "blink", name: "Blink", icon: "✨", mp: 10, cd: 8, desc: "Teleport 4 tiles in your move direction and drop distant aggro." },
+      { id: "chain", name: "Chain Lightning", icon: "⚡", mp: 16, cd: 6, desc: "Hit up to 4 enemies; 115% then 75% per bounce." },
+      { id: "haste", name: "Haste", icon: "⏳", mp: 12, cd: 90, desc: "+35% move speed for 60 s." },
+      { id: "meteor", name: "Meteor", icon: "☄️", mp: 22, cd: 14, desc: "After 0.9 s, 220% impact (r 2.4) then a 3 s burn patch.", tree: true },
+      { id: "iwall", name: "Ice Wall", icon: "🧊", mp: 16, cd: 16, desc: "Raise a blocking barrier in front of you for 5 s.", tree: true },
+      { id: "gwell", name: "Gravity Well", icon: "🌌", mp: 16, cd: 14, desc: "4 s pull and 50% slow in a 2.8-tile well.", tree: true },
+      { id: "missiles", name: "Arcane Missiles", icon: "🔮", mp: 14, cd: 6, desc: "Three 70% missiles at the current or nearest foes.", tree: true },
+      { id: "poly", name: "Polymorph", icon: "🐑", mp: 18, cd: 20, desc: "Turn a non-boss enemy harmless for 4 s.", tree: true },
+    ] },
   rogue: { id: "rogue", name: "Rogue", icon: "🥷", tag: "Crits, poison and evasion", base: { hp: 85, mp: 35, atk: 11, def: 3, crit: 25, dodge: 15 }, grow: { hp: 9, mp: 4, atk: 2.2, def: 0.8, crit: 0.5 }, passive: "Born lucky: high crit and dodge. Backstab auto-crits in the first 3 s of a fight or vs stunned foes.", start: ["w_dagger", "a_tunic"],
-    abs: [{ id: "backstab", name: "Backstab", icon: "🗡️", mp: 8, cd: 5, desc: "220% damage; guaranteed crit in the first 3 s of a fight or vs stunned." }, { id: "poison", name: "Poison Blade", icon: "🧪", mp: 8, cd: 6, desc: "100% damage + strong poison for 6 s." }, { id: "evade", name: "Evade", icon: "💨", mp: 6, cd: 10, desc: "Automatically dodge the next 2 attacks." }] },
+    abs: [
+      { id: "backstab", name: "Backstab", icon: "🗡️", mp: 8, cd: 5, desc: "220% damage; guaranteed crit in the first 3 s of a fight or vs stunned." },
+      { id: "poison", name: "Poison Blade", icon: "🧪", mp: 8, cd: 6, desc: "100% damage + strong poison for 6 s." },
+      { id: "evade", name: "Evade", icon: "💨", mp: 6, cd: 10, desc: "Automatically dodge the next 2 attacks." },
+      { id: "sstep", name: "Shadow Step", icon: "👤", mp: 12, cd: 9, desc: "Teleport behind the target; next hit within 3 s is a crit." },
+      { id: "sprint", name: "Sprint", icon: "🏃", mp: 12, cd: 90, desc: "+35% move speed for 60 s." },
+      { id: "fan", name: "Fan of Knives", icon: "🗡️", mp: 14, cd: 9, desc: "85% radial burst (r 3.2) that applies poison for 3 s.", tree: true },
+      { id: "smoke", name: "Smoke Bomb", icon: "☁️", mp: 12, cd: 14, desc: "Foes in 2.8 tiles miss often for 5 s; you slip into stealth.", tree: true },
+      { id: "caltr", name: "Caltrops", icon: "✴️", mp: 10, cd: 12, desc: "Drop a 5 s field (r 2.2) that slows enemies 50%.", tree: true },
+      { id: "shuri", name: "Shuriken Ricochet", icon: "⭐", mp: 14, cd: 8, desc: "A 90% shuriken that bounces to 4 foes, fading 20% each hop.", tree: true },
+      { id: "mdeath", name: "Mark for Death", icon: "💀", mp: 10, cd: 12, desc: "The target takes +25% damage for 8 s.", tree: true },
+    ] },
   cleric: { id: "cleric", name: "Cleric", icon: "😇", tag: "Holy healer, undead slayer", base: { hp: 100, mp: 60, atk: 9, def: 5, crit: 5, dodge: 5 }, grow: { hp: 11, mp: 7, atk: 1.7, def: 1.2, crit: 0 }, passive: "Holy power: Smite deals 250% to undead; outlasts anything.", start: ["w_staff", "a_robe"],
-    abs: [{ id: "heal", name: "Heal", icon: "✨", mp: 10, cd: 6, desc: "Restore 35% HP and cleanse poison/burn." }, { id: "smite", name: "Smite", icon: "⚡", mp: 10, cd: 0, desc: "180% holy damage (250% vs undead)." }, { id: "holy", name: "Holy Shield", icon: "🔆", mp: 12, cd: 14, desc: "Halve all damage taken for 6 s." }, { id: "smash", name: "Smash", icon: "💥", mp: 10, cd: 12, desc: "120% damage in a circle around you, with a shockwave." }] },
+    abs: [
+      { id: "heal", name: "Heal", icon: "✨", mp: 10, cd: 6, desc: "Restore 35% HP and cleanse poison/burn." },
+      { id: "smite", name: "Smite", icon: "⚡", mp: 10, cd: 0, desc: "180% holy damage (250% vs undead)." },
+      { id: "holy", name: "Holy Shield", icon: "🔆", mp: 12, cd: 14, desc: "Halve all damage taken for 6 s." },
+      { id: "smash", name: "Smash", icon: "💥", mp: 10, cd: 12, desc: "120% damage in a circle around you, with a shockwave." },
+      { id: "sanct", name: "Sanctuary", icon: "🕊️", mp: 20, cd: 18, desc: "A 6 s circle (r 2.8) that heals you and pets and slows foes inside." },
+      { id: "swift", name: "Blessed Swiftness", icon: "🌟", mp: 12, cd: 90, desc: "+35% move speed for 60 s." },
+      { id: "hnova", name: "Holy Nova", icon: "☀️", mp: 16, cd: 10, desc: "100% holy damage in 3 tiles and heal 12% HP for you and pets.", tree: true },
+      { id: "chains", name: "Divine Chains", icon: "⛓️", mp: 14, cd: 14, desc: "Root up to 4 enemies within 4.5 tiles for 2.5 s.", tree: true },
+      { id: "drain", name: "Life Drain", icon: "🩸", mp: 12, cd: 8, desc: "100% damage; heal for 60% of the damage dealt.", tree: true },
+      { id: "spirit", name: "Guardian Spirit", icon: "👻", mp: 20, cd: 30, desc: "Revive a downed pet, or summon a holy ally for 12 s.", tree: true },
+      { id: "purify", name: "Purify", icon: "💧", mp: 12, cd: 12, desc: "Cleanse your dots and stun undead within 3.5 tiles for 2 s.", tree: true },
+    ] },
   ranger: { id: "ranger", name: "Ranger", icon: "🏹", tag: "Archer with a wolf companion", base: { hp: 90, mp: 40, atk: 10, def: 4, crit: 15, dodge: 10 }, grow: { hp: 10, mp: 5, atk: 2, def: 1, crit: 0.3 }, passive: "Wolf companion runs at foes and bites for 45% ATK every 1.5 s.", start: ["w_bow", "a_tunic"],
-    abs: [{ id: "multi", name: "Multi-Shot", icon: "🏹", mp: 10, cd: 5, desc: "4 arrows at random foes, 70% each." }, { id: "trap", name: "Snare Trap", icon: "⛓️", mp: 8, cd: 10, desc: "Stun target for 3 s + bleed for 4.5 s." }, { id: "frenzy", name: "Call of the Wild", icon: "📯", mp: 10, cd: 12, desc: "150% shot; pets deal triple for 8 s." }] },
+    abs: [
+      { id: "multi", name: "Multi-Shot", icon: "🏹", mp: 10, cd: 5, desc: "4 arrows at random foes, 70% each." },
+      { id: "trap", name: "Snare Trap", icon: "⛓️", mp: 8, cd: 10, desc: "Stun target for 3 s + bleed for 4.5 s." },
+      { id: "frenzy", name: "Call of the Wild", icon: "📯", mp: 10, cd: 12, desc: "150% shot; pets deal triple for 8 s." },
+      { id: "xtrap", name: "Explosive Trap", icon: "💣", mp: 12, cd: 8, desc: "Place a trap (max 2): roots the first foe 2 s, then explodes (120%, r 2)." },
+      { id: "wstr", name: "Wind Stride", icon: "🍃", mp: 12, cd: 90, desc: "+35% move speed for 60 s." },
+      { id: "rain", name: "Rain of Arrows", icon: "🏹", mp: 16, cd: 12, desc: "4 ticks of 45% damage over 2.5 s in a 2.6-tile circle.", tree: true },
+      { id: "pierce", name: "Piercing Shot", icon: "🎯", mp: 12, cd: 8, desc: "A 120% line shot through every enemy in its path (8 tiles).", tree: true },
+      { id: "hook", name: "Grappling Hook", icon: "🪝", mp: 10, cd: 10, desc: "Dash up to 6 tiles toward a point or your target.", tree: true },
+      { id: "bfren", name: "Beast Frenzy", icon: "🐺", mp: 12, cd: 16, desc: "Pets gain +40% attack speed for 8 s.", tree: true },
+      { id: "hmark", name: "Hunter's Mark", icon: "👁️", mp: 10, cd: 12, desc: "Reveal a foe and slow it 30% for 8 s.", tree: true },
+    ] },
 };
 const CLASS_IDS: ClassId[] = ["warrior", "mage", "rogue", "cleric", "ranger"];
 
@@ -694,9 +757,29 @@ function shuffle<T>(a: T[]): T[] { const b = a.slice(); for (let i = b.length - 
 function need(l: number): number { return 30 + l * l * 12; }
 const AB_LVLS = [3, 6, 9, 12];
 function abUnlockAt(i: number): number { return AB_LVLS[i] ?? (3 * (i + 1)); }
-function abReady(g: Game, i: number): boolean { return g.lvl >= abUnlockAt(i); }
-function abIdxOf(g: Game, id: string): number { return CLS[g.cls].abs.findIndex((a: Ab) => a.id === id); }
-function abReadyId(g: Game, id: string): boolean { const i = abIdxOf(g, id); return i >= 0 && abReady(g, i); }
+function levelAbs(cls: ClassId): Ab[] { return CLS[cls].abs.filter((a: Ab) => !a.tree); }
+function skillNodesOf(cls: ClassId): SkillNode[] { return SKILLS[cls] ?? []; }
+function skillNode(cls: ClassId, id: string): SkillNode | undefined { return skillNodesOf(cls).find((n: SkillNode) => n.id === id); }
+function ownedSkills(g: Game): string[] { return Array.isArray(g.skills) ? g.skills : []; }
+function skillOwnsAb(g: Game, id: string): boolean {
+  return ownedSkills(g).some((nid: string) => skillNode(g.cls, nid)?.ab === id);
+}
+function barAbs(g: Game): Ab[] {
+  return CLS[g.cls].abs.filter((a: Ab) => !a.tree || skillOwnsAb(g, a.id));
+}
+function abUnlockLv(cls: ClassId, a: Ab): number {
+  if (a.tree) return 99;
+  const i = levelAbs(cls).findIndex((x: Ab) => x.id === a.id);
+  return i < 0 ? 99 : (AB_LVLS[i] ?? (3 * (i + 1)));
+}
+function abReadyAb(g: Game, a: Ab): boolean {
+  if (a.tree) return skillOwnsAb(g, a.id);
+  return g.lvl >= abUnlockLv(g.cls, a);
+}
+function abReady(g: Game, i: number): boolean { const a = barAbs(g)[i]; return !!a && abReadyAb(g, a); }
+function abIdxOf(g: Game, id: string): number { return barAbs(g).findIndex((a: Ab) => a.id === id); }
+function abReadyId(g: Game, id: string): boolean { const a = CLS[g.cls].abs.find((x: Ab) => x.id === id); return !!a && abReadyAb(g, a); }
+
 interface AbPop { icon: string; name: string; ts: number }
 const AB_POPS: AbPop[] = [];
 function noteAbUnlock(g: Game, a: Ab): void {
@@ -705,8 +788,664 @@ function noteAbUnlock(g: Game, a: Ab): void {
   AB_POPS.push({ icon: a.icon, name: a.name, ts: Date.now() });
 }
 function checkAbUnlocks(g: Game, from: number, to: number): void {
-  CLS[g.cls].abs.forEach((a: Ab, i: number) => { const lv = abUnlockAt(i); if (from < lv && to >= lv) noteAbUnlock(g, a); });
+  CLS[g.cls].abs.forEach((a: Ab) => { if (a.tree) return; const lv = abUnlockLv(g.cls, a); if (from < lv && to >= lv) noteAbUnlock(g, a); });
 }
+interface SkillNode {
+  id: string; path: string; row: number; name: string; icon: string; desc: string;
+  st?: Stats; ab?: string; cd?: { id: string; v: number }; dmg?: { id: string; v: number };
+  rad?: { id: string; v: number }; dur?: { id: string; v: number }; misc?: Record<string, number>; cap?: boolean;
+}
+function N(id: string, path: string, row: number, name: string, icon: string, desc: string, extra: Partial<SkillNode> = {}): SkillNode {
+  return { id, path, row, name, icon, desc, ...extra };
+}
+const SKILLS: Record<ClassId, SkillNode[]> = {
+  warrior: [
+    N("w_j1", "Juggernaut", 0, "Iron Hide", "🛡️", "+12 HP and +2 DEF.", { st: { hp: 12, def: 2 } }),
+    N("w_j2", "Juggernaut", 1, "Fortify", "🧱", "+18 HP.", { st: { hp: 18 } }),
+    N("w_j3", "Juggernaut", 2, "Bash Training", "🛡️", "Shield Bash cooldown −2 s.", { cd: { id: "bash", v: 2 } }),
+    N("w_j4", "Juggernaut", 3, "Shield Reflect", "🪞", "Unlock Shield Reflect: bounce projectiles for 4 s.", { ab: "reflect" }),
+    N("w_j5", "Juggernaut", 4, "Mirror Guard", "🪞", "Shield Reflect lasts 1.5 s longer.", { dur: { id: "reflect", v: 1.5 } }),
+    N("w_j6", "Juggernaut", 5, "Thick Skull", "🪖", "+8 HP and +4 DEF.", { st: { hp: 8, def: 4 } }),
+    N("w_j7", "Juggernaut", 6, "Bulwark", "🏰", "+20 HP.", { st: { hp: 20 } }),
+    N("w_j8", "Juggernaut", 7, "Second Skin", "🧥", "+5 DEF.", { st: { def: 5 } }),
+    N("w_j9", "Juggernaut", 8, "Aegis Eternal", "🛡️", "Capstone: +25 HP, +6 DEF, Shield Reflect cooldown −4 s.", { st: { hp: 25, def: 6 }, cd: { id: "reflect", v: 4 }, cap: true }),
+    N("w_b1", "Berserker", 0, "Bloodlust", "🩸", "+3 ATK.", { st: { atk: 3 } }),
+    N("w_b2", "Berserker", 1, "Fury", "😡", "+4 ATK and +2% crit.", { st: { atk: 4, crit: 2 } }),
+    N("w_b3", "Berserker", 2, "Cleave Training", "🪓", "Cleave cooldown −1.5 s and +15% damage.", { cd: { id: "cleave", v: 1.5 }, dmg: { id: "cleave", v: 0.15 } }),
+    N("w_b4", "Berserker", 3, "Execute", "☠️", "Unlock Execute: bonus damage on targets below 25% HP.", { ab: "exec" }),
+    N("w_b5", "Berserker", 4, "Killing Edge", "⚔️", "Execute also triggers below 35% HP and deals +20% damage.", { misc: { execTh: 0.1 }, dmg: { id: "exec", v: 0.2 } }),
+    N("w_b6", "Berserker", 5, "Whirlwind", "🌀", "Unlock Whirlwind: spinning damage around you.", { ab: "whirl" }),
+    N("w_b7", "Berserker", 6, "Wider Whirl", "🌀", "Whirlwind radius +0.5 tiles.", { rad: { id: "whirl", v: 0.5 } }),
+    N("w_b8", "Berserker", 7, "Savagery", "💢", "+5 ATK and +3% crit.", { st: { atk: 5, crit: 3 } }),
+    N("w_b9", "Berserker", 8, "Rampage", "🔥", "Capstone: +8 ATK, Whirlwind cooldown −3 s, Execute +30% damage.", { st: { atk: 8 }, cd: { id: "whirl", v: 3 }, dmg: { id: "exec", v: 0.3 }, cap: true }),
+    N("w_o1", "Warlord", 0, "Command", "📣", "+2 ATK and +6 HP.", { st: { atk: 2, hp: 6 } }),
+    N("w_o2", "Warlord", 1, "Cry Training", "📣", "Battle Cry cooldown −3 s.", { cd: { id: "cry", v: 3 } }),
+    N("w_o3", "Warlord", 2, "Taunting Roar", "🦁", "Unlock Taunting Roar: force nearby foes to attack you.", { ab: "troar" }),
+    N("w_o4", "Warlord", 3, "Louder Roar", "🦁", "Taunting Roar radius +1 tile.", { rad: { id: "troar", v: 1 } }),
+    N("w_o5", "Warlord", 4, "Ground Pull", "🧲", "Unlock Ground Pull: yank enemies in.", { ab: "gpull" }),
+    N("w_o6", "Warlord", 5, "Deep Hook", "🧲", "Ground Pull range +1.2 tiles.", { rad: { id: "gpull", v: 1.2 } }),
+    N("w_o7", "Warlord", 6, "Rally", "🚩", "+10 HP and +2 ATK.", { st: { hp: 10, atk: 2 } }),
+    N("w_o8", "Warlord", 7, "Smash Training", "💥", "Smash cooldown −2 s and +15% damage.", { cd: { id: "smash", v: 2 }, dmg: { id: "smash", v: 0.15 } }),
+    N("w_o9", "Warlord", 8, "War Banner", "🚩", "Capstone: +4 ATK, Ground Pull and Taunting Roar cooldown −3 s.", { st: { atk: 4 }, cd: { id: "gpull", v: 3 }, cap: true }),
+  ],
+  mage: [
+    N("m_e1", "Evoker", 0, "Spark", "🔥", "+3 ATK.", { st: { atk: 3 } }),
+    N("m_e2", "Evoker", 1, "Fire Training", "🔥", "Fireball +20% damage.", { dmg: { id: "fireball", v: 0.2 } }),
+    N("m_e3", "Evoker", 2, "Arcane Missiles", "🔮", "Unlock Arcane Missiles: three rapid bolts.", { ab: "missiles" }),
+    N("m_e4", "Evoker", 3, "Quick Cast", "⚡", "Arcane Missiles and Chain Lightning cooldown −1 s.", { cd: { id: "missiles", v: 1 } }),
+    N("m_e5", "Evoker", 4, "Meteor", "☄️", "Unlock Meteor: delayed impact and a burn patch.", { ab: "meteor" }),
+    N("m_e6", "Evoker", 5, "Wider Blast", "☄️", "Meteor radius +0.5 tiles.", { rad: { id: "meteor", v: 0.5 } }),
+    N("m_e7", "Evoker", 6, "Kindling", "🔥", "+4 ATK and +8 MP.", { st: { atk: 4, mp: 8 } }),
+    N("m_e8", "Evoker", 7, "Chain Mastery", "⚡", "Chain Lightning +20% damage.", { dmg: { id: "chain", v: 0.2 } }),
+    N("m_e9", "Evoker", 8, "Devastation", "☄️", "Capstone: +6 ATK, Meteor cooldown −3 s and +25% damage.", { st: { atk: 6 }, cd: { id: "meteor", v: 3 }, dmg: { id: "meteor", v: 0.25 }, cap: true }),
+    N("m_c1", "Cryomancer", 0, "Chill", "❄️", "+10 MP and +2 DEF.", { st: { mp: 10, def: 2 } }),
+    N("m_c2", "Cryomancer", 1, "Nova Training", "❄️", "Frost Nova cooldown −2 s.", { cd: { id: "nova", v: 2 } }),
+    N("m_c3", "Cryomancer", 2, "Ice Wall", "🧊", "Unlock Ice Wall: a blocking barrier.", { ab: "iwall" }),
+    N("m_c4", "Cryomancer", 3, "Thick Ice", "🧊", "Ice Wall lasts 1.5 s longer.", { dur: { id: "iwall", v: 1.5 } }),
+    N("m_c5", "Cryomancer", 4, "Gravity Well", "🌌", "Unlock Gravity Well: pull and slow.", { ab: "gwell" }),
+    N("m_c6", "Cryomancer", 5, "Deep Well", "🌌", "Gravity Well radius +0.6 tiles.", { rad: { id: "gwell", v: 0.6 } }),
+    N("m_c7", "Cryomancer", 6, "Polymorph", "🐑", "Unlock Polymorph: a non-boss foe becomes harmless for 4 s.", { ab: "poly" }),
+    N("m_c8", "Cryomancer", 7, "Long Hex", "🐑", "Polymorph lasts 1.5 s longer.", { dur: { id: "poly", v: 1.5 } }),
+    N("m_c9", "Cryomancer", 8, "Winter's Grasp", "❄️", "Capstone: +20 MP, Gravity Well and Ice Wall cooldown −3 s.", { st: { mp: 20 }, cd: { id: "gwell", v: 3 }, cap: true }),
+    N("m_a1", "Arcanist", 0, "Ward", "🔮", "+12 MP and +2 DEF.", { st: { mp: 12, def: 2 } }),
+    N("m_a2", "Arcanist", 1, "Mana Pool", "💧", "+20 MP.", { st: { mp: 20 } }),
+    N("m_a3", "Arcanist", 2, "Shield Training", "🔮", "Arcane Shield cooldown −3 s.", { cd: { id: "arcane", v: 3 } }),
+    N("m_a4", "Arcanist", 3, "Blink Training", "✨", "Blink cooldown −2 s.", { cd: { id: "blink", v: 2 } }),
+    N("m_a5", "Arcanist", 4, "Insight", "📘", "+8 MP and +2 ATK.", { st: { mp: 8, atk: 2 } }),
+    N("m_a6", "Arcanist", 5, "Quick Step", "✨", "Haste cooldown −15 s.", { cd: { id: "haste", v: 15 } }),
+    N("m_a7", "Arcanist", 6, "Warding Ring", "🔮", "+4 DEF.", { st: { def: 4 } }),
+    N("m_a8", "Arcanist", 7, "Deep Reserve", "💧", "+16 MP and +8 HP.", { st: { mp: 16, hp: 8 } }),
+    N("m_a9", "Arcanist", 8, "Archon", "🌟", "Capstone: +25 MP, +4 ATK, Blink cooldown −2 s.", { st: { mp: 25, atk: 4 }, cd: { id: "blink", v: 2 }, cap: true }),
+  ],
+  rogue: [
+    N("r_a1", "Assassin", 0, "Keen Edge", "🗡️", "+3 ATK.", { st: { atk: 3 } }),
+    N("r_a2", "Assassin", 1, "Backstab Training", "🗡️", "Backstab +15% damage.", { dmg: { id: "backstab", v: 0.15 } }),
+    N("r_a3", "Assassin", 2, "Shadow Step", "👤", "Shadow Step cooldown −2 s. (learned at level 12; this shortens it.)", { cd: { id: "sstep", v: 2 } }),
+    N("r_a4", "Assassin", 3, "Mark for Death", "💀", "Unlock Mark for Death: the target takes +25% damage.", { ab: "mdeath" }),
+    N("r_a5", "Assassin", 4, "Deep Mark", "💀", "Mark for Death lasts 3 s longer.", { dur: { id: "mdeath", v: 3 } }),
+    N("r_a6", "Assassin", 5, "Quiet Kill", "🤫", "+3% crit and +2 ATK.", { st: { crit: 3, atk: 2 } }),
+    N("r_a7", "Assassin", 6, "Long Step", "👤", "Shadow Step's guaranteed crit window +1 s.", { dur: { id: "sstep", v: 1 } }),
+    N("r_a8", "Assassin", 7, "Opportunist", "🗡️", "+4 ATK and +2% crit.", { st: { atk: 4, crit: 2 } }),
+    N("r_a9", "Assassin", 8, "Deathblow", "💀", "Capstone: +6 ATK, Mark for Death and Shadow Step cooldown −2 s.", { st: { atk: 6 }, cd: { id: "mdeath", v: 2 }, cap: true }),
+    N("r_t1", "Trickster", 0, "Light Foot", "👟", "+3 dodge.", { st: { dodge: 3 } }),
+    N("r_t2", "Trickster", 1, "Evade Training", "💨", "Evade cooldown −2 s.", { cd: { id: "evade", v: 2 } }),
+    N("r_t3", "Trickster", 2, "Smoke Bomb", "☁️", "Unlock Smoke Bomb: enemies miss, and you slip into stealth.", { ab: "smoke" }),
+    N("r_t4", "Trickster", 3, "Thick Smoke", "☁️", "Smoke Bomb radius +0.6 tiles.", { rad: { id: "smoke", v: 0.6 } }),
+    N("r_t5", "Trickster", 4, "Caltrops", "✴️", "Unlock Caltrops: a slowing field.", { ab: "caltr" }),
+    N("r_t6", "Trickster", 5, "Wider Snare", "✴️", "Caltrops radius +0.5 tiles.", { rad: { id: "caltr", v: 0.5 } }),
+    N("r_t7", "Trickster", 6, "Sprint Training", "🏃", "Sprint cooldown −15 s.", { cd: { id: "sprint", v: 15 } }),
+    N("r_t8", "Trickster", 7, "Slippery", "👟", "+4 dodge and +8 HP.", { st: { dodge: 4, hp: 8 } }),
+    N("r_t9", "Trickster", 8, "Vanishing Act", "☁️", "Capstone: +6 dodge, Smoke Bomb and Caltrops cooldown −3 s.", { st: { dodge: 6 }, cd: { id: "smoke", v: 3 }, cap: true }),
+    N("r_l1", "Blade", 0, "Venom", "🧪", "+2 ATK and +8 HP.", { st: { atk: 2, hp: 8 } }),
+    N("r_l2", "Blade", 1, "Poison Training", "🧪", "Poison Blade +20% damage.", { dmg: { id: "poison", v: 0.2 } }),
+    N("r_l3", "Blade", 2, "Fan of Knives", "🗡️", "Unlock Fan of Knives: a poisonous radial burst.", { ab: "fan" }),
+    N("r_l4", "Blade", 3, "Wider Fan", "🗡️", "Fan of Knives radius +0.5 tiles.", { rad: { id: "fan", v: 0.5 } }),
+    N("r_l5", "Blade", 4, "Shuriken Ricochet", "⭐", "Unlock Shuriken Ricochet: a bouncing blade.", { ab: "shuri" }),
+    N("r_l6", "Blade", 5, "Extra Bounce", "⭐", "Shuriken Ricochet +20% damage.", { dmg: { id: "shuri", v: 0.2 } }),
+    N("r_l7", "Blade", 6, "Bleed Out", "🩸", "+3 ATK.", { st: { atk: 3 } }),
+    N("r_l8", "Blade", 7, "Quick Hands", "⭐", "Fan of Knives and Shuriken cooldown −1.5 s.", { cd: { id: "fan", v: 1.5 } }),
+    N("r_l9", "Blade", 8, "Flurry", "🗡️", "Capstone: +5 ATK, Fan of Knives +25% damage and cooldown −2 s.", { st: { atk: 5 }, dmg: { id: "fan", v: 0.25 }, cd: { id: "fan", v: 2 }, cap: true }),
+  ],
+  ranger: [
+    N("n_m1", "Marksman", 0, "Steady Aim", "🎯", "+3 ATK.", { st: { atk: 3 } }),
+    N("n_m2", "Marksman", 1, "Multi Training", "🏹", "Multi-Shot cooldown −1 s.", { cd: { id: "multi", v: 1 } }),
+    N("n_m3", "Marksman", 2, "Piercing Shot", "🎯", "Unlock Piercing Shot: a line through every foe.", { ab: "pierce" }),
+    N("n_m4", "Marksman", 3, "Heavy Bolt", "🎯", "Piercing Shot +20% damage.", { dmg: { id: "pierce", v: 0.2 } }),
+    N("n_m5", "Marksman", 4, "Rain of Arrows", "🏹", "Unlock Rain of Arrows: ticking damage in a circle.", { ab: "rain" }),
+    N("n_m6", "Marksman", 5, "Wider Rain", "🏹", "Rain of Arrows radius +0.5 tiles.", { rad: { id: "rain", v: 0.5 } }),
+    N("n_m7", "Marksman", 6, "Hunter's Mark", "👁️", "Unlock Hunter's Mark: reveal and slow a foe.", { ab: "hmark" }),
+    N("n_m8", "Marksman", 7, "Long Mark", "👁️", "Hunter's Mark lasts 3 s longer.", { dur: { id: "hmark", v: 3 } }),
+    N("n_m9", "Marksman", 8, "Deadeye", "🎯", "Capstone: +6 ATK, Piercing Shot and Rain cooldown −2 s.", { st: { atk: 6 }, cd: { id: "pierce", v: 2 }, cap: true }),
+    N("n_t1", "Trapper", 0, "Careful Step", "👣", "+8 HP and +2 DEF.", { st: { hp: 8, def: 2 } }),
+    N("n_t2", "Trapper", 1, "Snare Training", "⛓️", "Snare Trap cooldown −2 s.", { cd: { id: "trap", v: 2 } }),
+    N("n_t3", "Trapper", 2, "Explosive Trap", "💣", "Explosive Trap cooldown −2 s. (learned at level 12; this shortens it.)", { cd: { id: "xtrap", v: 2 } }),
+    N("n_t4", "Trapper", 3, "Bigger Boom", "💣", "Explosive Trap radius +0.5 tiles and +15% damage.", { rad: { id: "xtrap", v: 0.5 }, dmg: { id: "xtrap", v: 0.15 } }),
+    N("n_t5", "Trapper", 4, "Grappling Hook", "🪝", "Unlock Grappling Hook: dash to a point.", { ab: "hook" }),
+    N("n_t6", "Trapper", 5, "Long Line", "🪝", "Grappling Hook reach +1.5 tiles.", { rad: { id: "hook", v: 1.5 } }),
+    N("n_t7", "Trapper", 6, "Wind Training", "🍃", "Wind Stride cooldown −15 s.", { cd: { id: "wstr", v: 15 } }),
+    N("n_t8", "Trapper", 7, "Set Line", "👣", "+10 HP and +2 ATK.", { st: { hp: 10, atk: 2 } }),
+    N("n_t9", "Trapper", 8, "Master Trapper", "💣", "Capstone: +4 ATK, Explosive Trap and Hook cooldown −2 s.", { st: { atk: 4 }, cd: { id: "xtrap", v: 2 }, cap: true }),
+    N("n_b1", "Beastmaster", 0, "Pack Bond", "🐺", "+10 HP.", { st: { hp: 10 } }),
+    N("n_b2", "Beastmaster", 1, "Wild Call", "📯", "Call of the Wild cooldown −2 s.", { cd: { id: "frenzy", v: 2 } }),
+    N("n_b3", "Beastmaster", 2, "Beast Frenzy", "🐺", "Unlock Beast Frenzy: pets attack 40% faster.", { ab: "bfren" }),
+    N("n_b4", "Beastmaster", 3, "Long Frenzy", "🐺", "Beast Frenzy lasts 3 s longer.", { dur: { id: "bfren", v: 3 } }),
+    N("n_b5", "Beastmaster", 4, "Thick Hide", "🐾", "+14 HP and +2 DEF.", { st: { hp: 14, def: 2 } }),
+    N("n_b6", "Beastmaster", 5, "Keen Pack", "🦅", "+3 ATK.", { st: { atk: 3 } }),
+    N("n_b7", "Beastmaster", 6, "Swift Beasts", "🐺", "Beast Frenzy cooldown −4 s.", { cd: { id: "bfren", v: 4 } }),
+    N("n_b8", "Beastmaster", 7, "Alpha", "🐺", "+8 HP and +2 ATK.", { st: { hp: 8, atk: 2 } }),
+    N("n_b9", "Beastmaster", 8, "Apex Pack", "🦅", "Capstone: +16 HP, +4 ATK, Beast Frenzy and Call of the Wild cooldown −3 s.", { st: { hp: 16, atk: 4 }, cd: { id: "bfren", v: 3 }, cap: true }),
+  ],
+  cleric: [
+    N("c_r1", "Radiant", 0, "Zeal", "⚡", "+3 ATK.", { st: { atk: 3 } }),
+    N("c_r2", "Radiant", 1, "Smite Training", "⚡", "Smite +15% damage.", { dmg: { id: "smite", v: 0.15 } }),
+    N("c_r3", "Radiant", 2, "Holy Nova", "☀️", "Unlock Holy Nova: damage foes and heal allies.", { ab: "hnova" }),
+    N("c_r4", "Radiant", 3, "Wider Nova", "☀️", "Holy Nova radius +0.5 tiles.", { rad: { id: "hnova", v: 0.5 } }),
+    N("c_r5", "Radiant", 4, "Purify", "💧", "Unlock Purify: cleanse yourself and stun undead.", { ab: "purify" }),
+    N("c_r6", "Radiant", 5, "Holy Fire", "☀️", "Holy Nova +20% damage.", { dmg: { id: "hnova", v: 0.2 } }),
+    N("c_r7", "Radiant", 6, "Smash Training", "💥", "Smash cooldown −2 s.", { cd: { id: "smash", v: 2 } }),
+    N("c_r8", "Radiant", 7, "Conviction", "⚡", "+4 ATK and +8 HP.", { st: { atk: 4, hp: 8 } }),
+    N("c_r9", "Radiant", 8, "Dawnbreak", "☀️", "Capstone: +6 ATK, Holy Nova and Purify cooldown −3 s.", { st: { atk: 6 }, cd: { id: "hnova", v: 3 }, cap: true }),
+    N("c_s1", "Shepherd", 0, "Kind Hands", "✨", "+10 HP and +8 MP.", { st: { hp: 10, mp: 8 } }),
+    N("c_s2", "Shepherd", 1, "Heal Training", "✨", "Heal cooldown −1.5 s.", { cd: { id: "heal", v: 1.5 } }),
+    N("c_s3", "Shepherd", 2, "Sanctuary Training", "🕊️", "Sanctuary cooldown −3 s.", { cd: { id: "sanct", v: 3 } }),
+    N("c_s4", "Shepherd", 3, "Wide Haven", "🕊️", "Sanctuary radius +0.5 tiles.", { rad: { id: "sanct", v: 0.5 } }),
+    N("c_s5", "Shepherd", 4, "Guardian Spirit", "👻", "Unlock Guardian Spirit: revive a pet or summon an ally.", { ab: "spirit" }),
+    N("c_s6", "Shepherd", 5, "Long Watch", "👻", "Guardian Spirit lasts 4 s longer.", { dur: { id: "spirit", v: 4 } }),
+    N("c_s7", "Shepherd", 6, "Blessed Pace", "🌟", "Blessed Swiftness cooldown −15 s.", { cd: { id: "swift", v: 15 } }),
+    N("c_s8", "Shepherd", 7, "Gentle Strength", "✨", "+14 HP and +10 MP.", { st: { hp: 14, mp: 10 } }),
+    N("c_s9", "Shepherd", 8, "High Priest", "🕊️", "Capstone: +20 HP, +16 MP, Sanctuary and Spirit cooldown −4 s.", { st: { hp: 20, mp: 16 }, cd: { id: "sanct", v: 4 }, cap: true }),
+    N("c_w1", "Warden", 0, "Oath", "🔆", "+8 HP and +2 DEF.", { st: { hp: 8, def: 2 } }),
+    N("c_w2", "Warden", 1, "Shield Training", "🔆", "Holy Shield cooldown −3 s.", { cd: { id: "holy", v: 3 } }),
+    N("c_w3", "Warden", 2, "Divine Chains", "⛓️", "Unlock Divine Chains: root several enemies.", { ab: "chains" }),
+    N("c_w4", "Warden", 3, "Wider Bind", "⛓️", "Divine Chains radius +0.8 tiles.", { rad: { id: "chains", v: 0.8 } }),
+    N("c_w5", "Warden", 4, "Life Drain", "🩸", "Unlock Life Drain: deal damage and heal for part of it.", { ab: "drain" }),
+    N("c_w6", "Warden", 5, "Deep Drain", "🩸", "Life Drain +20% damage.", { dmg: { id: "drain", v: 0.2 } }),
+    N("c_w7", "Warden", 6, "Iron Faith", "🔆", "+4 DEF and +8 HP.", { st: { def: 4, hp: 8 } }),
+    N("c_w8", "Warden", 7, "Binding Word", "⛓️", "Divine Chains cooldown −3 s.", { cd: { id: "chains", v: 3 } }),
+    N("c_w9", "Warden", 8, "Sanctified Arms", "🔆", "Capstone: +5 DEF, +4 ATK, Life Drain and Chains cooldown −2 s.", { st: { def: 5, atk: 4 }, cd: { id: "drain", v: 2 }, cap: true }),
+  ],
+};
+function skillUp(g: Game, id: string): { cd: number; dmg: number; rad: number; dur: number; misc: Record<string, number> } {
+  const out = { cd: 0, dmg: 0, rad: 0, dur: 0, misc: {} as Record<string, number> };
+  for (const nid of ownedSkills(g)) {
+    const n = skillNode(g.cls, nid); if (!n) continue;
+    if (n.cd && n.cd.id === id) out.cd += n.cd.v;
+    if (n.dmg && n.dmg.id === id) out.dmg += n.dmg.v;
+    if (n.rad && n.rad.id === id) out.rad += n.rad.v;
+    if (n.dur && n.dur.id === id) out.dur += n.dur.v;
+    if (n.misc) for (const k of Object.keys(n.misc)) out.misc[k] = (out.misc[k] ?? 0) + (n.misc[k] ?? 0);
+  }
+  return out;
+}
+function skillStats(g: Game): Stats {
+  const st: Stats = {};
+  for (const nid of ownedSkills(g)) {
+    const n = skillNode(g.cls, nid);
+    if (n?.st) {
+      for (const k of Object.keys(n.st) as (keyof Stats)[]) {
+        const v = n.st[k]; if (typeof v === "number") (st[k] as number) = ((st[k] as number) ?? 0) + v;
+      }
+    }
+  }
+  return st;
+}
+function canTakeSkill(g: Game, n: SkillNode): boolean {
+  if ((g.skillPts ?? 0) < 1) return false;
+  if (ownedSkills(g).includes(n.id)) return false;
+  if (n.row <= 0) return true;
+  const prev = skillNodesOf(g.cls).find((x: SkillNode) => x.path === n.path && x.row === n.row - 1);
+  return !!prev && ownedSkills(g).includes(prev.id);
+}
+function takeSkill(g: Game, id: string): boolean {
+  const n = skillNode(g.cls, id); if (!n || !canTakeSkill(g, n)) return false;
+  g.skills = ownedSkills(g).concat(id);
+  g.skillPts = Math.max(0, (g.skillPts ?? 0) - 1);
+  if (n.ab) {
+    const a = CLS[g.cls].abs.find((x: Ab) => x.id === n.ab);
+    if (a) noteAbUnlock(g, a);
+  }
+  log(g, `🌳 Learned ${n.icon} ${n.name}.`, "good");
+  return true;
+}
+function migrateSkills(g: Game): void {
+  const legal = new Set(skillNodesOf(g.cls).map((n: SkillNode) => n.id));
+  const have = (Array.isArray(g.skills) ? g.skills : []).filter((id: string) => typeof id === "string" && legal.has(id));
+  g.skills = have;
+  const earned = Math.max(0, g.lvl - 1);
+  if (typeof g.skillPts !== "number" || !isFinite(g.skillPts)) g.skillPts = Math.max(0, earned - have.length);
+  else g.skillPts = Math.max(0, Math.floor(g.skillPts));
+}
+function heroXY(g: Game): [number, number] { return [g.wx ?? g.px + 0.5, g.wy ?? g.py + 0.5]; }
+function distToSeg(px: number, py: number, x: number, y: number, dx: number, dy: number, len: number): number {
+  const m = Math.hypot(dx, dy) || 1;
+  const ux = dx / m, uy = dy / m;
+  const t = Math.max(0, Math.min(len, (px - x) * ux + (py - y) * uy));
+  return Math.hypot(px - (x + ux * t), py - (y + uy * t));
+}
+function wallAt(g: Game, x: number, y: number, r: number): WallSeg | undefined {
+  const c = g.combat; if (!c) return;
+  for (const w of c.walls ?? []) if (w.t > 0 && distToSeg(x, y, w.x, w.y, w.dx, w.dy, w.len) < r + 0.18) return w;
+  return undefined;
+}
+function tryDash(g: Game, dx: number, dy: number, maxR: number): void {
+  const [px, py] = heroXY(g);
+  const m = Math.hypot(dx, dy);
+  if (m < 0.05) { const a = FACE; dx = Math.cos(a); dy = Math.sin(a); }
+  const mag = Math.hypot(dx, dy) || 1;
+  const dist = Math.min(maxR, mag);
+  const ux = dx / mag, uy = dy / mag;
+  let x = px, y = py;
+  const steps = Math.max(8, Math.ceil(dist / 0.12));
+  for (let i = 1; i <= steps; i++) {
+    const nx = px + ux * dist * i / steps, ny = py + uy * dist * i / steps;
+    if (solidT(g, Math.floor(nx), Math.floor(ny)) || wallAt(g, nx, ny, PR)) break;
+    x = nx; y = ny;
+  }
+  const q = { x, y }; pushOut(g, q, PR);
+  g.wx = q.x; g.wy = q.y; g.px = Math.floor(q.x); g.py = Math.floor(q.y);
+  if (g.combat) { g.combat.px = q.x; g.combat.py = q.y; }
+}
+function addZone(c: Combat, z: Omit<Zone, "id">): void { (c.zones ?? (c.zones = [])).push({ ...z, id: UID++ }); }
+function addPulseEx(k: string, ang: number, r?: number, col?: string): void {
+  PULSES.push({ k, ts: Date.now(), ang, r, col });
+  if (PULSES.length > 10) PULSES.shift();
+}
+function bounceHits(g: Game, start: Enemy | undefined, n: number, base: number, fade: number, label: string, shotCol: string): void {
+  const c = g.combat; if (!c) return;
+  const used = new Set<number>();
+  let cur = start, dmg = base, [sx, sy] = heroXY(g);
+  for (let i = 0; i < n; i++) {
+    let nxt: Enemy | undefined = cur && !used.has(cur.uid) && cur.hp > 0 ? cur : undefined;
+    if (!nxt) {
+      let bd = 4.5, pickE: Enemy | undefined;
+      for (const e of alive(c)) {
+        if (used.has(e.uid)) continue;
+        const d = Math.hypot((e.x ?? 0) - sx, (e.y ?? 0) - sy);
+        if (d < bd) { bd = d; pickE = e; }
+      }
+      nxt = pickE;
+    }
+    if (!nxt) break;
+    used.add(nxt.uid);
+    hitEnemy(g, nxt, dmg, false, label);
+    const s = c.shots ?? (c.shots = []);
+    s.push({ id: UID++, x1: sx, y1: sy, x2: nxt.x ?? 0, y2: nxt.y ?? 0, ts: Date.now(), c: shotCol });
+    if (s.length > 10) s.shift();
+    sx = nxt.x ?? sx; sy = nxt.y ?? sy; cur = undefined; dmg *= fade;
+  }
+}
+function healPetsIn(g: Game, amt: number, x: number, y: number, r: number): void {
+  for (const p of g.pets ?? []) {
+    if (p.ko > 0) continue;
+    if (Math.hypot(p.x - x, p.y - y) > r) continue;
+    const before = p.hp; p.hp = Math.min(p.max, p.hp + amt);
+    if (p.hp > before) addFx(g, `+${p.hp - before}`, "heal", "m");
+  }
+}
+function hasten(g: Game, name: string, icon: string): void {
+  g.buffs.haste = Math.max(g.buffs.haste ?? 0, 60);
+  log(g, `${icon} ${name}! +35% move speed for 60 s.`, "good");
+  addFx(g, name, "good", "p");
+  addPulseEx("haste", 0, 1.2, "rgba(140,220,255,.55)");
+}
+function castExtra(g: Game, id: string, label: string): boolean {
+  const c = g.combat;
+  const f = full(g); const b = g.buffs; const t = c ? tgt(c) : undefined;
+  const [px, py] = heroXY(g);
+  const up = skillUp(g, id);
+  const rad = (base: number): number => base + up.rad;
+  const dmg = (base: number): number => base * (1 + up.dmg);
+  const dur = (base: number): number => base + up.dur;
+  switch (id) {
+    case "march": case "haste": case "sprint": case "wstr": case "swift": {
+      const a = CLS[g.cls].abs.find((x: Ab) => x.id === id);
+      hasten(g, a?.name ?? "Haste", a?.icon ?? "⏳");
+      return true;
+    }
+    case "lslam": {
+      const e = t;
+      const tx = e ? (e.x ?? px) : px + Math.cos(FACE) * rad(5), ty = e ? (e.y ?? py) : py + Math.sin(FACE) * rad(5);
+      tryDash(g, tx - px, ty - py, rad(5));
+      const [nx, ny] = heroXY(g);
+      if (c) for (const en of alive(c)) {
+        if (Math.hypot((en.x ?? 0) - nx, (en.y ?? 0) - ny) <= rad(2)) { hitEnemy(g, en, dmg(1.4), false, label); stunE(g, en, 1.2); }
+      }
+      addPulseEx("smash", 0, rad(2), "rgba(255,200,80,.7)");
+      log(g, `${label}: you crash down.`, "dmg");
+      return true;
+    }
+    case "blink": {
+      const Ihas = typeof FACE === "number";
+      tryDash(g, Math.cos(FACE) * 4, Math.sin(FACE) * 4, 4);
+      void Ihas;
+      if (c) {
+        const [nx, ny] = heroXY(g);
+        for (const e of c.enemies) {
+          if (e.dead || e.hp <= 0) continue;
+          if (Math.hypot((e.x ?? 0) - nx, (e.y ?? 0) - ny) > 2.5) { e.lost = Math.max(e.lost ?? 0, 8); e.wind = 0; }
+        }
+      }
+      addPulseEx("blink", FACE, 1.4, "rgba(180,140,255,.7)");
+      log(g, "✨ Blink! You reappear a few steps away.", "good");
+      return true;
+    }
+    case "chain": {
+      if (!c) return true;
+      bounceHits(g, t, 4, dmg(1.15), 0.75, label, "#9ad0ff");
+      return true;
+    }
+    case "sstep": {
+      if (!c || !t) return true;
+      const ex = t.x ?? px, ey = t.y ?? py;
+      const dx = ex - px, dy = ey - py, m = Math.hypot(dx, dy) || 1;
+      tryDash(g, dx + (dx / m) * 0.85, dy + (dy / m) * 0.85, m + 0.9);
+      b.nextCrit = dur(3);
+      addPulseEx("blink", FACE, 1.1, "rgba(40,0,40,.6)");
+      log(g, "👤 Shadow Step! Your next hit within 3 s is a critical.", "good");
+      return true;
+    }
+    case "xtrap": {
+      if (!c) return true;
+      const traps = c.traps ?? (c.traps = []);
+      if (traps.filter((tr: XTrap) => (tr.fuse ?? 0) <= 0).length >= 2) { const old = traps.find((tr: XTrap) => (tr.fuse ?? 0) <= 0); if (old) traps.splice(traps.indexOf(old), 1); }
+      traps.push({ id: UID++, x: px, y: py, r: rad(1.1) });
+      log(g, "💣 You set an explosive trap.", "good");
+      return true;
+    }
+    case "sanct": {
+      if (!c) { healPlayer(g, Math.round(f.maxHp * 0.08), false); return true; }
+      addZone(c, { x: px, y: py, r: rad(2.8), t: dur(6), max: dur(6), k: "sanct", heal: Math.max(1, Math.round(f.maxHp * 0.04)), acc: 0 });
+      log(g, "🕊️ Sanctuary blooms around you.", "heal");
+      return true;
+    }
+    case "whirl": {
+      if (!c) { addPulseEx("whirl", 0, rad(2.2), "rgba(255,210,120,.6)"); return true; }
+      b.whirl = dur(2);
+      addPulseEx("whirl", 0, rad(2.2), "rgba(255,210,120,.7)");
+      log(g, "🌀 Whirlwind!", "dmg");
+      return true;
+    }
+    case "gpull": {
+      if (!c) return true;
+      const R = rad(5);
+      for (const e of alive(c)) {
+        const ex = e.x ?? px, ey = e.y ?? py, d = Math.hypot(ex - px, ey - py);
+        if (d > R || d < 0.4) continue;
+        const k = Math.min(1, (d - 1.1) / Math.max(0.2, d));
+        e.x = ex + (px - ex) * k; e.y = ey + (py - ey) * k;
+        const q = { x: e.x, y: e.y }; pushOut(g, q, MR); e.x = q.x; e.y = q.y;
+      }
+      addPulseEx("pull", 0, R, "rgba(160,120,80,.6)");
+      log(g, "🧲 The ground yanks foes inward.", "dmg");
+      return true;
+    }
+    case "reflect": {
+      b.reflect = dur(4);
+      log(g, "🪞 Shield Reflect! Projectiles bounce back for 4 s.", "good");
+      addPulseEx("reflect", 0, 1.3, "rgba(180,220,255,.7)");
+      return true;
+    }
+    case "troar": {
+      if (c) for (const e of alive(c)) if (Math.hypot((e.x ?? 0) - px, (e.y ?? 0) - py) <= rad(5)) e.tauntT = 6;
+      addPulseEx("roar", 0, rad(5), "rgba(255,160,80,.5)");
+      log(g, "🦁 Taunting Roar! Nearby foes turn on you.", "good");
+      return true;
+    }
+    case "exec": {
+      if (!t) return true;
+      const th = 0.25 + (skillUp(g, "exec").misc.execTh ?? 0);
+      const low = t.max > 0 && t.hp / t.max <= th;
+      hitEnemy(g, t, dmg(low ? 2.6 : 1.3), false, label);
+      if (low) addFx(g, "EXECUTE", "dmg", "e" + t.uid);
+      return true;
+    }
+    case "meteor": {
+      if (!c) return true;
+      const tx = t ? (t.x ?? px) : px + Math.cos(FACE) * 3, ty = t ? (t.y ?? py) : py + Math.sin(FACE) * 3;
+      addZone(c, { x: tx, y: ty, r: rad(2.4), t: 0.9, max: 0.9, k: "meteor", dmg: dmg(2.2) });
+      log(g, "☄️ A meteor falls!", "dmg");
+      return true;
+    }
+    case "iwall": {
+      if (!c) return true;
+      const ang = FACE, dist = 1.4, len = 3.2;
+      const cx = px + Math.cos(ang) * dist, cy = py + Math.sin(ang) * dist;
+      const pxn = -Math.sin(ang), pyn = Math.cos(ang);
+      (c.walls ?? (c.walls = [])).push({ id: UID++, x: cx - pxn * len / 2, y: cy - pyn * len / 2, dx: pxn, dy: pyn, len, t: dur(5) });
+      log(g, "🧊 An ice wall seals the way.", "good");
+      return true;
+    }
+    case "gwell": {
+      if (!c) return true;
+      const tx = t ? (t.x ?? px) : px, ty = t ? (t.y ?? py) : py;
+      addZone(c, { x: tx, y: ty, r: rad(2.8), t: dur(4), max: dur(4), k: "gwell" });
+      log(g, "🌌 A gravity well opens.", "dmg");
+      return true;
+    }
+    case "missiles": {
+      if (!c) return true;
+      const foes = t ? [t, ...alive(c).filter((e: Enemy) => e.uid !== t.uid)] : alive(c);
+      for (let i = 0; i < 3; i++) { const e = foes[i % Math.max(1, foes.length)]; if (e) hitEnemy(g, e, dmg(0.7), false, label); }
+      return true;
+    }
+    case "poly": {
+      if (!t || t.boss) { log(g, "Polymorph only works on a non-boss foe."); addFx(g, "immune", "sys", "p"); return true; }
+      t.polyT = dur(4); t.wind = 0; t.wk = "";
+      log(g, `🐑 ${t.name} is polymorphed and harmless.`, "good");
+      addFx(g, "POLY", "good", "e" + t.uid);
+      return true;
+    }
+    case "fan": {
+      if (c) for (const e of alive(c)) {
+        if (Math.hypot((e.x ?? 0) - px, (e.y ?? 0) - py) <= rad(3.2)) {
+          hitEnemy(g, e, dmg(0.85), false, label);
+          if (e.hp > 0) { e.poisT = Math.max(e.poisT, 3); e.poisD = Math.max(e.poisD, Math.round(f.atk * 0.3)); }
+        }
+      }
+      addPulseEx("fan", 0, rad(3.2), "rgba(160,255,120,.5)");
+      return true;
+    }
+    case "smoke": {
+      if (c) for (const e of alive(c)) if (Math.hypot((e.x ?? 0) - px, (e.y ?? 0) - py) <= rad(2.8)) e.missT = 5;
+      b.evade = Math.max(b.evade, 1);
+      if (c) { for (const e of c.enemies) { if (e.dead) continue; if (Math.hypot((e.x ?? 0) - px, (e.y ?? 0) - py) > 1.6) { e.lost = Math.max(e.lost ?? 0, 4); } } }
+      addPulseEx("smoke", 0, rad(2.8), "rgba(80,80,90,.55)");
+      log(g, "☁️ Smoke Bomb! You vanish into the haze.", "good");
+      return true;
+    }
+    case "caltr": {
+      if (!c) return true;
+      addZone(c, { x: px, y: py, r: rad(2.2), t: dur(5), max: dur(5), k: "caltr" });
+      log(g, "✴️ You scatter caltrops.", "good");
+      return true;
+    }
+    case "shuri": {
+      if (!c) return true;
+      bounceHits(g, t, 4, dmg(0.9), 0.8, label, "#e8e8e8");
+      return true;
+    }
+    case "mdeath": {
+      if (!t) return true;
+      t.marked = dur(8);
+      log(g, `💀 ${t.name} is marked for death (+25% damage).`, "good");
+      addFx(g, "MARKED", "dmg", "e" + t.uid);
+      return true;
+    }
+    case "rain": {
+      if (!c) return true;
+      const tx = t ? (t.x ?? px) : px + Math.cos(FACE) * 3, ty = t ? (t.y ?? py) : py + Math.sin(FACE) * 3;
+      addZone(c, { x: tx, y: ty, r: rad(2.6), t: dur(2.5), max: dur(2.5), k: "rain", dmg: dmg(0.45), acc: 0 });
+      log(g, "🏹 Rain of Arrows!", "dmg");
+      return true;
+    }
+    case "pierce": {
+      if (!c) return true;
+      const ang = FACE, reach = rad(8), half = 0.45;
+      const x2 = px + Math.cos(ang) * reach, y2 = py + Math.sin(ang) * reach;
+      for (const e of alive(c)) {
+        const d = distToSeg(e.x ?? 0, e.y ?? 0, px, py, Math.cos(ang), Math.sin(ang), reach);
+        if (d <= half) hitEnemy(g, e, dmg(1.2), false, label);
+      }
+      const s = c.shots ?? (c.shots = []);
+      s.push({ id: UID++, x1: px, y1: py, x2, y2, ts: Date.now(), c: "#ffd27a" });
+      return true;
+    }
+    case "hook": {
+      const e = t;
+      const tx = e ? (e.x ?? px) : px + Math.cos(FACE) * rad(6), ty = e ? (e.y ?? py) : py + Math.sin(FACE) * rad(6);
+      tryDash(g, tx - px, ty - py, rad(6));
+      addPulseEx("hook", FACE, 1.2, "rgba(200,180,120,.6)");
+      log(g, "🪝 Grappling Hook!", "good");
+      return true;
+    }
+    case "bfren": {
+      b.pethaste = dur(8);
+      log(g, "🐺 Beast Frenzy! Pets attack 40% faster for 8 s.", "good");
+      addFx(g, "FRENZY", "good", "p");
+      return true;
+    }
+    case "hmark": {
+      if (!t) return true;
+      t.hmark = dur(8); t.slowT = Math.max(t.slowT ?? 0, dur(8));
+      log(g, `👁️ ${t.name} is marked: revealed and slowed.`, "good");
+      addFx(g, "MARK", "good", "e" + t.uid);
+      return true;
+    }
+    case "hnova": {
+      if (c) for (const e of alive(c)) if (Math.hypot((e.x ?? 0) - px, (e.y ?? 0) - py) <= rad(3)) hitEnemy(g, e, dmg(1), false, label, true);
+      const h = healPlayer(g, Math.round(f.maxHp * 0.12), true);
+      healPetsIn(g, Math.max(1, Math.round((g.pets?.[0]?.max ?? 8) * 0.12)), px, py, 99);
+      addPulseEx("hnova", 0, rad(3), "rgba(255,230,140,.7)");
+      log(g, `☀️ Holy Nova heals you for ${h}.`, "heal");
+      return true;
+    }
+    case "chains": {
+      if (c) {
+        const foes = alive(c).filter((e: Enemy) => Math.hypot((e.x ?? 0) - px, (e.y ?? 0) - py) <= rad(4.5)).slice(0, 4);
+        for (const e of foes) { e.rootT = dur(2.5); e.wind = 0; }
+        log(g, `⛓️ Divine Chains bind ${foes.length} foe${foes.length === 1 ? "" : "s"}.`, "good");
+      }
+      addPulseEx("chains", 0, rad(4.5), "rgba(220,200,255,.55)");
+      return true;
+    }
+    case "drain": {
+      if (!t) return true;
+      const dealt = hitEnemy(g, t, dmg(1), false, label);
+      if (dealt > 0) healPlayer(g, Math.max(1, Math.round(dealt * 0.6)), true);
+      return true;
+    }
+    case "spirit": {
+      const down = (g.pets ?? []).find((pt: Pet) => pt.ko > 0 && !pt.tmp);
+      if (down) {
+        down.ko = 0; down.hp = Math.max(1, Math.round(down.max * 0.5));
+        log(g, `👻 ${PETS[down.k]?.name ?? "Your pet"} returns to the fight!`, "heal");
+        addFx(g, "REVIVE", "heal", "m");
+        return true;
+      }
+      const life = dur(12);
+      const q = { x: px - 0.6, y: py + 0.5 }; if (g.map.length) pushOut(g, q, 0.25);
+      const max = Math.max(8, Math.round(f.maxHp * PETS.spirit.hpF));
+      g.pets = (g.pets ?? []).concat({ k: "spirit", hp: max, max, x: q.x, y: q.y, ko: 0, cd: 0.4, tmp: life });
+      log(g, "👻 A Guardian Spirit answers your call.", "good");
+      return true;
+    }
+    case "purify": {
+      b.dotT = 0; b.hex = 0;
+      if (c) for (const e of alive(c)) if (e.undead && Math.hypot((e.x ?? 0) - px, (e.y ?? 0) - py) <= rad(3.5)) stunE(g, e, 2);
+      addPulseEx("hnova", 0, rad(3.5), "rgba(200,230,255,.65)");
+      log(g, "💧 Purify cleanses you and scorches the undead.", "heal");
+      return true;
+    }
+    default: return false;
+  }
+}
+function tickZones(g: Game, dt: number): void {
+  const c = g.combat; if (!c) return;
+  const [px, py] = heroXY(g);
+  const f = full(g);
+  const b = g.buffs;
+  if ((b.whirl ?? 0) > 0) {
+    b.whirl = Math.max(0, (b.whirl ?? 0) - dt);
+    const up = skillUp(g, "whirl");
+    const R = 2.2 + up.rad;
+    const acc = ((c as Combat & { whirlAcc?: number }).whirlAcc ?? 0) + dt;
+    (c as Combat & { whirlAcc?: number }).whirlAcc = acc >= 0.4 ? acc - 0.4 : acc;
+    if (acc >= 0.4) {
+      for (const e of alive(c)) if (Math.hypot((e.x ?? 0) - px, (e.y ?? 0) - py) <= R) hitEnemy(g, e, 0.55 * (1 + up.dmg), false, "🌀 Whirlwind");
+      addPulseEx("whirl", 0, R, "rgba(255,210,120,.45)");
+    }
+    if ((b.whirl ?? 0) <= 0) (c as Combat & { whirlAcc?: number }).whirlAcc = 0;
+  }
+  if ((b.reflect ?? 0) > 0) b.reflect = Math.max(0, (b.reflect ?? 0) - dt);
+  if ((b.nextCrit ?? 0) > 0) b.nextCrit = Math.max(0, (b.nextCrit ?? 0) - dt);
+  if ((b.pethaste ?? 0) > 0) b.pethaste = Math.max(0, (b.pethaste ?? 0) - dt);
+  for (const e of c.enemies) {
+    if ((e.rootT ?? 0) > 0) e.rootT = Math.max(0, (e.rootT ?? 0) - dt);
+    if ((e.slowT ?? 0) > 0) e.slowT = Math.max(0, (e.slowT ?? 0) - dt);
+    if ((e.polyT ?? 0) > 0) e.polyT = Math.max(0, (e.polyT ?? 0) - dt);
+    if ((e.tauntT ?? 0) > 0) e.tauntT = Math.max(0, (e.tauntT ?? 0) - dt);
+    if ((e.marked ?? 0) > 0) e.marked = Math.max(0, (e.marked ?? 0) - dt);
+    if ((e.missT ?? 0) > 0) e.missT = Math.max(0, (e.missT ?? 0) - dt);
+    if ((e.hmark ?? 0) > 0) e.hmark = Math.max(0, (e.hmark ?? 0) - dt);
+  }
+  for (const w of c.walls ?? []) w.t -= dt;
+  c.walls = (c.walls ?? []).filter((w: WallSeg) => w.t > 0);
+  const traps = c.traps ?? [];
+  for (const tr of traps) {
+    if ((tr.fuse ?? 0) > 0) {
+      tr.fuse = (tr.fuse ?? 0) - dt;
+      if ((tr.fuse ?? 0) <= 0) {
+        const up = skillUp(g, "xtrap");
+        const R = tr.r + 0.9 + up.rad;
+        for (const e of alive(c)) if (Math.hypot((e.x ?? 0) - tr.x, (e.y ?? 0) - tr.y) <= R) hitEnemy(g, e, 1.2 * (1 + up.dmg), false, "💣 Explosive Trap");
+        addPulseEx("smash", 0, R, "rgba(255,140,40,.75)");
+        tr.fuse = -99;
+      }
+      continue;
+    }
+    if ((tr.fuse ?? 0) < 0) continue;
+    for (const e of alive(c)) {
+      if (Math.hypot((e.x ?? 0) - tr.x, (e.y ?? 0) - tr.y) <= tr.r + 0.35) {
+        e.rootT = Math.max(e.rootT ?? 0, 2);
+        tr.fuse = 2; tr.uid = e.uid;
+        log(g, `${e.name} triggers an explosive trap and is rooted.`, "dmg");
+        break;
+      }
+    }
+  }
+  c.traps = traps.filter((tr: XTrap) => (tr.fuse ?? 0) >= 0 || (tr.fuse ?? 0) === undefined);
+  // wait, exploded traps have fuse -99 and should be removed. filter fuse >= 0 keeps armed and fusing. Good. undefined is armed.
+  const zs = c.zones ?? [];
+  for (const z of zs) {
+    z.t -= dt;
+    if (z.k === "meteor" && z.t <= 0 && (z.max > 0)) {
+      for (const e of alive(c)) if (Math.hypot((e.x ?? 0) - z.x, (e.y ?? 0) - z.y) <= z.r) hitEnemy(g, e, z.dmg ?? 2.2, false, "☄️ Meteor");
+      addZone(c, { x: z.x, y: z.y, r: z.r, t: 3, max: 3, k: "burn", dmg: (z.dmg ?? 2.2) * 0.12, acc: 0 });
+      addPulseEx("smash", 0, z.r, "rgba(255,100,40,.8)");
+      z.max = 0; z.t = -1;
+    }
+    if (z.t <= 0) continue;
+    if (z.k === "sanct") {
+      z.acc = (z.acc ?? 0) + dt;
+      if ((z.acc ?? 0) >= 1) {
+        z.acc = 0;
+        if (Math.hypot(px - z.x, py - z.y) <= z.r) healPlayer(g, z.heal ?? 1, true);
+        healPetsIn(g, z.heal ?? 1, z.x, z.y, z.r);
+      }
+      for (const e of alive(c)) if (Math.hypot((e.x ?? 0) - z.x, (e.y ?? 0) - z.y) <= z.r) e.slowT = Math.max(e.slowT ?? 0, 0.4);
+    }
+    if (z.k === "caltr" || z.k === "gwell") {
+      for (const e of alive(c)) {
+        const d = Math.hypot((e.x ?? 0) - z.x, (e.y ?? 0) - z.y);
+        if (d > z.r) continue;
+        e.slowT = Math.max(e.slowT ?? 0, 0.35);
+        if (z.k === "gwell" && d > 0.3) {
+          const k = Math.min(2.2, 3.2 * dt);
+          e.x = (e.x ?? 0) + (z.x - (e.x ?? 0)) / d * k;
+          e.y = (e.y ?? 0) + (z.y - (e.y ?? 0)) / d * k;
+        }
+      }
+    }
+    if (z.k === "rain" || z.k === "burn") {
+      z.acc = (z.acc ?? 0) + dt;
+      const every = z.k === "rain" ? 0.625 : 1;
+      if ((z.acc ?? 0) >= every) {
+        z.acc = 0;
+        for (const e of alive(c)) if (Math.hypot((e.x ?? 0) - z.x, (e.y ?? 0) - z.y) <= z.r) {
+          if (z.k === "rain") hitEnemy(g, e, z.dmg ?? 0.45, false, "🏹 Rain of Arrows");
+          else { e.burnT = Math.max(e.burnT, 1.2); e.burnD = Math.max(e.burnD, Math.max(1, Math.round(f.atk * 0.25))); }
+        }
+      }
+    }
+  }
+  c.zones = zs.filter((z: Zone) => z.t > 0);
+  for (const p of g.pets ?? []) {
+    if (p.tmp && p.tmp > 0) { p.tmp -= dt; if (p.tmp <= 0) { p.hp = 0; p.ko = 99; p.tmp = 0; } }
+  }
+  if (g.pets) g.pets = g.pets.filter((pt: Pet) => pt.k !== "spirit" || (pt.tmp ?? 0) > 0);
+}
+
+
 function currentAbPop(): AbPop | null {
   const now = Date.now();
   while (AB_POPS.length && now - AB_POPS[0].ts > 3200) {
@@ -718,13 +1457,14 @@ function currentAbPop(): AbPop | null {
 // facing in radians (0 = east); used by Cleave's frontal cone and attack animations
 let FACE = 0;
 function setFace(dx: number, dy: number): void { if (Math.hypot(dx, dy) > 0.04) FACE = Math.atan2(dy, dx); }
-interface PulseFx { k: "cleave" | "smash"; ts: number; ang: number }
+interface PulseFx { k: string; ts: number; ang: number; r?: number; col?: string }
 const PULSES: PulseFx[] = [];
 function addPulse(k: "cleave" | "smash", ang: number): void {
   PULSES.push({ k, ts: Date.now(), ang });
   if (PULSES.length > 6) PULSES.shift();
 }
-function livePulses(now: number): PulseFx[] { return PULSES.filter((p: PulseFx) => now - p.ts < (p.k === "smash" ? 440 : 280)); }
+function pulseLife(k: string): number { return k === "smash" || k === "hnova" || k === "fan" || k === "pull" || k === "roar" || k === "chains" ? 500 : k === "whirl" || k === "sanct" || k === "smoke" || k === "haste" ? 640 : 280; }
+function livePulses(now: number): PulseFx[] { return PULSES.filter((p: PulseFx) => now - p.ts < pulseLife(p.k)); }
 function inCone(px: number, py: number, ang: number, x: number, y: number, half: number, reach: number): boolean {
   const dx = x - px, dy = y - py, d = Math.hypot(dx, dy);
   if (d > reach || d < 1e-4) return d <= 0.35;
@@ -742,9 +1482,9 @@ const BIOME: Record<Biome, { name: string; sub: string }> = {
   crypt: { name: "Shadow Crypt", sub: "The Echo Lord's tomb · runes drain life and wake the dead" },
 };
 const FAV: Record<Biome, string[]> = { warren: ["spider", "rat", "bat", "slime", "goblin"], crypt: ["skel", "wraith", "necro", "lich", "demon", "shade"] };
-function freshBuffs(): Buffs { return { rage: 0, holy: 0, evade: 0, shield: 0, frenzy: 0, fury: 0, iron: 0, defend: false, dotT: 0, dotD: 0 }; }
+function freshBuffs(): Buffs { return { rage: 0, holy: 0, evade: 0, shield: 0, frenzy: 0, fury: 0, iron: 0, defend: false, dotT: 0, dotD: 0, haste: 0, pethaste: 0, reflect: 0, nextCrit: 0, whirl: 0 }; }
 const FURY_T = 20, IRON_T = 25;
-function keepScrollBuffs(b: Buffs): Buffs { const n = freshBuffs(); n.fury = b.fury; n.iron = b.iron; return n; }
+function keepScrollBuffs(b: Buffs): Buffs { const n = freshBuffs(); n.fury = b.fury; n.iron = b.iron; n.haste = b.haste ?? 0; n.pethaste = b.pethaste ?? 0; return n; }
 function tickScrollBuffs(g: Game, dt: number): void {
   const b = g.buffs;
   if (b.fury > 0) b.fury = Math.max(0, b.fury - dt);
@@ -755,6 +1495,8 @@ function tickScrollBuffs(g: Game, dt: number): void {
   if ((b.defendT ?? 0) > 0) b.defendT = Math.max(0, (b.defendT ?? 0) - dt);
   b.defend = (b.defendT ?? 0) > 0;
   if ((b.veil ?? 0) > 0) b.veil = Math.max(0, (b.veil ?? 0) - dt);
+  if ((b.haste ?? 0) > 0) b.haste = Math.max(0, (b.haste ?? 0) - dt);
+  if ((b.pethaste ?? 0) > 0) b.pethaste = Math.max(0, (b.pethaste ?? 0) - dt);
 }
 function fmtBuff(n: number): string { return n >= 10 ? `${Math.ceil(n)}s` : `${Math.max(0.1, n).toFixed(1)}s`; }
 function log(g: Game, t: string, c: string = "sys"): void { g.log.unshift({ t, c, ts: Date.now() }); if (g.log.length > 60) g.log.pop(); }
@@ -945,6 +1687,39 @@ function priceOf(inv: Inv): number { return Math.round(IT[inv.id].price * (1 + 0
 function sellOf(inv: Inv): number { return inv.ident ? Math.max(1, Math.floor(priceOf(inv) * 0.4)) : 12; }
 function idFee(inv: Inv, f: number): number { return Math.round(IDFEE[IT[inv.id].r] * (1 + 0.1 * f)); }
 function locked(inv: Inv): boolean { return !!IT[inv.id].cursed && !inv.freed; }
+function pinned(inv: Inv): boolean { return inv.pin === true; }
+type DustTier = { key: string; name: string; dust: number; test: (it: ItemT) => boolean };
+const DUST_TIERS: DustTier[] = [
+  { key: "common", name: "Common", dust: 1, test: (it: ItemT) => !it.set && it.r === 0 },
+  { key: "uncommon", name: "Uncommon", dust: 2, test: (it: ItemT) => !it.set && it.r === 1 },
+  { key: "rare", name: "Rare", dust: 3, test: (it: ItemT) => !it.set && it.r === 2 },
+  { key: "epic", name: "Epic", dust: 4, test: (it: ItemT) => !it.set && it.r === 3 },
+  { key: "set", name: "Set", dust: 5, test: (it: ItemT) => !!it.set },
+  { key: "legendary", name: "Legendary", dust: 6, test: (it: ItemT) => !it.set && it.r >= 4 },
+];
+function dustTierOf(it: ItemT): DustTier { return DUST_TIERS.find((t: DustTier) => t.test(it)) ?? DUST_TIERS[0]; }
+function dustOf(inv: Inv): number { return dustTierOf(IT[inv.id]).dust; }
+function isEquipped(g: Game, inv: Inv): boolean { return GEAR.some((k: GearSlot) => g.eq[k]?.uid === inv.uid); }
+function canSalvage(g: Game, inv: Inv): boolean {
+  const it = IT[inv.id];
+  if (!inv.ident || it.slot === "consumable") return false;
+  if (locked(inv) || pinned(inv) || isEquipped(g, inv)) return false;
+  return true;
+}
+function canSellItem(g: Game, inv: Inv): boolean { return !pinned(inv) && !isEquipped(g, inv); }
+function salvageInv(g: Game, uids: number[]): number {
+  const want = new Set(uids);
+  let dust = 0;
+  const keep: Inv[] = [];
+  for (const it of g.inv) {
+    if (want.has(it.uid) && canSalvage(g, it)) dust += dustOf(it);
+    else keep.push(it);
+  }
+  g.inv = keep;
+  if (g.sel >= 0 && !g.inv.some((x: Inv) => x.uid === g.sel) && !GEAR.some((k: GearSlot) => g.eq[k]?.uid === g.sel)) g.sel = -1;
+  if (dust > 0) { g.gold += dust; log(g, `✨ Salvaged gear into ${dust} Dust (+${dust} gold).`, "loot"); gain(g, `+${dust} Dust`, GOLDC); }
+  return dust;
+}
 
 function makeInst(id: string, f: number, roll: boolean, src?: string): Inv {
   const it = IT[id];
@@ -1045,6 +1820,7 @@ function full(g: Game): Full {
   const c = CLS[g.cls]; const l = g.lvl - 1;
   const f: Full = { maxHp: c.base.hp + c.grow.hp * l, maxMp: c.base.mp + c.grow.mp * l, atk: c.base.atk + c.grow.atk * l, def: c.base.def + c.grow.def * l, crit: c.base.crit + c.grow.crit * l, dodge: c.base.dodge, ls: 0, fire: 0, ice: 0, holy: 0, poison: 0, th: 0, sp: [], curses: [] };
   addStats(f, g.bonus);
+  addStats(f, skillStats(g));
   for (const k of GEAR) {
     const it = g.eq[k];
     if (it) { const tt = IT[it.id]; addStats(f, tt.st); addStats(f, it.bon); if (tt.sp) f.sp.push(tt.sp); if (tt.curse) f.curses.push(tt.curse); }
@@ -1257,7 +2033,7 @@ function newGame(cls: ClassId, mode: Mode): Game {
   const c = CLS[cls];
   const g: Game = {
     screen: "map", prev: "map", mode, cls, lvl: 1, xp: 0, hp: 1, mp: 1, gold: 30, inv: [], eq: {}, floor: 1, map: [], seen: [], px: 0, py: 0, mons: [], sx: 0, sy: 0,
-    log: [], combat: null, cds: {}, buffs: freshBuffs(), perks: [], bonus: {}, goldMult: 1, inAb: false, usedUndying: false, usedShadow: false, usedPhoenix: false,
+    log: [], combat: null, cds: {}, buffs: freshBuffs(), perks: [], bonus: {}, goldMult: 1, inAb: false, usedUndying: false, usedShadow: false, usedPhoenix: false, skills: [], skillPts: 0,
     shop: [], stock: [], offers: [], kills: 0, sel: -1, fx: [], turns: 0, tokensEarned: 0,
   };
   g.eq.weapon = makeInst(c.start[0], 1, false);
@@ -1336,7 +2112,11 @@ function gainXp(g: Game, n: number): void {
     log(g, `⭐ Level up! You are now level ${g.lvl}.`, "good"); syncPets(g);
     addFx(g, `LEVEL ${g.lvl}!`, "good", "p");
   }
-  if (g.lvl > from) checkAbUnlocks(g, from, g.lvl);
+  if (g.lvl > from) {
+    g.skillPts = (g.skillPts ?? 0) + (g.lvl - from);
+    log(g, `🌳 You gained ${g.lvl - from} skill point${g.lvl - from === 1 ? "" : "s"} (${g.skillPts} unspent). Open Skills to spend them.`, "good");
+    checkAbUnlocks(g, from, g.lvl);
+  }
 }
 function healPlayer(g: Game, amt: number, combatHeal: boolean): number {
   const f = full(g); const before = g.hp;
@@ -1376,6 +2156,7 @@ function tgt(c: Combat): Enemy | undefined { const e = c.enemies[c.target]; if (
 function hitEnemy(g: Game, e: Enemy, mult: number, forceCrit: boolean, label: string, holy: boolean = false): number {
   if (e.hp <= 0) return 0;
   const f = full(g); const b = g.buffs;
+  if ((g.buffs.nextCrit ?? 0) > 0) { forceCrit = true; g.buffs.nextCrit = 0; }
   if (!forceCrit && Math.random() * 100 < e.dodge) { log(g, `${label}: ${e.name} dodges!`); addFx(g, "miss", "sys", "e" + e.uid); return 0; }
   const atk = f.atk * (b.rage > 0 || b.fury > 0 ? 1.5 : 1) * ((b.hex ?? 0) > 0 ? 0.75 : 1);
   const crit = forceCrit || Math.random() * 100 < f.crit;
@@ -1383,6 +2164,7 @@ function hitEnemy(g: Game, e: Enemy, mult: number, forceCrit: boolean, label: st
   let d = atk * mult * (0.9 + Math.random() * 0.2) * 60 / (60 + def);
   d += (f.fire + f.ice + f.poison + f.holy * (e.undead ? 2 : 1)) * Math.min(1, mult);
   if (holy && e.undead) d *= 1.2;
+  if ((e.marked ?? 0) > 0) d *= 1.25;
   if (crit) d *= g.perks.includes("deathmark") ? 3 : 2;
   if (f.sp.includes("void")) d *= 1.15;
   if (g.perks.includes("godslayer")) d *= 1.2;
@@ -1418,6 +2200,7 @@ function damagePlayer(g: Game, e: Enemy, raw: number, magic: boolean, verb: stri
   if (g.combat && (g.combat.iT ?? 0) > 0) { addFx(g, "dodge", "sys", "p"); return 0; }
   const f = full(g); const b = g.buffs;
   if (b.evade > 0) { b.evade--; log(g, `You evade ${e.name}'s attack!`); addFx(g, "EVADE", "sys", "p"); return 0; }
+  if ((e.missT ?? 0) > 0 && Math.random() < 0.65) { log(g, `${e.name} swings blindly through the smoke.`); addFx(g, "miss", "sys", "p"); return 0; }
   if (Math.random() * 100 < f.dodge) {
     log(g, `You dodge ${e.name}.`); addFx(g, "dodge", "sys", "p");
     if (f.sp.includes("ghoststep")) { const h = healPlayer(g, Math.max(1, Math.round(f.maxHp * 0.04)), false); if (h > 0) addFx(g, `+${h}`, "heal", "p"); }
@@ -1650,7 +2433,7 @@ function eSpdOf(b: string, elite = false, boss?: string): number {
 const RANGED: Record<string, { min: number; max: number; fire: number }> = { caster: { min: 26 / U, max: 44 / U, fire: 62 / U }, archer: { min: 3.5, max: 6, fire: 6.5 }, spitter: { min: 3, max: 5.5, fire: 6 }, hexer: { min: 3.25, max: 5.5, fire: 6.5 } };
 const ARATE: Record<ClassId, number> = { warrior: 0.62, mage: 0.6, rogue: 0.42, cleric: 0.6, ranger: 0.5 };
 const ARNG: Record<ClassId, number> = { warrior: 17, mage: 62, rogue: 15, cleric: 18, ranger: 72 };
-const ABR: Record<string, number> = { bash: 20, backstab: 19, poison: 19, smite: 62, fireball: 72, trap: 72, frenzy: 72, multi: 90 };
+const ABR: Record<string, number> = { bash: 20, backstab: 19, poison: 19, smite: 62, fireball: 72, trap: 72, frenzy: 72, multi: 90, sstep: 48, exec: 22, missiles: 72, poly: 48, mdeath: 64, hmark: 72, drain: 48, chain: 64, shuri: 64, meteor: 80, rain: 80, gwell: 64 };
 function clampN(v: number, a: number, b: number): number { return v < a ? a : v > b ? b : v; }
 function eDist(c: Combat, e: Enemy): number { return Math.hypot((c.px ?? 0) - (e.x ?? 0), (c.py ?? 0) - (e.y ?? 0)); }
 function nearP(c: Combat, r: number): Enemy[] { return alive(c).filter((e: Enemy) => eDist(c, e) <= r); }
@@ -1689,13 +2472,19 @@ function rtAttack(g: Game): void {
   resolveDeaths(g);
 }
 function rtAbility(g: Game, id: string): void {
-  const c = g.combat; if (!c || g.screen !== "map") return;
-  if (!abReadyId(g, id)) { const i = abIdxOf(g, id); addFx(g, `Lv ${i >= 0 ? abUnlockAt(i) : "?"}`, "sys", "p"); return; }
-  syncPos(g);
+  if (g.screen !== "map") return;
+  const ab = CLS[g.cls].abs.find((a: Ab) => a.id === id);
+  if (!abReadyId(g, id)) { addFx(g, ab ? `Lv ${abUnlockLv(g.cls, ab)}` : "locked", "sys", "p"); return; }
+  const c = g.combat;
+  if (c) syncPos(g);
   const r = ABR[id] !== undefined ? ABR[id] / U : undefined;
-  if (r !== undefined && !aimTarget(g, c, r)) { log(g, "No enemy in range — move closer."); addFx(g, "out of range", "sys", "p"); return; }
-  if (r !== undefined && r > 30 / U) shot(g, "#ffd36b");
-  combatAct(g, "ability", id);
+  if (r !== undefined) {
+    if (!c) { log(g, `No target for ${ab?.name ?? "that ability"}.`); addFx(g, "no target", "sys", "p"); return; }
+    if (!aimTarget(g, c, r)) { log(g, "No enemy in range — move closer."); addFx(g, "out of range", "sys", "p"); return; }
+    if (r > 30 / U) shot(g, "#ffd36b");
+  }
+  if (c) combatAct(g, "ability", id);
+  else useAbility(g, id);
 }
 function rtDodge(g: Game, mx: number, my: number): void {
   const c = g.combat; if (!c || g.screen !== "map" || (c.dashCd ?? 0) > 0) return;
@@ -1823,8 +2612,15 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
       continue;
     }
     if (e.stun > 0) { e.stun = Math.max(0, e.stun - dt); e.wind = 0; e.wk = ""; continue; }
+    if ((e.polyT ?? 0) > 0) { e.wind = 0; e.wk = ""; continue; }
     const P: [number, number, number, number] = e.boss ? (e.bk === "lord" ? [28, 17, 0.6, 1.5] : [26, 16, 0.7, 1.7]) : (RTB[e.b] ?? RTB.brute);
-    const spd = eSpdOf(e.b, e.elite === true, e.boss ? e.bk : undefined), reach = P[1] / U;
+    const spd = eSpdOf(e.b, e.elite === true, e.boss ? e.bk : undefined) * ((e.slowT ?? 0) > 0 || (e.hmark ?? 0) > 0 ? ((e.hmark ?? 0) > 0 && (e.slowT ?? 0) <= 0 ? 0.7 : 0.5) : 1), reach = P[1] / U;
+    if ((e.rootT ?? 0) > 0) {
+      const atR = (e.atkT ?? 0) - dt; e.atkT = atR;
+      // rooted: no walk, but a wind-up already in progress can still finish
+      if ((e.wind ?? 0) > 0) { /* fall through to wind handling below */ }
+      else { continue; }
+    }
     if ((e.wind ?? 0) > 0) {
       const w = (e.wind ?? 0) - dt; e.wind = w;
       // quick types close a short, telegraphed lunge in the last moments of the wind-up (aim is already locked)
@@ -1868,8 +2664,13 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
   const pr = c.proj ?? [];
   for (const p of pr) {
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
-    if (solidT(g, Math.floor(p.x), Math.floor(p.y))) { p.life = 0; continue; }
-    if (p.life > 0 && Math.hypot(p.x - px, p.y - py) < 4.5 / U) {
+    if (solidT(g, Math.floor(p.x), Math.floor(p.y)) || wallAt(g, p.x, p.y, 0.15)) { p.life = 0; continue; }
+    if (p.life > 0 && p.from >= 0 && Math.hypot(p.x - px, p.y - py) < 4.5 / U) {
+      if ((g.buffs.reflect ?? 0) > 0) {
+        p.vx *= -1; p.vy *= -1; p.from = -1; p.life = Math.max(p.life, 0.8); p.c = "#cfe8ff";
+        addFx(g, "REFLECT", "good", "p");
+        continue;
+      }
       p.life = 0;
       const e = c.enemies.find((x: Enemy) => x.uid === p.from);
       if (e) {
@@ -1877,11 +2678,15 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
         if (dd > 0 && p.k === "hex") { g.buffs.hex = 4; log(g, "🌀 Hexed! Your damage is reduced by 25% for 4 s.", "bad"); addFx(g, "HEXED", "bad", "p"); }
       }
       if (g.hp <= 0) { die(g); return; }
+    } else if (p.life > 0 && p.from < 0) {
+      for (const e of alive(c)) if (Math.hypot(p.x - (e.x ?? 0), p.y - (e.y ?? 0)) < 0.45) { p.life = 0; hitEnemy(g, e, 1, false, "🪞 Reflected"); break; }
     } else if (p.life > 0) {
       for (const pt of g.pets ?? []) if (pt.ko <= 0 && Math.hypot(p.x - pt.x, p.y - pt.y) < 0.4) { p.life = 0; hurtPet(g, pt, p.dmg); break; }
     }
   }
   c.proj = pr.filter((p: Proj) => p.life > 0);
+  tickZones(g, dt);
+  if (g.combat !== c) return;
   const tl = c.tele ?? [];
   for (const tz of tl) {
     tz.t -= dt;
@@ -1925,7 +2730,19 @@ function pushOut(g: Game, p: { x: number; y: number }, r: number): void {
 }
 function slideMove(g: Game, p: { x: number; y: number }, vx: number, vy: number, dt: number, r: number): void {
   const n = Math.max(1, Math.ceil(Math.hypot(vx, vy) * dt / 0.08));
-  for (let i = 0; i < n; i++) { p.x += vx * dt / n; p.y += vy * dt / n; pushOut(g, p, r); }
+  for (let i = 0; i < n; i++) { p.x += vx * dt / n; p.y += vy * dt / n; pushOut(g, p, r); pushOutWall(g, p, r); }
+}
+function pushOutWall(g: Game, p: { x: number; y: number }, r: number): void {
+  const w = wallAt(g, p.x, p.y, r);
+  if (!w) return;
+  const m = Math.hypot(w.dx, w.dy) || 1;
+  const ux = w.dx / m, uy = w.dy / m;
+  const t = Math.max(0, Math.min(w.len, (p.x - w.x) * ux + (p.y - w.y) * uy));
+  const cx = w.x + ux * t, cy = w.y + uy * t;
+  let dx = p.x - cx, dy = p.y - cy, d = Math.hypot(dx, dy);
+  if (d < 1e-6) { dx = -uy; dy = ux; d = 1; }
+  const need = r + 0.18;
+  if (d < need) { p.x += dx / d * (need - d); p.y += dy / d * (need - d); }
 }
 // nudge the player into a corridor/doorway lane when pushing into a wall almost aligned with an opening
 function laneAssist(g: Game, p: { x: number; y: number }, mx: number, my: number, step: number): void {
@@ -2504,7 +3321,7 @@ function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   I.slowT = Math.max(0, I.slowT - dt);
   for (const k of Object.keys(g.cds)) if (g.cds[k] > 0) g.cds[k] = Math.max(0, g.cds[k] - dt);
   const cb = g.combat;
-  const sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1) * (full(g).curses.includes("c_slow") ? 0.7 : 1) * (cb ? 1 + Math.min(50, full(g).dodge) / 250 : 1);
+  const sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1) * (full(g).curses.includes("c_slow") ? 0.7 : 1) * (cb ? 1 + Math.min(50, full(g).dodge) / 250 : 1) * ((g.buffs.haste ?? 0) > 0 ? 1.35 : 1);
   const mag = Math.hypot(mx, my);
   let tvx = 0, tvy = 0;
   if (cb && (cb.dashT ?? 0) > 0) {
@@ -2577,7 +3394,8 @@ function syncPets(g: Game, heal = false): void {
     const q = { x: px - 0.5 + i * 0.5, y: py + 0.55 }; if (!g.map.length) { q.x = px; q.y = py; } else { pushOut(g, q, 0.25); if (solidT(g, Math.floor(q.x), Math.floor(q.y))) { q.x = px; q.y = py; } }
     out.push({ k, hp: max, max, x: q.x, y: q.y, ko: 0, cd: 0.6 });
   });
-  g.pets = out;
+  const temps = cur.filter((pt: Pet) => pt.k === "spirit" && (pt.tmp ?? 0) > 0);
+  g.pets = out.concat(temps);
 }
 function revivePets(g: Game): void { for (const p of g.pets ?? []) if (p.ko > 0 || p.hp <= 0) { p.ko = 0; p.hp = Math.max(1, Math.round(p.max * 0.5)); log(g, `${PETS[p.k].icon} Your ${PETS[p.k].name} recovers.`, "good"); } }
 // smarter pet pathing (module state, not saved): A* around walls/hazards, LOS corner-cuts, smooth steering
@@ -2749,7 +3567,7 @@ function hurtPet(g: Game, p: Pet, raw: number): number {
 }
 function petAttack(g: Game, p: Pet, e: Enemy, f: Full): void {
   const c = g.combat; if (!c) return;
-  const T = PETS[p.k]; p.cd = T.rate; p.aT = Date.now(); p.tx = e.x; p.ty = e.y;
+  const T = PETS[p.k]; p.cd = T.rate / ((g.buffs.pethaste ?? 0) > 0 ? 1.4 : 1); p.aT = Date.now(); p.tx = e.x; p.ty = e.y;
   const mult = T.mult * (g.buffs.frenzy > 0 ? 3 : 1) * (f.sp.includes("petx2") ? 2 : 1) * petBoost(g, f);
   const d = Math.max(1, Math.round(f.atk * mult * (0.9 + Math.random() * 0.2) * 60 / (60 + e.def)));
   e.hp -= d; addFx(g, `-${d}`, "dmg", "e" + e.uid);
@@ -2839,7 +3657,7 @@ function abCost(g: Game, ab: Ab): number {
   if (g.perks.includes("arcanebattery")) m *= 0.85;
   return Math.round(ab.mp * m);
 }
-function abCd(g: Game, ab: Ab): number { const f = full(g); const base = Math.max(0, ab.cd - (f.sp.includes("cdr") ? 1.5 : 0) - (g.perks.includes("archmage") ? 1.5 : 0)); return f.curses.includes("c_lag") ? base * 1.5 : base; }
+function abCd(g: Game, ab: Ab): number { const f = full(g); const base = Math.max(0, ab.cd - (f.sp.includes("cdr") ? 1.5 : 0) - (g.perks.includes("archmage") ? 1.5 : 0) - skillUp(g, ab.id).cd); return f.curses.includes("c_lag") ? base * 1.5 : base; }
 function runAbility(g: Game, id: string, label: string): void {
   const c = g.combat;
   if (!c && abNeedsTarget(id)) return;
@@ -2894,6 +3712,7 @@ function runAbility(g: Game, id: string, label: string): void {
     }
     case "trap": if (t) { stunE(g, t, 3); t.poisT = Math.max(t.poisT, 3); t.poisD = Math.max(t.poisD, Math.round(f.atk * 0.35)); log(g, `${t.name} is snared and bleeding.`); } break;
     case "frenzy": b.frenzy = 8; if (t) hitEnemy(g, t, 1.5, false, label); log(g, "📯 Call of the Wild! Pets deal triple damage for 8 s.", "good"); break;
+    default: if (!castExtra(g, id, label)) break;
   }
   g.inAb = false;
 }
@@ -2903,7 +3722,7 @@ function abNeedsTarget(id: string): boolean {
 }
 function useAbility(g: Game, id: string): ActRes {
   const ab = CLS[g.cls].abs.find((a: Ab) => a.id === id); if (!ab) return "none";
-  if (!abReadyId(g, id)) { const i = abIdxOf(g, id); log(g, `${ab.name} unlocks at level ${abUnlockAt(i)}.`); addFx(g, `Lv ${abUnlockAt(i)}`, "sys", "p"); return "none"; }
+  if (!abReadyId(g, id)) { log(g, ab.tree ? `${ab.name} is unlocked on the skill tree.` : `${ab.name} unlocks at level ${abUnlockLv(g.cls, ab)}.`); addFx(g, ab.tree ? "skill tree" : `Lv ${abUnlockLv(g.cls, ab)}`, "sys", "p"); return "none"; }
   if ((g.cds[id] ?? 0) > 0) { log(g, `${ab.name} is on cooldown.`); return "none"; }
   const cost = abCost(g, ab);
   if (g.mp < cost) { log(g, `Not enough MP for ${ab.name}.`); return "none"; }
@@ -3097,18 +3916,20 @@ function unequip(g: Game, slot: GearSlot): void {
 }
 
 const HELP: [string, string][] = [
-  ["🕹️ Controls (touch)", "Touch and drag anywhere on the LEFT half of the screen to spawn a floating joystick; hold it to keep moving (analog, 8 directions). Out of combat the right side holds 🎒 Bag, 📖 Codex, ❓ Help, 🏠 and 💾. When a fight starts the same view swaps to combat controls: ⚔️ Attack (hold to keep swinging), your 3 abilities with cooldown rings, 💨 Dodge roll and a 🧪 potion quick-slot showing how many you carry. Tap an enemy to target it. Tap the minimap (top-right of the dungeon view) for the full map, which pauses the game. Item pickups float above your hero. Works in portrait and landscape."],
-  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving, you glide along walls). Exploring: M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. Abilities (keys 1–9, 0) can be used while moving, in or out of a fight. In combat: Space or J = attack (hold), Enter = attack once, Shift or K = dodge roll, R = quick-slot potion, Tab or Q/E = switch target. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc during play opens the exit prompt (the game pauses; confirming saves and exits) — even mid-fight."],
-  ["🎮 Gamepad", "Left stick or D-pad moves. Exploring: A/✕ trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. In combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, RT/R2 ability 4, LB/L1 switch target, View/Select quick-slot potion. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options pauses (exit prompt), also mid-fight."],
+  ["🕹️ Controls (touch)", "Touch and drag anywhere on the LEFT half of the screen to spawn a floating joystick; hold it to keep moving (analog, 8 directions). Out of combat the right side holds your abilities, 🎒 Bag, 🌳 Skills, 📖 Codex and ❓ Help. The ⚙ Menu button lives on the HUD, away from those actions — use it for 💾 Save code and 🏠 Title (with a confirm). When a fight starts the same view swaps to combat controls: ⚔️ Attack (hold to keep swinging), your abilities with cooldown rings, 💨 Dodge roll and a 🧪 potion quick-slot. Menu, title and save are fully locked in combat. Tap an enemy to target it. Tap the minimap (top-right of the dungeon view) for the full map, which pauses the game. Item pickups float above your hero. Works in portrait and landscape."],
+  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving, you glide along walls). Exploring: M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. Abilities (keys 1–9, then 0 for the tenth) can be used while moving, in or out of a fight. In combat: Space or J = attack (hold), Enter = attack once, Shift or K = dodge roll, R = quick-slot potion, Tab or Q/E = switch target. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc on the map opens the ⚙ Menu (not mid-fight, and not the title screen by itself). Title requires a confirm from that menu."],
+  ["🎮 Gamepad", "Left stick or D-pad moves. Exploring: A/✕ trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. In combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, RT/R2 ability 4, LB/L1 switch target, View/Select quick-slot potion. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options opens the Menu when you are not in a fight (title requires a confirm). It does nothing mid-fight."],
   ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant (stock is limited: each piece of gear sells once, potions and scrolls 1–3 each, then the slot shows SOLD OUT; leaving or reloading doesn't restock — the next merchant floor has fresh wares; Epic/Legendary wares are rare early, more common deeper, at most 2 per shop), 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You do not regenerate health or mana over time; look for potions, abilities, and gear marked ♻ Mana regen."],
   ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Ranged foes keep their distance: 🏹 archers show a red aim line before loosing a fast arrow, 🐸 Acid Spitters mark a green ring where their acid glob will land, and 🧙 Hex Cultists send a slow purple bolt that hexes you (−25% damage for 4 s). Their aim locks when the wind-up starts, so step aside. ★ Elite monsters (gold glow) are tougher and drop better loot. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. A Smoke Bomb or Shadowmeld breaks off a fight instantly (not against bosses)."],
-  ["🔒 Combat lockout", "While any monster is fighting you, the bag, codex, help, full map, save-code screen, title button, merchants and the stairs are locked (greyed out; pressing them shows “In combat”). You can still move, attack, use abilities, dodge, switch targets and drink from the 🧪 quick-slot (your first healing potion, or any combat consumable you mark with ☆ Quick-slot in the bag). The minimap stays visible. The exit prompt (Esc / Start / back) always works: it pauses, and confirming saves your fight and exits. About 1.5 s after the last foe falls or gives up you'll see “Combat over” and everything unlocks."],
+  ["🔒 Combat lockout", "While any monster is fighting you, the bag, codex, help, skills tree, full map, Menu, save-code screen, title button, merchants and the stairs are locked (greyed out and unclickable; no hotkey opens them). You can still move, attack, use abilities, dodge, switch targets and drink from the 🧪 quick-slot (your first healing potion, or any combat consumable you mark with ☆ Quick-slot in the bag). The minimap stays visible. About 1.5 s after the last foe falls or gives up you'll see “Combat over” and everything unlocks."],
   ["☠️ Bosses", "The Broodmother (Floor 5) and the Echo Lord (Floor 10) wake when you step into their lair and fight you right there: acid pools, shadow flame and the Echo Lord's CATACLYSM ring land on the map, and spiderlings or Echo Shades crawl out around the boss. The stairs only appear once the boss is dead. Run too far and the boss returns to its lair and recovers fully — no chipping it down from range."],
   ["🐾 Pets", "Rangers start with a Wolf (plus a Hawk with Pack Leader). Anyone can gain a charm pet from a Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil or Bone Hound Totem (one charm pet at a time). Pets path around walls and hazards, trail behind you and catch up if you pull ahead; if they get stuck they re-path, then poof to your side. In a fight they close along that path: melee pets flank, and the Imp keeps a ranged standoff with line of sight before throwing fire bolts. Enemies attack pets that get closer than you — Bone Hounds draw extra attention. A pet at 0 HP is knocked out 💫 for 12 s, then gets back up at 40%; every knocked-out pet recovers at 50% when the fight ends. Pets do not regenerate health on their own; a Pet Treat fully heals and revives them."],
   ["✨ Starting perk", "Every new run (Story and Endless) opens with a choice of 3 random Common perks. The roll is saved, so reloading won't change it."],
   ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
-  ["✨ Abilities", "Each class starts with only a basic attack. Class abilities unlock as you level: the first at level 3, then 6, 9 and (if a class has a fourth) 12. Locked buttons show a lock and the required level, and a banner announces “New ability unlocked” when one opens. Warriors learn Shield Bash, a frontal-cone Cleave, Battle Cry, then Smash (a circular shockwave). Clerics learn Heal, Smite, Holy Shield, then the same Smash. Mage, Rogue and Ranger keep their three class abilities. Abilities cost MP and have cooldowns in seconds — each button shows a sweep and the time left. Every ability can be used while moving (hotkey or tap); movement is not stopped or interrupted, and aimed skills go to your current or nearest target. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
+  ["✨ Abilities", "Each class starts with only a basic attack. Core class abilities unlock as you level: the first at level 3, then 6, 9 and 12, then further signature skills at 15 and a move-speed boost at 18 (Mage, Rogue and Ranger also learn a new skill at 12). Locked buttons show a lock and the required level, and a banner announces “New ability unlocked” when one opens. Every ability can be used while moving (hotkey or tap); movement is not stopped, and aimed skills go to your current or nearest target. New powers also come from the in-run skill tree (three paths with a capstone each) — those appear on the bar once learned. Abilities cost MP and have cooldowns in seconds. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
+  ["🌳 Skill tree", "Each time you level up you gain one skill point (old saves get all unspent points from levels already earned). Open Skills out of combat to spend them on one of three class paths (about nine nodes each): stat bumps, cooldown and damage upgrades, new abilities, and a capstone. Nodes on a path must be taken in order. This does not replace the Endless token upgrade tree."],
+  ["✨ Dust salvage", "In your bag, Break down turns identified unequipped gear into Dust at a flat rarity rate: Common 1, Uncommon 2, Rare 3, Epic 4, Set 5, Legendary 6 (cursed items use the same tier; iLvl does not matter). 1 Dust = 1 gold, added immediately. Each rarity has a Break down all button that shows the item count and total Dust and asks for confirmation. A lock toggle on every item (inventory grid and item details) — and on equipped gear — stops it from being salvaged or sold, including merchant sell-from-bag. Curse-bound and equipped items are also protected. The lock is saved; old items default to unlocked."],
   ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its name, roll, and range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Later general sets, rarer than the earlier ones: Gravebloom Vestments (from floor 6), Rimeward Pall (from floor 10), and Ashen Covenant (from floor 14, Endless). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag. The dungeon holds 67 weapons, 42 armor, 37 helmets, 34 rings and 33 amulets, including 73 set pieces across 19 sets, 24 legendaries (uniques), and 11 cursed items."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
@@ -3630,6 +4451,7 @@ function normInv(i: Inv): Inv {
     uid: i.uid, id: i.id, ident: i.ident !== false, bon: isObj(i.bon) ? (i.bon as Stats) : {}, freed: i.freed === true,
     ilvl: estIlvl(i), affs: affs && affs.length ? affs : undefined, aname: typeof i.aname === "string" && i.aname ? i.aname : undefined,
     mpreg: mpreg || undefined,
+    pin: i.pin === true || undefined,
   };
 }
 function validRun(x: unknown): Game | null {
@@ -3703,6 +4525,7 @@ function validRun(x: unknown): Game | null {
   } else g.combat = null;
   if (g.prev !== "map" && g.prev !== "inventory" && g.prev !== "shop") g.prev = "map";
   if (g.screen === "shop" && !nearMerchant(g) && g.shop.length === 0) g.screen = "map";
+  migrateSkills(g);
   return g;
 }
 function parseRun(s: string | null): Game | null {
@@ -3767,6 +4590,9 @@ export default function DungeonOfEchoes() {
   const [ui, setUi] = useState<Ui>("title");
   const [treeCls, setTreeCls] = useState<ClassId>("warrior");
   const [confirm, setConfirm] = useState<Mode | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [homeAsk, setHomeAsk] = useState(false);
+  const [salvAsk, setSalvAsk] = useState<{ title: string; body: string; uids: number[] } | null>(null);
   const [codeText, setCodeText] = useState<string>("");
   const [imp, setImp] = useState<string>("");
   const [msg, setMsg] = useState<string>("");
@@ -3914,7 +4740,7 @@ export default function DungeonOfEchoes() {
   const resetRef = useRef<() => void>(resetHeld); resetRef.current = resetHeld;
   const joyResetRef = useRef<() => void>(resetJoy); joyResetRef.current = resetJoy;
   const gNow = G.current;
-  const modeKey = `${ui}|${gNow ? gNow.screen : "-"}|${gNow && gNow.combat && gNow.combat.itemOpen ? 1 : 0}|${sheet ? 1 : 0}|${exitAsk ? 1 : 0}|${bigMap ? 1 : 0}`;
+  const modeKey = `${ui}|${gNow ? gNow.screen : "-"}|${gNow && gNow.combat && gNow.combat.itemOpen ? 1 : 0}|${sheet ? 1 : 0}|${exitAsk ? 1 : 0}|${bigMap ? 1 : 0}|${menuOpen ? 1 : 0}|${homeAsk ? 1 : 0}`;
   // any screen, overlay, modal, shop or map change drops every held input (touch, keys, pad)
   useEffect(() => { resetRef.current(); }, [modeKey]);
   useEffect(() => {
@@ -4051,14 +4877,14 @@ export default function DungeonOfEchoes() {
     const it = IT[inv.id];
     if (!inv.ident) return (
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: t.text.secondary }}>{instIcon(inv)} {instName(inv)}</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: t.text.secondary }}>{inv.pin ? "🔒 " : ""}{instIcon(inv)} {instName(inv)}</div>
         <div style={small}>{SLOT_NAME[it.slot]} · rarity, stats and enchantments unknown. It might be cursed. Equip it to reveal (risky), pay a merchant, or read a Scroll of Identify.</div>
       </div>
     );
     const sc = it.set ? (setCounts(g)[it.set] ?? 0) : 0;
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <div style={{ fontSize: 15, color: RCOL[it.r], fontWeight: 600 }}>{it.icon} {instName(inv)}</div>
+        <div style={{ fontSize: 15, color: RCOL[it.r], fontWeight: 600 }}>{inv.pin ? "🔒 " : ""}{it.icon} {instName(inv)}</div>
         <div style={small}>{RAR[it.r]} {SLOT_NAME[it.slot]} · {clsLabel(it)} · iLvl {inv.ilvl ?? "?"}{inv.aname ? ` · ${it.name}` : ""}{it.cursed ? " · " : ""}{it.cursed && <span style={{ color: t.text.danger, fontWeight: 700 }}>{inv.freed ? "Cursed (lifted)" : "Cursed"}</span>}</div>
         {statChips(it.st)}
         {((inv.affs && inv.affs.length > 0) || Object.keys(inv.bon).length > 0 || inv.mpreg) && <div style={{ fontSize: 11, color: t.text.tertiary }}>Affixes (rolled at iLvl {inv.ilvl ?? "?"}):</div>}
@@ -4123,6 +4949,52 @@ export default function DungeonOfEchoes() {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           <button autoFocus onClick={keepPlaying} style={{ flex: "1 1 120px", minHeight: 48, borderRadius: 12, border: "none", background: t.fill.primary, color: t.text.onPrimary, fontFamily: "inherit", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Keep playing</button>
           <button onClick={confirmExit} style={{ flex: "1 1 120px", minHeight: 48, borderRadius: 12, border: `1px solid ${t.border.default}`, background: t.fill.dangerSubtle, color: t.text.danger, fontFamily: "inherit", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Exit</button>
+        </div>
+      </div>
+    </div>
+  ) : null;
+  const inCombatNow = (): boolean => { const gg = G.current; return !!(gg && gg.combat); };
+  const openMenu = (): void => { if (inCombatNow()) return; setMenuOpen(true); };
+  const askHome = (): void => { if (inCombatNow()) return; setMenuOpen(false); setHomeAsk(true); };
+  const confirmHome = (): void => { setHomeAsk(false); setMenuOpen(false); goHome(); };
+  const openSave = (): void => {
+    if (inCombatNow()) return;
+    if (G.current) LAST_SAVE = saveRun(G.current);
+    G.current = null; setMenuOpen(false); setCodeText(""); setMsg(""); setConfirm(null); setUi("save"); refresh();
+  };
+  const homeBtn = (): void => { if (inCombatNow()) return; openMenu(); };
+
+  const menuModal = menuOpen && !homeAsk ? (
+    <div role="dialog" aria-modal="true" data-noj="1" style={{ position: "fixed", inset: 0, zIndex: 52, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }} onClick={() => setMenuOpen(false)}>
+      <div style={{ width: "100%", maxWidth: 320, background: t.bg.elevated, color: t.text.primary, border: `1px solid ${t.border.default}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", gap: 10, fontFamily: t.font.family }} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>⚙ Menu</div>
+        <div style={{ fontSize: 13, color: t.text.secondary }}>Save code and title are only available from this button, and are locked during combat.</div>
+        {btn("💾 Save code", openSave, { tall: true })}
+        {btn("🏠 Title screen", askHome, { tall: true })}
+        {btn("Close", () => setMenuOpen(false), { tone: "primary", tall: true })}
+      </div>
+    </div>
+  ) : null;
+  const homeModal = homeAsk ? (
+    <div role="dialog" aria-modal="true" data-noj="1" style={{ position: "fixed", inset: 0, zIndex: 53, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }}>
+      <div style={{ width: "100%", maxWidth: 340, background: t.bg.elevated, color: t.text.primary, border: `1px solid ${t.border.default}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", gap: 10, fontFamily: t.font.family }}>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>Return to the title screen?</div>
+        <div style={{ fontSize: 13, color: t.text.secondary }}>This leaves the current run. Your save will be kept and you can continue later.</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {btn("Cancel", () => setHomeAsk(false), { grow: true, tone: "primary" })}
+          {btn("Title screen", confirmHome, { grow: true, tone: "danger" })}
+        </div>
+      </div>
+    </div>
+  ) : null;
+  const salvModal = salvAsk ? (
+    <div role="dialog" aria-modal="true" data-noj="1" style={{ position: "fixed", inset: 0, zIndex: 54, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }}>
+      <div style={{ width: "100%", maxWidth: 360, background: t.bg.elevated, color: t.text.primary, border: `1px solid ${t.border.default}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", gap: 10, fontFamily: t.font.family }}>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>{salvAsk.title}</div>
+        <div style={{ fontSize: 13, color: t.text.secondary }}>{salvAsk.body}</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {btn("Cancel", () => setSalvAsk(null), { grow: true, tone: "primary" })}
+          {btn("Break down", () => { const uids = salvAsk.uids; setSalvAsk(null); run((gg: Game) => { salvageInv(gg, uids); }); }, { grow: true, tone: "danger" })}
         </div>
       </div>
     </div>
@@ -4202,10 +5074,10 @@ export default function DungeonOfEchoes() {
       </div>
     </div>
   ) : null;
-  const style = <div style={{ display: "contents" }}>{exitModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5%)}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}@keyframes doeBreath{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-3%) scaleY(1.05)}}@keyframes doeTwitch{0%,82%,100%{transform:rotate(0)}86%{transform:rotate(-4deg)}90%{transform:rotate(3deg)}}@keyframes doeFlicker{0%,100%{opacity:1}35%{opacity:.68}55%{opacity:.92}78%{opacity:.75}}@keyframes doeLean{0%,100%{transform:rotate(-5deg) translateY(0)}50%{transform:rotate(-8deg) translateY(-2%)}}@keyframes doeAura{0%,100%{opacity:.4}50%{opacity:.85}}"}</style></div>;
+  const style = <div style={{ display: "contents" }}>{exitModal}{menuModal}{homeModal}{salvModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5%)}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}@keyframes doeBreath{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-3%) scaleY(1.05)}}@keyframes doeTwitch{0%,82%,100%{transform:rotate(0)}86%{transform:rotate(-4deg)}90%{transform:rotate(3deg)}}@keyframes doeFlicker{0%,100%{opacity:1}35%{opacity:.68}55%{opacity:.92}78%{opacity:.75}}@keyframes doeLean{0%,100%{transform:rotate(-5deg) translateY(0)}50%{transform:rotate(-8deg) translateY(-2%)}}@keyframes doeAura{0%,100%{opacity:.4}50%{opacity:.85}}"}</style></div>;
   const back = (): void => { if (g) run((gg: Game) => { gg.screen = gg.prev; }); else setUi("title"); };
   // ---------- INPUT: keyboard, gamepad, real-time loop ----------
-  const isPlay = (): boolean => { const gg = G.current; return !!gg && !exitAsk && !sheet && !bigMap && gg.screen === "map"; };
+  const isPlay = (): boolean => { const gg = G.current; return !!gg && !exitAsk && !sheet && !bigMap && !menuOpen && !homeAsk && !salvAsk && gg.screen === "map"; };
   const openExit = (): void => { const gg = G.current; if (gg) LAST_SAVE = saveRun(gg); HELD.clear(); const I = inp.current; I.kx = 0; I.ky = 0; I.katk = false; I.atk = false; setExitAsk(true); };
   const cycleTarget = (d: number): void => run((x: Game) => { const c = x.combat; if (!c) return; const n = c.enemies.length; for (let k = 1; k <= n; k++) { const i = (((c.target + d * k) % n) + n) % n; const e = c.enemies[i]; if (e && !e.dead && e.hp > 0) { c.target = i; return; } } });
   const cycleTab = (d: number): void => {
@@ -4217,6 +5089,9 @@ export default function DungeonOfEchoes() {
   const goBack = (): void => {
     if (bigMap) { setBigMap(false); return; }
     if (sheet) { setSheet(null); return; }
+    if (homeAsk) { setHomeAsk(false); return; }
+    if (menuOpen) { setMenuOpen(false); return; }
+    if (salvAsk) { setSalvAsk(null); return; }
     if (exitAsk) { keepPlaying(); return; }
     const gg = G.current;
     if (!gg) {
@@ -4224,10 +5099,10 @@ export default function DungeonOfEchoes() {
       setMsg(""); setImpFocus(false); setUi("title"); return;
     }
     switch (gg.screen) {
-      case "codex": case "help": back(); return;
+      case "codex": case "help": case "skills": back(); return;
       case "inventory": run((x: Game) => { if (x.sel !== -1) x.sel = -1; else x.screen = "map"; }); return;
       case "shop": run((x: Game) => { x.screen = "map"; }); return;
-      case "map": openExit(); return;
+      case "map": if (gg.combat) return; setMenuOpen(true); return;
       case "dead": case "victory": toTitle(); return;
       default: return;
     }
@@ -4239,8 +5114,8 @@ export default function DungeonOfEchoes() {
   };
   const abil = (i: number): void => {
     const gg = G.current; if (!gg || gg.screen !== "map") return;
-    const a = CLS[gg.cls].abs[i]; if (!a) return;
-    if (!abReady(gg, i)) { addFx(gg, `Lv ${abUnlockAt(i)}`, "sys", "p"); refresh(); return; }
+    const a = barAbs(gg)[i]; if (!a) return;
+    if (!abReady(gg, i)) { addFx(gg, a.tree ? "skill tree" : `Lv ${abUnlockLv(gg.cls, a)}`, "sys", "p"); refresh(); return; }
     if ((gg.cds[a.id] ?? 0) > 0 || gg.mp < abCost(gg, a)) { addFx(gg, (gg.cds[a.id] ?? 0) > 0 ? "cooldown" : "no MP", "sys", "p"); refresh(); return; }
     run((x: Game) => rtAbility(x, a.id));
   };
@@ -4361,7 +5236,7 @@ export default function DungeonOfEchoes() {
         if (edge(8)) toggleMap();
         if (edge(11)) openPage("help");
       }
-      if (edge(9)) openExit();
+      if (edge(9)) { if (gg.combat) return; setMenuOpen(true); }
     } else {
       if (bigMap && (edge(8) || edge(0))) { toggleMap(); return; }
       if (edge(0)) navOk();
@@ -4391,7 +5266,7 @@ export default function DungeonOfEchoes() {
       drawRef.current(false);
       if (currentAbPop() && (AB_POPS[0]?.ts ?? 0) !== (I as Inp & { abTs?: number }).abTs) { (I as Inp & { abTs?: number }).abTs = AB_POPS[0]?.ts; setToast(`✨ New ability unlocked: ${currentAbPop()!.name}`); }
       if ((gg.screen as Screen) !== "map" || was !== !!gg.combat) { I.rT = 0; refresh(); }
-      else if (chg || currentAbPop() || livePulses(Date.now()).length || gg.buffs.fury > 0 || gg.buffs.iron > 0) { I.rT += dt; if (I.rT >= (gg.combat ? 0.066 : 0.033)) { I.rT = 0; refresh(); } }
+      else if (chg || currentAbPop() || livePulses(Date.now()).length || gg.buffs.fury > 0 || gg.buffs.iron > 0 || (gg.buffs.haste ?? 0) > 0 || (gg.buffs.pethaste ?? 0) > 0) { I.rT += dt; if (I.rT >= (gg.combat ? 0.066 : 0.033)) { I.rT = 0; refresh(); } }
     } else return;
     I.saveT += dt;
     if (I.saveT >= 1.5 || (gg.screen as Screen) === "dead") { I.saveT = 0; LAST_SAVE = saveRun(gg); }
@@ -4615,8 +5490,7 @@ export default function DungeonOfEchoes() {
   }
 
   const f = full(g);
-  const homeBtn = (): void => { if (G.current && G.current.combat) { lockNote(); return; } goHome(); };
-  const hud = (
+    const hud = (
     <div style={{ ...card, display: "flex", flexDirection: "column", gap: 6, position: "relative" }}>
       {g.screen !== "map" && fxLayer(g, "p")}
       {g.hurtTs && Date.now() - g.hurtTs < 700 ? splat(g.hurtTs % 100000) : null}
@@ -4625,7 +5499,7 @@ export default function DungeonOfEchoes() {
         <span>{g.mode === "story" ? `🏰 Floor ${g.floor}/${STORY_END}` : `∞ Depth ${g.floor}`}</span>
         <span style={{ color: t.text.warning, fontWeight: 700 }}>💰 {g.gold}</span>
         <span style={{ fontSize: 11, color: LAST_SAVE ? t.text.success : t.text.warning }}>{LAST_SAVE ? "💾 Saved" : "⚠️ Session only"}</span>
-        <button onClick={homeBtn} aria-disabled={!!g.combat} aria-label="Title screen (copies your save code)" style={{ opacity: g.combat ? 0.4 : 1, minWidth: 40, minHeight: 36, borderRadius: 10, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 16, cursor: "pointer" }}>🏠</button>
+        <button type="button" onClick={homeBtn} disabled={!!g.combat} aria-disabled={!!g.combat} aria-label={g.combat ? "Menu locked in combat" : "Menu"} title={g.combat ? "Locked in combat" : "Menu (save code & title)"} style={{ opacity: g.combat ? 0.4 : 1, minWidth: 40, minHeight: 36, marginLeft: 8, borderRadius: 10, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 16, cursor: g.combat ? "not-allowed" : "pointer", pointerEvents: g.combat ? "none" : "auto" }}>⚙</button>
       </div>
       <div style={{ display: "none" }}>
       </div>
@@ -4643,7 +5517,7 @@ export default function DungeonOfEchoes() {
       <span style={{ fontSize: 12, whiteSpace: "nowrap" }}>{g.mode === "story" ? `🏰 ${g.floor}/${STORY_END}` : `∞ ${g.floor}`}</span>
       <span style={{ fontSize: 12, color: t.text.warning, fontWeight: 700, whiteSpace: "nowrap" }}>💰 {g.gold}</span>
       <span style={{ fontSize: 11, color: LAST_SAVE ? t.text.success : t.text.warning, whiteSpace: "nowrap" }}>{LAST_SAVE ? "💾" : "⚠️"}</span>
-      <button onClick={homeBtn} aria-disabled={!!g.combat} aria-label="Title screen (copies your save code)" style={{ opacity: g.combat ? 0.4 : 1, minWidth: 36, minHeight: 32, borderRadius: 8, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 15, cursor: "pointer" }}>🏠</button>
+      <button type="button" onClick={homeBtn} disabled={!!g.combat} aria-disabled={!!g.combat} aria-label={g.combat ? "Menu locked in combat" : "Menu"} title={g.combat ? "Locked in combat" : "Menu (save code & title)"} style={{ opacity: g.combat ? 0.4 : 1, minWidth: 36, minHeight: 32, marginLeft: 8, borderRadius: 8, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 15, cursor: g.combat ? "not-allowed" : "pointer", pointerEvents: g.combat ? "none" : "auto" }}>⚙</button>
     </div>
   );
   const hudBars = <div style={{ flex: "1 1 auto", minWidth: 0, display: "flex", gap: 6 }}>{bar(g.hp, f.maxHp, "#e5484d", "HP")}{bar(g.mp, f.maxMp, "#3e8ef7", "MP")}{bar(g.xp, need(g.lvl), "#f5a524", "XP")}</div>;
@@ -4822,7 +5696,7 @@ export default function DungeonOfEchoes() {
           {g.inv.map((it: Inv) => (
             <div key={it.uid} style={{ ...card, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", padding: 8 }}>
               <div style={{ flex: "1 1 160px", minWidth: 0, fontSize: 14, fontWeight: 600, color: it.ident ? RCOL[IT[it.id].r] : t.text.secondary }}>{instIcon(it)} {instName(it)}</div>
-              {btn(`Sell ${sellOf(it)}g`, () => run((gg: Game) => { gg.inv = gg.inv.filter((x: Inv) => x.uid !== it.uid); gg.gold += sellOf(it); log(gg, `Sold ${instName(it)}.`, "loot"); }))}
+              {it.pin ? <span style={{ fontSize: 12, fontWeight: 700 }}>🔒 Locked</span> : btn(`Sell ${sellOf(it)}g`, () => run((gg: Game) => { if (!canSellItem(gg, it)) return; gg.inv = gg.inv.filter((x: Inv) => x.uid !== it.uid); gg.gold += sellOf(it); log(gg, `Sold ${instName(it)}.`, "loot"); }), { disabled: !canSellItem(g, it) })}
             </div>
           ))}
         </div>
@@ -4847,6 +5721,11 @@ export default function DungeonOfEchoes() {
             {selInv && IT[selInv.id].slot !== "consumable" && btn(selInv.ident ? "Equip" : "Equip (reveal)", () => run((gg: Game) => { equip(gg, selInv.uid); }), { tone: "primary", grow: true })}
             {selInv && IT[selInv.id].slot === "consumable" && btn("Use", () => run((gg: Game) => { const r = useConsumable(gg, selInv); if (r === "turn") gg.sel = -1; }), { tone: "primary", grow: true })}
             {selInv && ["heal", "both", "mana", "cleanse", "bomb", "frost", "fury", "iron"].includes(IT[selInv.id].fx ?? "") && btn(g.qs === selInv.id ? "★ Quick-slot" : "☆ Quick-slot", () => run((gg: Game) => { gg.qs = gg.qs === selInv.id ? undefined : selInv.id; log(gg, gg.qs ? `${IT[selInv.id].icon} ${IT[selInv.id].name} set as your combat quick-slot (R / 4 / Select).` : "Quick-slot reset to your first healing potion."); }), { grow: true, key: "qs" })}
+            {btn(sel.pin ? "🔓 Unlock" : "🔒 Lock", () => run((gg: Game) => {
+              const it = gg.inv.find((x: Inv) => x.uid === sel.uid) ?? GEAR.map((k: GearSlot) => gg.eq[k]).find((x: Inv | undefined) => x && x.uid === sel.uid);
+              if (it) it.pin = !it.pin;
+            }), { grow: true, key: "pin" })}
+            {selInv && canSalvage(g, selInv) && btn(`Break down · ${dustOf(selInv)} Dust`, () => setSalvAsk({ title: `Break down ${instName(selInv)}?`, body: `This yields ${dustOf(selInv)} Dust (1 Dust = 1 gold). Locked, cursed-bound, and equipped items cannot be salvaged.`, uids: [selInv.uid] }), { grow: true, key: "salv" })}
             {selInv && btn("Drop", () => run((gg: Game) => { gg.inv = gg.inv.filter((x: Inv) => x.uid !== selInv.uid); log(gg, `Dropped ${instName(selInv)}.`); gg.sel = -1; }), { tone: "danger", grow: true })}
           </div>
           {selInv && IT[selInv.id].slot !== "consumable" && (() => {
@@ -4892,7 +5771,7 @@ export default function DungeonOfEchoes() {
             return (
               <div key={k} style={{ display: "contents" }}>
                 <button onClick={() => it ? toggleSel(it.uid) : run((gg: Game) => { gg.sel = -1; })} style={{ minWidth: 0, minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: it && k !== "ring" && k !== "amulet" ? bloodBg(it.uid) : undefined, border: `2px solid ${it ? RCOL[IT[it.id].r] : t.border.default}`, borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 4, cursor: "pointer" }}>
-                  <div style={{ fontSize: 22, filter: it && k === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{it ? IT[it.id].icon : SLOT_ICON[k]}{it && locked(it) ? "🔒" : ""}</div>
+                  <div style={{ fontSize: 22, filter: it && k === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{it ? IT[it.id].icon : SLOT_ICON[k]}{it && (it.pin || locked(it)) ? "🔒" : ""}</div>
                   <div style={{ fontSize: 11, color: t.text.secondary }}>{it ? instName(it) : `No ${SLOT_NAME[k].toLowerCase()}`}</div>
                 </button>
                 {on && it ? itemPanel(it, "eq", k) : null}
@@ -4902,14 +5781,25 @@ export default function DungeonOfEchoes() {
         </div>
         </div><div style={colS}>
         <div style={head}>BAG ({g.inv.length}/{MAXINV})</div>
+        <div style={{ ...card, display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 13 }}>✨ Break down into Dust</div>
+          <div style={{ fontSize: 12, color: t.text.secondary }}>1 Dust = 1 gold. Yield is a flat rarity ladder (Common 1 … Legendary 6; Set 5). Cursed items use their rarity. Locked, curse-bound, equipped, unidentified, and consumable items are skipped.</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {DUST_TIERS.map((tier: DustTier) => {
+              const items = g.inv.filter((it: Inv) => canSalvage(g, it) && tier.test(IT[it.id]));
+              const dust = items.reduce((n: number, it: Inv) => n + dustOf(it), 0);
+              return btn(`All ${tier.name} (${items.length} · ${dust} Dust)`, () => setSalvAsk({ title: `Break down all ${tier.name}?`, body: `${items.length} item${items.length === 1 ? "" : "s"} will become ${dust} Dust (1 Dust = 1 gold). Locked, curse-bound, and equipped items are not included.`, uids: items.map((it: Inv) => it.uid) }), { disabled: items.length === 0, key: "d" + tier.key });
+            })}
+          </div>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 6 }}>
           {g.inv.map((it: Inv) => {
             const tt = IT[it.id]; const on = g.sel === it.uid;
             return (
               <div key={it.uid} style={{ display: "contents" }}>
-                <button onClick={() => toggleSel(it.uid)} style={{ minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: tt.slot === "weapon" || tt.slot === "armor" || tt.slot === "helmet" ? bloodBg(it.uid) : undefined, border: `2px ${it.ident ? "solid" : "dashed"} ${it.ident ? RCOL[tt.r] : t.border.strong}`, borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 2, cursor: "pointer", minWidth: 0 }}>
+                <button onClick={() => toggleSel(it.uid)} style={{ minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: tt.slot === "weapon" || tt.slot === "armor" || tt.slot === "helmet" ? bloodBg(it.uid) : undefined, border: `2px ${it.ident ? "solid" : "dashed"} ${it.ident ? RCOL[tt.r] : t.border.strong}`, borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 2, cursor: "pointer", minWidth: 0, position: "relative" }}>
                   <div style={{ fontSize: 24, filter: tt.slot === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{instIcon(it)}</div>
-                  <div style={{ fontSize: 9, color: t.text.secondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.ident ? tt.name : "???"}</div>
+                  <div style={{ fontSize: 9, color: t.text.secondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.pin ? "🔒 " : ""}{it.ident ? tt.name : "???"}</div>
                 </button>
                 {on ? itemPanel(it, "inv") : null}
               </div>
@@ -4918,6 +5808,43 @@ export default function DungeonOfEchoes() {
         </div>
         {notes(g, true)}
         </div></div>
+      </div>
+    );
+  }
+
+
+  // ---------- SKILLS (in-run tree; separate from Endless token TREE) ----------
+  if (g.screen === "skills") {
+    const nodes = skillNodesOf(g.cls);
+    const paths: string[] = [];
+    for (const n of nodes) if (!paths.includes(n.path)) paths.push(n.path);
+    const have = ownedSkills(g);
+    return (
+      <div style={root}>{style}
+        {hud}
+        <div style={row}>
+          <div style={{ fontSize: 20, fontWeight: 800, flex: "1 1 auto" }}>🌳 Skill Tree · {CLS[g.cls].name}</div>
+          <div style={{ fontWeight: 800, color: (g.skillPts ?? 0) > 0 ? t.text.accent : t.text.secondary }}>{g.skillPts ?? 0} unspent</div>
+          {btn("Back", () => run((gg: Game) => { gg.screen = gg.prev === "skills" ? "map" : (gg.prev || "map"); }), { tone: "primary" })}
+        </div>
+        <div style={{ fontSize: 13, color: t.text.secondary }}>Spend one point per node, in order down each path. Level still unlocks your core abilities; this tree adds upgrades, capstones, and extra powers. It is separate from Endless token upgrades.</div>
+        <div style={{ display: "grid", gridTemplateColumns: land ? "1fr 1fr 1fr" : "1fr", gap: 10 }}>
+          {paths.map((path: string) => (
+            <div key={path} style={{ ...card, display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ fontWeight: 800, fontSize: 16 }}>{path}</div>
+              {nodes.filter((n: SkillNode) => n.path === path).sort((a: SkillNode, b: SkillNode) => a.row - b.row).map((n: SkillNode) => {
+                const owned = have.includes(n.id);
+                const open = canTakeSkill(g, n);
+                return (
+                  <button key={n.id} type="button" disabled={!open} onClick={() => run((gg: Game) => { takeSkill(gg, n.id); })} style={{ textAlign: "left", borderRadius: 10, padding: "8px 10px", border: `2px solid ${owned ? "#c9a24a" : open ? t.border.strong : t.border.default}`, background: owned ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: open ? "pointer" : "default", opacity: owned || open ? 1 : 0.55 }}>
+                    <div style={{ fontWeight: 700 }}>{n.icon} {n.name}{n.cap ? " ★" : ""} {owned ? "✓" : open ? "" : "🔒"}</div>
+                    <div style={{ fontSize: 12, color: t.text.secondary }}>{n.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -4973,6 +5900,16 @@ export default function DungeonOfEchoes() {
         <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: tl.kind === "acid" ? "rgba(110,220,60,.4)" : tl.kind === "cata" ? "rgba(150,60,255,.45)" : "rgba(255,80,20,.42)", transform: `scale(${Math.max(0, Math.min(1, 1 - tl.t / tl.max))})` }} />
       </div>
     );
+    for (const z of c.zones ?? []) {
+      const col = z.k === "sanct" ? "rgba(255,230,140,.45)" : z.k === "rain" ? "rgba(180,80,40,.4)" : z.k === "meteor" ? "rgba(255,80,20,.55)" : z.k === "burn" ? "rgba(255,110,30,.4)" : z.k === "gwell" ? "rgba(80,40,140,.45)" : "rgba(160,140,80,.4)";
+      const ring = z.k === "sanct" ? "#ffe08a" : z.k === "meteor" ? "#ff5a2a" : z.k === "gwell" ? "#a88cff" : "#d0b070";
+      objs.push(<div key={`z${z.id}`} data-zone={z.k} style={{ ...wBox(z.x, z.y, z.r * 2), borderRadius: "50%", border: `2px solid ${ring}`, background: col, boxSizing: "border-box", zIndex: 1, pointerEvents: "none", opacity: z.k === "meteor" ? 0.7 : 0.85 }} />);
+    }
+    for (const tr of c.traps ?? []) if ((tr.fuse ?? 0) >= 0) objs.push(<div key={`tr${tr.id}`} data-xtrap={tr.id} style={{ ...wBox(tr.x, tr.y, 0.7), borderRadius: "50%", background: (tr.fuse ?? 0) > 0 ? "rgba(255,80,20,.7)" : "rgba(40,20,0,.7)", border: "2px solid #ffb040", boxSizing: "border-box", zIndex: 2, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>💣</div>);
+    for (const w of c.walls ?? []) {
+      const ang = Math.atan2(w.dy, w.dx) * 180 / Math.PI;
+      objs.push(<div key={`w${w.id}`} data-iwall={w.id} style={{ position: "absolute", left: `${((w.x) / W) * 100}%`, top: `${((w.y) / H) * 100}%`, width: `${(w.len / W) * 100}%`, height: `${(0.4 / H) * 100}%`, transform: `rotate(${ang}deg)`, transformOrigin: "0 50%", background: "linear-gradient(90deg, rgba(180,230,255,.2), rgba(200,240,255,.85), rgba(180,230,255,.2))", border: "1px solid #d8f4ff", boxShadow: "0 0 8px rgba(140,200,255,.8)", zIndex: 3, pointerEvents: "none", boxSizing: "border-box" }} />);
+    }
     c.enemies.forEach((e: Enemy, i: number) => {
       const ex = e.x ?? 0, ey = e.y ?? 0;
       if (e.away || !inView(ex, ey)) return;
@@ -5064,12 +6001,15 @@ export default function DungeonOfEchoes() {
               </g>
             </svg>
           {livePulses(nowMs).map((p: PulseFx) => {
-            if (p.k === "smash") {
-              const u = Math.min(1, (nowMs - p.ts) / 440), d = (0.5 + 2.4 * 2 * u) * tilePx;
-              return <div key={p.ts} data-smash="1" style={{ position: "absolute", left: "50%", top: "50%", width: d, height: d, marginLeft: -d / 2, marginTop: -d / 2, borderRadius: "50%", border: "3px solid rgba(255,210,90,.9)", boxShadow: "0 0 14px rgba(255,160,40,.7), inset 0 0 10px rgba(255,200,80,.25)", opacity: 1 - u, pointerEvents: "none", boxSizing: "border-box" }} />;
+            const life = pulseLife(p.k);
+            if (p.k === "cleave") {
+              const u = Math.min(1, (nowMs - p.ts) / life), deg = FACE * 180 / Math.PI, r = 3.25 * tilePx;
+              return <svg key={p.ts + p.k} data-cleave="1" viewBox="0 0 100 100" style={{ position: "absolute", left: "50%", top: "50%", width: r * 2, height: r * 2, marginLeft: -r, marginTop: -r, overflow: "visible", opacity: 1 - u, pointerEvents: "none", transform: `rotate(${deg}deg)` }}><path d="M50 50 L95 20 A48 48 0 0 1 95 80 Z" fill="rgba(255,230,160,.28)" stroke="rgba(255,240,200,.9)" strokeWidth="2" /></svg>;
             }
-            const u = Math.min(1, (nowMs - p.ts) / 280), deg = FACE * 180 / Math.PI, r = 3.25 * tilePx;
-            return <svg key={p.ts} data-cleave="1" viewBox="0 0 100 100" style={{ position: "absolute", left: "50%", top: "50%", width: r * 2, height: r * 2, marginLeft: -r, marginTop: -r, overflow: "visible", opacity: 1 - u, pointerEvents: "none", transform: `rotate(${deg}deg)` }}><path d="M50 50 L95 20 A48 48 0 0 1 95 80 Z" fill="rgba(255,230,160,.28)" stroke="rgba(255,240,200,.9)" strokeWidth="2" /></svg>;
+            const u = Math.min(1, (nowMs - p.ts) / life), pr = (p.r ?? (p.k === "smash" ? 2.4 : 2.0));
+            const d = (0.4 + pr * 2 * u) * tilePx;
+            const col = p.col ?? "rgba(255,210,90,.9)";
+            return <div key={p.ts + p.k} data-pulse={p.k} style={{ position: "absolute", left: "50%", top: "50%", width: d, height: d, marginLeft: -d / 2, marginTop: -d / 2, borderRadius: "50%", border: `3px solid ${col}`, boxShadow: `0 0 14px ${col}`, opacity: 1 - u, pointerEvents: "none", boxSizing: "border-box" }} />;
           })}
           <div style={{ position: "absolute", left: "50%", bottom: "100%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", pointerEvents: "none", whiteSpace: "nowrap", zIndex: 8 }}>
             {g.fx.filter((x: Fx) => x.at === "p" && nowMs - x.ts < 1000).map((x: Fx) => <span key={x.id} style={{ animation: "doeFloat 1s ease-out forwards", fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000" }}>{x.text}</span>)}
@@ -5125,14 +6065,14 @@ export default function DungeonOfEchoes() {
   const combatActions = c ? (
     <div data-combat-actions="1" style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-        {CLS[g.cls].abs.map((a: Ab, i: number) => {
-          const locked = !abReady(g, i); const lv = abUnlockAt(i);
+        {barAbs(g).map((a: Ab, i: number) => {
+          const locked = !abReady(g, i); const lv = a.tree ? 0 : abUnlockLv(g.cls, a);
           const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
           return (
             <button key={a.id} type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); abil(i); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={locked ? `${a.name} unlocks at level ${lv}` : `${a.name} (key ${i + 1})`} title={locked ? `Unlocks at level ${lv}` : `${a.name}: ${a.desc}`} style={{ ...roundBtn, borderColor: locked ? "#665" : cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: locked ? 0.55 : noMp && cd <= 0 ? 0.55 : 1, filter: locked ? "grayscale(.7)" : undefined }}>
               <span>{locked ? "🔒" : a.icon}</span>{locked ? null : ring(fr)}
               <span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: locked ? "#ffe08a" : "#ffe6b0", textShadow: "0 1px 2px #000" }}>{locked ? `Lv ${lv}` : cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
-              <span style={{ position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" }}>{i + 1}</span>
+              <span style={{ position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" }}>{i < 9 ? i + 1 : i === 9 ? 0 : ""}</span>
             </button>
           );
         })}
@@ -5149,32 +6089,31 @@ export default function DungeonOfEchoes() {
       </div>
       {g.perks.includes("shadowmeld") && <div style={{ display: "flex", justifyContent: "flex-end" }}>{btn(g.usedShadow ? "🌫️ used" : "🌫️ Meld", () => run((gg: Game) => combatAct(gg, "vanish", "")), { disabled: g.usedShadow || !!cBoss, key: "vanish" })}</div>}
       <div data-locked="1" style={{ display: "flex", gap: 6, width: "100%" }}>
-        {lk("🎒", "Bag")}{lk("📖", "Codex")}{lk("❓", "Help")}{lk("🏠", "Title")}{lk("💾", "Save code")}
+        {lk("🎒", "Bag")}{lk("📖", "Codex")}{lk("❓", "Help")}
       </div>
     </div>
   ) : null;
   const mapActions = c ? combatActions : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-            {CLS[g.cls].abs.map((a: Ab, i: number) => {
-              const locked = !abReady(g, i); const lv = abUnlockAt(i);
+            {barAbs(g).map((a: Ab, i: number) => {
+              const locked = !abReady(g, i); const lv = a.tree ? 0 : abUnlockLv(g.cls, a);
               const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
               return (
                 <button key={a.id} type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); abil(i); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={locked ? `${a.name} unlocks at level ${lv}` : `${a.name} (key ${i + 1})`} title={locked ? `Unlocks at level ${lv}` : `${a.name}: ${a.desc}`} style={{ ...roundBtn, borderColor: locked ? "#665" : cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: locked ? 0.55 : noMp && cd <= 0 ? 0.55 : 1, filter: locked ? "grayscale(.7)" : undefined }}>
                   <span>{locked ? "🔒" : a.icon}</span>{locked ? null : ring(fr)}
                   <span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: locked ? "#ffe08a" : "#ffe6b0", textShadow: "0 1px 2px #000" }}>{locked ? `Lv ${lv}` : cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
-                  <span style={{ position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" }}>{i + 1}</span>
+                  <span style={{ position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" }}>{i < 9 ? i + 1 : i === 9 ? 0 : ""}</span>
                 </button>
               );
             })}
           </div>
           {onMerchant && btn("💰 Trade", interact, { tone: "accent", tall: true })}
           {btn(`🎒 Bag (${g.inv.length})`, () => run((gg: Game) => { gg.screen = "inventory"; gg.sel = -1; }), { tone: "primary", tall: true })}
+          {btn(`🌳 Skills${(g.skillPts ?? 0) > 0 ? ` (${g.skillPts})` : ""}`, () => run((gg: Game) => { gg.prev = "map"; gg.screen = "skills"; }), { tone: (g.skillPts ?? 0) > 0 ? "accent" : "primary", tall: true })}
           <div style={row}>
             {btn("📖", () => run((gg: Game) => { gg.prev = "map"; gg.screen = "codex"; }), { grow: true })}
             {btn("❓", () => run((gg: Game) => { gg.prev = "map"; gg.screen = "help"; }), { grow: true })}
-            {btn("🏠", toTitle, { grow: true })}
-            {btn("💾", () => { if (G.current) LAST_SAVE = saveRun(G.current); G.current = null; setCodeText(""); setMsg(""); setConfirm(null); setUi("save"); refresh(); }, { grow: true })}
           </div>
         </div>
   );
@@ -5182,6 +6121,7 @@ export default function DungeonOfEchoes() {
   const chips: string[] = [];
   if (b.fury > 0) chips.push(`📜 Fury ${fmtBuff(b.fury)}`);
   if (b.iron > 0) chips.push(`📃 Iron ${fmtBuff(b.iron)}`);
+  if ((b.haste ?? 0) > 0) chips.push(`⚡ Swift ${fmtBuff(b.haste ?? 0)}`);
   if (c) {
     if (b.rage > 0) chips.push(`📣 Rage ${fmtBuff(b.rage)}`);
     if (b.holy > 0) chips.push(`🔆 Holy ${fmtBuff(b.holy)}`);
@@ -5189,6 +6129,10 @@ export default function DungeonOfEchoes() {
     if (b.shield > 0) chips.push(`🔮 Shield ${b.shield}`);
     if (b.frenzy > 0) chips.push(`📯 Frenzy ${fmtBuff(b.frenzy)}`);
     if ((b.hex ?? 0) > 0) chips.push(`🌀 Hex ${fmtBuff(b.hex ?? 0)}`);
+    if ((b.reflect ?? 0) > 0) chips.push(`🪞 Reflect ${fmtBuff(b.reflect ?? 0)}`);
+    if ((b.nextCrit ?? 0) > 0) chips.push(`👤 Next crit ${fmtBuff(b.nextCrit ?? 0)}`);
+    if ((b.whirl ?? 0) > 0) chips.push(`🌀 Whirl ${fmtBuff(b.whirl ?? 0)}`);
+    if ((b.pethaste ?? 0) > 0) chips.push(`🐺 Beast Frenzy ${fmtBuff(b.pethaste ?? 0)}`);
   }
   if (b.dotT > 0) chips.push(`☠️ DoT ${b.dotD} for ${fmtBuff(b.dotT * 1.5)}`);
   const legend = c ? (
