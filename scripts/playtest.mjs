@@ -191,7 +191,71 @@ async function runMigrate(browser) {
   });
 }
 
+
+async function runDodge(browser) {
+  await withPage(browser, async (page, errors) => {
+    const r = await page.evaluate(async () => {
+      const firePtr = (el, type, id, x, y, buttons) => {
+        el.dispatchEvent(new PointerEvent(type, {
+          bubbles: true, cancelable: true, composed: true,
+          pointerId: id, pointerType: "touch", isPrimary: id === 11,
+          clientX: x, clientY: y, buttons, button: 0, width: 24, height: 24,
+        }));
+      };
+      window.__T.boot("warrior");
+      window.__R.poke();
+      await new Promise((res) => setTimeout(res, 80));
+      const dodge = document.querySelector('button[aria-label="Dodge roll"]');
+      const layer = document.querySelector("[data-joy-layer]");
+      if (!dodge || !layer) return { ok: false, reason: "missing ui", dodge: !!dodge, layer: !!layer };
+      const x0 = 120, y0 = 400;
+      firePtr(layer, "pointerdown", 11, x0, y0, 1);
+      firePtr(layer, "pointermove", 11, x0 + 90, y0, 1);
+      await new Promise((res) => setTimeout(res, 80));
+      const jxHeld = window.__I.current.jx;
+      const I0 = window.__I.current;
+      let vx = I0.jx + I0.kx + I0.gx, vy = I0.jy + I0.ky + I0.gy;
+      const m0 = Math.hypot(vx, vy); if (m0 > 1) { vx /= m0; vy /= m0; }
+      const vecBefore = { x: vx, y: vy, jx: I0.jx, jy: I0.jy };
+      const box = dodge.getBoundingClientRect();
+      firePtr(dodge, "pointerdown", 22, box.left + box.width / 2, box.top + box.height / 2, 1);
+      const c = window.__G() && window.__G().combat;
+      const after = { dvx: c ? c.dvx : null, dvy: c ? c.dvy : null, dashT: c ? c.dashT : null, jx: window.__I.current.jx, jy: window.__I.current.jy };
+      firePtr(dodge, "pointerup", 22, box.left + box.width / 2, box.top + box.height / 2, 0);
+      await new Promise((res) => setTimeout(res, 40));
+      const jxAfterUp = window.__I.current.jx;
+      return { ok: true, vecBefore, after, jxHeld, jxAfterUp };
+    });
+    check(r.ok, "dodge ui present", JSON.stringify(r));
+    check(r.ok && r.jxHeld > 0.3, "joystick still held before dodge tap", JSON.stringify(r));
+    check(r.ok && r.after && r.after.dashT > 0, "dodge started on pointerdown", JSON.stringify(r.after));
+    check(r.ok && r.after && r.after.dvx > 0.5, "dodge dashes in joystick direction", JSON.stringify({ vec: r.vecBefore, after: r.after }));
+    check(r.ok && r.after && r.after.jx > 0.3 && r.jxAfterUp > 0.3, "dodge tap did not cancel joystick", JSON.stringify({ jx: r.after && r.after.jx, jxAfterUp: r.jxAfterUp }));
+
+    const key = await page.evaluate(async () => {
+      window.__R.stop();
+      const g0 = window.__G();
+      if (g0 && g0.combat) { g0.combat.dashCd = 0; g0.combat.dashT = 0; }
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "d", code: "KeyD", bubbles: true, cancelable: true }));
+      await new Promise((res) => setTimeout(res, 40));
+      const kx = window.__I.current.kx;
+      window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift", code: "ShiftLeft", bubbles: true, cancelable: true, shiftKey: true }));
+      const c = window.__G() && window.__G().combat;
+      const out = { kx, dvx: c ? c.dvx : null, dashT: c ? c.dashT : null, kxAfter: window.__I.current.kx };
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift", code: "ShiftLeft", bubbles: true }));
+      window.dispatchEvent(new KeyboardEvent("keyup", { key: "d", code: "KeyD", bubbles: true }));
+      return out;
+    });
+    check(key.kx > 0 && key.kxAfter > 0, "WASD still held when Shift dodge fires", JSON.stringify(key));
+    check(key.dashT > 0 && key.dvx > 0.5, "Shift dodge uses move-key direction", JSON.stringify(key));
+
+    const pageErrs = errors.filter((e) => !/favicon|ResizeObserver/i.test(e));
+    check(pageErrs.length === 0, "dodge no page errors", pageErrs.join(" | "));
+  });
+}
+
 async function main() {
+
   const vite = startVite();
   let browser;
   const kill = () => {
@@ -212,6 +276,8 @@ async function main() {
     }
     process.stdout.write("\n== migrate ==\n");
     await runMigrate(browser);
+    process.stdout.write("\n== dodge ==\n");
+    await runDodge(browser);
   } finally {
     if (browser) await browser.close();
     vite.kill("SIGTERM");

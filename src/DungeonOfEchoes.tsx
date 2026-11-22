@@ -5314,7 +5314,7 @@ export default function DungeonOfEchoes() {
     if (gg.combat) {
       if (k === " " || k === "j") { if (onBtn && k === " ") return; e.preventDefault(); I.katk = true; run((x: Game) => rtAttack(x)); return; }
       if (k === "Enter") { if (onBtn) return; e.preventDefault(); run((x: Game) => rtAttack(x)); return; }
-      if (k === "Shift" || k === "k") { dodge(); return; }
+      if (k === "Shift" || k === "k") { e.preventDefault(); dodge(); return; }
       if (k === "r" || k === "4") { quick(); return; }
       if (k === "Tab") { e.preventDefault(); cycleTarget(e.shiftKey ? -1 : 1); return; }
       if (k === "q") { cycleTarget(-1); return; }
@@ -5674,7 +5674,7 @@ export default function DungeonOfEchoes() {
     const mini = Math.max(88, Math.min(132, Math.round(Math.min(vp.w, vp.h) * 0.2)));
     const panel: CSSProperties = { background: "rgba(10,8,14,.72)", border: "1px solid rgba(255,230,180,.18)", borderRadius: 10, padding: "6px 8px", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", boxShadow: "0 4px 16px rgba(0,0,0,.35)" };
     return (
-      <div {...joyH} style={{ position: "fixed", inset: 0, background: "#07060a", color: t.text.primary, fontFamily: t.font.family, userSelect: "none", touchAction: "none", overflow: "hidden" }}>
+      <div data-joy-layer="1" {...joyH} style={{ position: "fixed", inset: 0, background: "#07060a", color: t.text.primary, fontFamily: t.font.family, userSelect: "none", touchAction: "none", overflow: "hidden" }}>
         {style}
         <div style={{ position: "absolute", inset: 0 }}>{viewFn()}{notes(g0, false)}</div>
         <div style={{ position: "absolute", top: padT, left: padL, right: `calc(${padR} + ${mini + 10}px)`, zIndex: 10, pointerEvents: "none" }}>
@@ -6107,7 +6107,7 @@ export default function DungeonOfEchoes() {
       }
       const on = i === c.target;
       objs.push(
-        <div key={`e${e.uid}`} data-enemy={e.uid} data-noj="1" onPointerDown={() => run((gg: Game) => { const cc = gg.combat; if (!cc) return; const k = cc.enemies.findIndex((x: Enemy) => x.uid === e.uid && !x.dead); if (k >= 0) cc.target = k; })} style={{ ...wBox(ex, ey, sz), zIndex: 4, pointerEvents: "auto", cursor: "pointer", overflow: "visible" }}>
+        <div key={`e${e.uid}`} data-enemy={e.uid} data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLDivElement>) => { ev.preventDefault(); ev.stopPropagation(); run((gg: Game) => { const cc = gg.combat; if (!cc) return; const k = cc.enemies.findIndex((x: Enemy) => x.uid === e.uid && !x.dead); if (k >= 0) cc.target = k; }); }} style={{ ...wBox(ex, ey, sz), zIndex: 4, pointerEvents: "auto", cursor: "pointer", overflow: "visible" }}>
           {on && <div style={{ position: "absolute", inset: "-12%", borderRadius: "50%", border: "2px dashed #ffcc4d", pointerEvents: "none" }} />}
           <div style={{ position: "absolute", inset: e.boss ? "-8% -4% 0" : "-8% -4% 0", transformOrigin: "50% 88%", filter: e.stun > 0 ? "brightness(1.5) saturate(.4)" : e.elite ? "drop-shadow(0 0 6px rgba(200,30,30,.95)) drop-shadow(0 0 10px rgba(255,160,40,.6))" : e.boss ? "drop-shadow(0 0 8px rgba(160,0,0,1)) drop-shadow(0 0 14px rgba(80,0,40,.8))" : "drop-shadow(0 2px 3px rgba(0,0,0,.9))", animation: (e.wk === "cast" || e.wk === "hex" || e.wk === "spit") && (e.wind ?? 0) > 0 ? "doePulse .4s infinite" : (e.wk === "melee" && (e.wind ?? 0) > 0) ? "doeLean 0.45s ease-in-out infinite" : (sprOf(e) === "wraith" || sprOf(e) === "shade" || sprOf(e) === "lich") ? "doeFlicker 2.1s ease-in-out infinite" : "doeBreath 2.4s ease-in-out infinite" }}>{spr(sprOf(e), "100%")}</div>
           <div style={{ position: "absolute", left: "5%", right: "5%", top: "-14%", height: 4, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden", outline: e.elite ? "1px solid #ffcc4d" : undefined }}><div style={{ width: `${(Math.max(0, e.hp) / e.max) * 100}%`, height: "100%", background: e.boss ? "#a855f7" : e.elite ? "#f5a524" : "#e5484d" }} /></div>
@@ -6257,12 +6257,12 @@ export default function DungeonOfEchoes() {
           );})}
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
-        <button data-potion="1" onClick={quick} disabled={!qi} aria-label={qi ? `Quick-slot: ${IT[qi.id].name} ×${qn} (R)` : "No potion"} title={qi ? `${IT[qi.id].name} (R / 4 / Select)` : "No potion"} style={{ ...roundBtn, width: 50, height: 50, borderColor: qi ? "#e5484d" : t.border.default, opacity: qi ? 1 : 0.45, fontSize: 20 }}>
+        <button type="button" data-potion="1" data-noj="1" disabled={!qi} onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); if (qi) quick(); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={qi ? `Quick-slot: ${IT[qi.id].name} ×${qn} (R)` : "No potion"} title={qi ? `${IT[qi.id].name} (R / 4 / Select)` : "No potion"} style={{ ...roundBtn, width: 50, height: 50, borderColor: qi ? "#e5484d" : t.border.default, opacity: qi ? 1 : 0.45, fontSize: 20 }}>
           <span>{qi ? IT[qi.id].icon : "🧪"}</span>
           <span style={{ position: "absolute", right: 4, bottom: 2, fontSize: 11, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px #000" }}>{qn}</span>
         </button>
-        <button onClick={dodge} aria-label="Dodge roll" style={{ ...roundBtn, borderColor: (c.dashCd ?? 0) > 0 ? t.border.default : "#7ab8ff" }}><span>💨</span>{ring(Math.min(1, (c.dashCd ?? 0) / 2.2))}<span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#cfe6ff" }}>Dodge</span></button>
-        <button onPointerDown={() => { inp.current.atk = true; run((gg: Game) => rtAttack(gg)); }} onPointerUp={atkUp} onPointerCancel={atkUp} onPointerLeave={atkUp} onClick={() => run((gg: Game) => rtAttack(gg))} onContextMenu={(e: { preventDefault: () => void }) => e.preventDefault()} aria-label="Attack (hold)" style={{ ...roundBtn, width: 80, height: 80, fontSize: 32, border: "3px solid #e0b25a", background: "radial-gradient(circle at 40% 35%, #8a2a1a, #2a0a08)" }}>
+        <button type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); dodge(); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label="Dodge roll" style={{ ...roundBtn, borderColor: (c.dashCd ?? 0) > 0 ? t.border.default : "#7ab8ff" }}><span>💨</span>{ring(Math.min(1, (c.dashCd ?? 0) / 2.2))}<span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#cfe6ff" }}>Dodge</span></button>
+        <button type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); inp.current.atk = true; run((gg: Game) => rtAttack(gg)); }} onPointerUp={atkUp} onPointerCancel={atkUp} onPointerLeave={atkUp} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} onContextMenu={(e: { preventDefault: () => void }) => e.preventDefault()} aria-label="Attack (hold)" style={{ ...roundBtn, width: 80, height: 80, fontSize: 32, border: "3px solid #e0b25a", background: "radial-gradient(circle at 40% 35%, #8a2a1a, #2a0a08)" }}>
           <span>{g.cls === "mage" ? "🪄" : g.cls === "ranger" ? "🏹" : g.cls === "cleric" ? "🔨" : g.cls === "rogue" ? "🗡️" : "⚔️"}</span>{ring(Math.min(1, (c.atkCd ?? 0) / ARATE[g.cls]))}
         </button>
       </div>
