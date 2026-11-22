@@ -607,6 +607,25 @@ let HASHC: Record<string, string> | null = null;
 let HASH_T = 0;
 let HASH_PEND = false;
 function getLS(): Storage | null { try { return window.localStorage; } catch (e) { void e; return null; } }
+const PREF_KEY = "dungeon-of-echoes-prefs-v1";
+let REDUCE_FX = true;
+function loadPrefs(): { reduceFx: boolean } {
+  try {
+    const raw = getLS()?.getItem(PREF_KEY);
+    if (raw) {
+      const o = JSON.parse(raw) as { reduceFx?: boolean };
+      return { reduceFx: o.reduceFx !== false };
+    }
+  } catch (e) { void e; }
+  return { reduceFx: true };
+}
+function setReduceFx(on: boolean): void {
+  REDUCE_FX = on;
+  try { getLS()?.setItem(PREF_KEY, JSON.stringify({ reduceFx: on })); } catch (e) { void e; }
+}
+REDUCE_FX = loadPrefs().reduceFx;
+function partCap(): number { return REDUCE_FX ? 16 : 64; }
+
 function getSS(): Storage | null { try { return window.sessionStorage; } catch (e) { void e; return null; } }
 function tryStore(s: Storage | null): boolean { if (!s) return false; try { const k = "__doe_t"; s.setItem(k, "1"); const ok = s.getItem(k) === "1"; s.removeItem(k); return ok; } catch (e) { void e; return false; } }
 function nameObj(): Record<string, string> {
@@ -2024,8 +2043,8 @@ interface Part { id: number; x: number; y: number; vx: number; vy: number; life:
 const PARTS: Part[] = [];
 let PART_SEQ = 1;
 const PART_MAX = 64;
-let FLASH_T = 0;
-function triggerFlash(n = 0.12): void { FLASH_T = Math.max(FLASH_T, n); }
+let SHAKE_T = 0;
+function bumpShake(n = 0.12): void { if (REDUCE_FX) return; SHAKE_T = Math.max(SHAKE_T, n); }
 
 function elemTint(g: Game): string {
   const f = full(g);
@@ -2040,7 +2059,7 @@ function atXY(g: Game, e?: { x?: number; y?: number } | null): [number, number] 
   return [g.wx ?? g.px + 0.5, g.wy ?? g.py + 0.5];
 }
 function addPart(x: number, y: number, kind: PartKind, col: string, ang: number, spd: number, life: number, r: number, up = 0): void {
-  if (PARTS.length >= PART_MAX) return;
+  if (PARTS.length >= partCap()) return;
   PARTS.push({
     id: PART_SEQ++, x, y,
     vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - up,
@@ -2048,40 +2067,42 @@ function addPart(x: number, y: number, kind: PartKind, col: string, ang: number,
   });
 }
 function spawnBurst(x: number, y: number, mode: "hit" | "crit" | "death" | "cast", col: string): void {
-  const room = () => Math.max(0, PART_MAX - PARTS.length);
-  if (mode === "crit") triggerFlash(0.14);
+  const room = () => Math.max(0, partCap() - PARTS.length);
   const blood = ["#5a0a0c", "#7a1014", "#3a0608"];
+  const low = REDUCE_FX;
   if (mode === "hit" || mode === "crit") {
-    const sparks = Math.min(mode === "crit" ? 10 : 6, room());
+    const sparks = Math.min(mode === "crit" ? (low ? 4 : 10) : (low ? 3 : 6), room());
     for (let i = 0; i < sparks; i++) {
       const ang = Math.random() * Math.PI * 2;
       const spd = (mode === "crit" ? 1.6 : 1.1) + Math.random() * 2.0;
       addPart(x, y, mode === "crit" && i < 5 ? "crit" : "spark", mode === "crit" ? "#f3efe6" : col, ang, spd, 0.18 + Math.random() * 0.14, 0.16 + Math.random() * 0.12, 0.15);
     }
-    const drops = Math.min(mode === "crit" ? 8 : 6, room());
+    const drops = Math.min(mode === "crit" ? (low ? 3 : 8) : (low ? 2 : 6), room());
     for (let i = 0; i < drops; i++) {
       const ang = (Math.random() - 0.5) * 2.2;
       addPart(x, y, "blood", blood[i % blood.length], ang, 0.5 + Math.random() * 1.1, 0.35 + Math.random() * 0.22, 0.10 + Math.random() * 0.08, -0.1);
     }
-    if (mode === "crit") {
+    if (mode === "crit" && !low) {
       const em = Math.min(4, room());
       for (let i = 0; i < em; i++) addPart(x, y, "ember", "#b45020", Math.random() * Math.PI * 2, 0.25 + Math.random() * 0.4, 0.45 + Math.random() * 0.2, 0.07 + Math.random() * 0.04, 0.7);
     }
     return;
   }
   if (mode === "death") {
-    const puffs = Math.min(8, room());
+    const puffs = Math.min(low ? 3 : 8, room());
     for (let i = 0; i < puffs; i++) {
       const ang = Math.random() * Math.PI * 2;
       addPart(x, y, "puff", "#3a3630", ang, 0.25 + Math.random() * 0.7, 0.5 + Math.random() * 0.25, 0.28 + Math.random() * 0.18, 0.35);
     }
-    const drops = Math.min(6, room());
+    const drops = Math.min(low ? 2 : 6, room());
     for (let i = 0; i < drops; i++) addPart(x, y, "blood", blood[i % blood.length], Math.random() * Math.PI * 2, 0.4 + Math.random() * 0.9, 0.4, 0.1 + Math.random() * 0.08, 0);
-    const em = Math.min(4, room());
-    for (let i = 0; i < em; i++) addPart(x, y, "ember", "#8a4a20", Math.random() * Math.PI * 2, 0.2 + Math.random() * 0.4, 0.5, 0.06 + Math.random() * 0.04, 0.55);
+    if (!low) {
+      const em = Math.min(4, room());
+      for (let i = 0; i < em; i++) addPart(x, y, "ember", "#8a4a20", Math.random() * Math.PI * 2, 0.2 + Math.random() * 0.4, 0.5, 0.06 + Math.random() * 0.04, 0.55);
+    }
     return;
   }
-  const n = Math.min(8, room());
+  const n = Math.min(low ? 3 : 8, room());
   for (let i = 0; i < n; i++) {
     const ang = Math.random() * Math.PI * 2;
     addPart(x, y, "spark", col, ang, 0.9 + Math.random() * 1.4, 0.22 + Math.random() * 0.14, 0.14 + Math.random() * 0.1, 0.1);
@@ -2090,7 +2111,8 @@ function spawnBurst(x: number, y: number, mode: "hit" | "crit" | "death" | "cast
   for (let i = 0; i < em; i++) addPart(x, y, "ember", col === "#b45020" ? "#b45020" : "#8a6a40", Math.random() * Math.PI * 2, 0.2 + Math.random() * 0.35, 0.4, 0.06, 0.5);
 }
 function tickParts(dt: number): void {
-  if (FLASH_T > 0) FLASH_T = Math.max(0, FLASH_T - dt);
+  if (REDUCE_FX) SHAKE_T = 0;
+  else if (SHAKE_T > 0) SHAKE_T = Math.max(0, SHAKE_T - dt);
   for (let i = PARTS.length - 1; i >= 0; i--) {
     const p = PARTS[i];
     p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
@@ -4023,7 +4045,16 @@ function placePets(we: HTMLElement, g: Game): void {
 }
 function petSz(k: string): number { return k === "hound" ? 0.74 : k === "wolf" ? 0.66 : 0.58; }
 function petSpr(k: string): string { return k === "imp" ? "pimp" : k === "owl" ? "powl" : k === "hound" ? "phound" : k; }
-function worldTf(g: Game): string { const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5; return `translate(${(-(px - VTX / 2) / W) * 100}%, ${(-(py - VTY / 2) / H) * 100}%)`; }
+function worldTf(g: Game): string {
+  const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
+  let ox = (-(px - VTX / 2) / W) * 100, oy = (-(py - VTY / 2) / H) * 100;
+  if (!REDUCE_FX && SHAKE_T > 0) {
+    const a = SHAKE_T * 0.45;
+    ox += (Math.random() - 0.5) * a;
+    oy += (Math.random() - 0.5) * a;
+  }
+  return `translate(${ox}%, ${oy}%)`;
+}
 function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp, opts?: { mons?: boolean; shop?: boolean; tiles?: boolean }): boolean {
   if (g.screen !== "map") return false;
   tickScrollBuffs(g, dt);
@@ -5617,6 +5648,7 @@ export default function DungeonOfEchoes() {
   const [treeCls, setTreeCls] = useState<ClassId>("warrior");
   const [confirm, setConfirm] = useState<Mode | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [reduceFxUi, setReduceFxUi] = useState(() => loadPrefs().reduceFx);
   const [joinCode, setJoinCode] = useState("");
   const [coopJoin, setCoopJoin] = useState(false);
   const [coopEnded, setCoopEnded] = useState("");
@@ -5844,7 +5876,9 @@ export default function DungeonOfEchoes() {
       learn: (id: string) => { const g = G.current; if (!g) return false; const ok = learnTreeNode(g, id); LAST_SAVE = saveRun(g); refresh(); return ok; },
       openSkills: () => { const g = G.current; if (!g) return; g.prev = g.screen; g.screen = "skills"; setTreeCat(null); setTreeSel(null); LAST_SAVE = saveRun(g); refresh(); },
       openCat: (id: string) => { setTreeCat(id as CatId); setTreeSel(null); fitCatTree(id as CatId); },
-      clearFx: () => { AB_POPS.splice(0, AB_POPS.length); PARTS.splice(0, PARTS.length); FLASH_T = 0; const g = G.current; if (g) { g.fx = []; g.bannerTs = 0; } setToast(""); refresh(); },
+      clearFx: () => { AB_POPS.splice(0, AB_POPS.length); PARTS.splice(0, PARTS.length); SHAKE_T = 0; const g = G.current; if (g) { g.fx = []; g.bannerTs = 0; } setToast(""); refresh(); },
+      setReduceFx: (on: boolean) => { setReduceFx(on); setReduceFxUi(on); refresh(); },
+      reduceFx: () => REDUCE_FX,
       burst: (mode?: string) => { const g = G.current; if (!g) return 0; const m = mode === "crit" || mode === "death" || mode === "cast" ? mode : "hit"; const e = g.combat ? g.combat.enemies[g.combat.target] : undefined; const [x, y] = atXY(g, e && !e.dead ? e : null); spawnBurst(x, y, m, m === "death" ? "#3a3630" : m === "crit" ? "#f3efe6" : elemTint(g)); refresh(); return PARTS.length; },
       treeZoom: (s0: number, x: number, y: number) => { treeCam.current.s = s0; treeCam.current.x = x; treeCam.current.y = y; refresh(); },
 
@@ -6241,6 +6275,10 @@ export default function DungeonOfEchoes() {
               {btn("Host co-op", () => { void hostCoop(false); }, { tall: true })}
               {btn("Join co-op", () => { setMenuOpen(false); setCoopJoin(true); }, { tall: true })}
             </>}
+        <button type="button" data-reduce-fx={reduceFxUi ? "1" : "0"} aria-pressed={reduceFxUi} aria-label="Reduce flashing and effects" onClick={() => { const on = !REDUCE_FX; setReduceFx(on); setReduceFxUi(on); }} style={{ minHeight: 52, borderRadius: 12, border: `1px solid ${t.border.default}`, background: reduceFxUi ? t.fill.accentSubtle : t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 15, fontWeight: 700, cursor: "pointer", textAlign: "left", padding: "8px 12px" }}>
+          Reduce flashing/effects {reduceFxUi ? "On" : "Off"}
+          <div style={{ fontSize: 12, fontWeight: 500, color: t.text.secondary, marginTop: 2 }}>Defaults on. Lowers particles and turns off screen shake.</div>
+        </button>
         {btn("🏠 Title screen", askHome, { tall: true })}
         {btn("Close", () => setMenuOpen(false), { tone: "primary", tall: true })}
       </div>
@@ -6622,7 +6660,7 @@ export default function DungeonOfEchoes() {
       drawRef.current(false);
       if (currentAbPop() && (AB_POPS[0]?.ts ?? 0) !== (I as Inp & { abTs?: number }).abTs) { (I as Inp & { abTs?: number }).abTs = AB_POPS[0]?.ts; setToast(`✨ New ability unlocked: ${currentAbPop()!.name}`); }
       if ((gg.screen as Screen) !== "map" || was !== !!gg.combat) { I.rT = 0; refresh(); }
-      else if (chg || PARTS.length || FLASH_T > 0 || currentAbPop() || livePulses(Date.now()).length || gg.buffs.fury > 0 || gg.buffs.iron > 0 || (gg.buffs.pethaste ?? 0) > 0) { I.rT += dt; if (I.rT >= ((gg.combat && !PARTS.length) ? 0.066 : 0.033)) { I.rT = 0; refresh(); } }
+      else if (chg || PARTS.length || currentAbPop() || livePulses(Date.now()).length || gg.buffs.fury > 0 || gg.buffs.iron > 0 || (gg.buffs.pethaste ?? 0) > 0) { I.rT += dt; if (I.rT >= ((gg.combat && !PARTS.length) ? 0.066 : 0.033)) { I.rT = 0; refresh(); } }
     } else return;
     I.saveT += dt;
     if (I.saveT >= 1.5 || (gg.screen as Screen) === "dead") { I.saveT = 0; LAST_SAVE = saveRun(gg); }
@@ -6854,7 +6892,7 @@ export default function DungeonOfEchoes() {
     const hud = (
     <div style={{ ...card, display: "flex", flexDirection: "column", gap: 6, position: "relative" }}>
       {g.screen !== "map" && fxLayer(g, "p")}
-      {g.hurtTs && Date.now() - g.hurtTs < 700 ? splat(g.hurtTs % 100000) : null}
+      {!REDUCE_FX && g.hurtTs && Date.now() - g.hurtTs < 700 ? splat(g.hurtTs % 100000) : null}
       <div style={{ ...row, justifyContent: "space-between", fontSize: 13 }}>
         <span style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 42, height: 42, flex: "0 0 auto", borderRadius: 8, background: "radial-gradient(circle at 50% 40%, #3a2a1a, #0d0a10 80%)", border: "1px solid #5a3a2a", overflow: "hidden" }}>{spr(g.cls, 42)}</span><span data-player-name="1">{playerName(g)}</span> · {CLS[g.cls].name} · Lv {g.lvl}</span>
         <span>{g.mode === "story" ? `🏰 Floor ${g.floor}/${STORY_END}` : `∞ Depth ${g.floor}`}</span>
@@ -7415,10 +7453,10 @@ export default function DungeonOfEchoes() {
     const ghost = kind === "wraith" || kind === "shade" || kind === "lich";
     const chasing = mm.awake && vis;
     const sty: CSSProperties | undefined = !vis && mm.boss ? { filter: "brightness(0)", opacity: 0.55 } : mm.stun > 0 ? { opacity: 0.6 } : mm.el ? { filter: "drop-shadow(0 0 7px rgba(255,40,40,1)) drop-shadow(0 0 14px rgba(255,180,50,.8))" } : mm.boss ? { filter: "drop-shadow(0 0 8px rgba(180,0,40,1)) drop-shadow(0 0 16px rgba(120,20,80,.85))" } : { filter: "drop-shadow(0 2px 3px rgba(0,0,0,.9))" };
-    const anim = ghost ? "doeFlicker 2.1s ease-in-out infinite" : chasing ? "doeLean 0.7s ease-in-out infinite" : "doeBreath 2.4s ease-in-out infinite";
+    const anim = REDUCE_FX ? undefined : ghost ? "doeFlicker 2.1s ease-in-out infinite" : chasing ? "doeLean 0.7s ease-in-out infinite" : "doeBreath 2.4s ease-in-out infinite";
     objs.push(
       <div key={`m${mm.id}`} data-mon={kind} data-elite={mm.el ? "1" : undefined} style={{ ...tPos(mfx - 0.5, mfy - 0.5), overflow: "visible" }}>
-        {mm.el || mm.boss ? <div style={{ position: "absolute", left: "-20%", top: "-10%", width: "140%", height: "120%", borderRadius: "50%", background: mm.el ? "radial-gradient(circle, rgba(180,20,20,.35), rgba(255,140,40,.12) 45%, transparent 70%)" : "radial-gradient(circle, rgba(80,0,0,.4), transparent 70%)", animation: "doeAura 1.6s ease-in-out infinite", pointerEvents: "none" }} /> : null}
+        {!REDUCE_FX && (mm.el || mm.boss) ? <div style={{ position: "absolute", left: "-20%", top: "-10%", width: "140%", height: "120%", borderRadius: "50%", background: mm.el ? "radial-gradient(circle, rgba(180,20,20,.35), rgba(255,140,40,.12) 45%, transparent 70%)" : "radial-gradient(circle, rgba(80,0,0,.4), transparent 70%)", animation: "doeAura 1.6s ease-in-out infinite", pointerEvents: "none" }} /> : null}
         <div style={{ position: "absolute", inset: mm.boss ? "-16% -10% 0" : "-10% -6% 0", transformOrigin: "50% 88%", animation: anim, overflow: "visible" }}>{spr(kind, "100%", sty)}</div>
       </div>
     );
@@ -7471,7 +7509,7 @@ export default function DungeonOfEchoes() {
       objs.push(
         <div key={`e${e.uid}`} data-enemy={e.uid} data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLDivElement>) => { ev.preventDefault(); ev.stopPropagation(); run((gg: Game) => { const cc = gg.combat; if (!cc) return; const k = cc.enemies.findIndex((x: Enemy) => x.uid === e.uid && !x.dead); if (k >= 0) cc.target = k; }); }} style={{ ...wBox(ex, ey, sz), zIndex: 4, pointerEvents: "auto", cursor: "pointer", overflow: "visible" }}>
           {on && <div style={{ position: "absolute", inset: "-12%", borderRadius: "50%", border: "2px dashed #ffcc4d", pointerEvents: "none" }} />}
-          <div style={{ position: "absolute", inset: e.boss ? "-8% -4% 0" : "-8% -4% 0", transformOrigin: "50% 88%", filter: e.stun > 0 ? "brightness(1.5) saturate(.4)" : e.elite ? "drop-shadow(0 0 7px rgba(255,40,40,1)) drop-shadow(0 0 14px rgba(255,180,50,.8))" : e.boss ? "drop-shadow(0 0 9px rgba(180,0,40,1)) drop-shadow(0 0 16px rgba(120,20,80,.85))" : "drop-shadow(0 2px 3px rgba(0,0,0,.9))", animation: (e.wk === "cast" || e.wk === "hex" || e.wk === "spit") && (e.wind ?? 0) > 0 ? "doePulse .4s infinite" : (e.wk === "melee" && (e.wind ?? 0) > 0) ? "doeLean 0.45s ease-in-out infinite" : (sprOf(e) === "wraith" || sprOf(e) === "shade" || sprOf(e) === "lich") ? "doeFlicker 2.1s ease-in-out infinite" : "doeBreath 2.4s ease-in-out infinite" }}>{spr(sprOf(e), "100%")}</div>
+          <div style={{ position: "absolute", inset: e.boss ? "-8% -4% 0" : "-8% -4% 0", transformOrigin: "50% 88%", filter: e.stun > 0 ? (REDUCE_FX ? "saturate(.75)" : "brightness(1.15) saturate(.7)") : e.elite ? "drop-shadow(0 0 7px rgba(255,40,40,1)) drop-shadow(0 0 14px rgba(255,180,50,.8))" : e.boss ? "drop-shadow(0 0 9px rgba(180,0,40,1)) drop-shadow(0 0 16px rgba(120,20,80,.85))" : "drop-shadow(0 2px 3px rgba(0,0,0,.9))", animation: REDUCE_FX ? undefined : (e.wk === "cast" || e.wk === "hex" || e.wk === "spit") && (e.wind ?? 0) > 0 ? "doePulse .4s infinite" : (e.wk === "melee" && (e.wind ?? 0) > 0) ? "doeLean 0.45s ease-in-out infinite" : (sprOf(e) === "wraith" || sprOf(e) === "shade" || sprOf(e) === "lich") ? "doeFlicker 2.1s ease-in-out infinite" : "doeBreath 2.4s ease-in-out infinite" }}>{spr(sprOf(e), "100%")}</div>
           <div style={{ position: "absolute", left: "5%", right: "5%", top: "-14%", height: 4, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden", outline: e.elite ? "1px solid #ffcc4d" : undefined }}><div style={{ width: `${(Math.max(0, e.hp) / e.max) * 100}%`, height: "100%", background: e.boss ? "#a855f7" : e.elite ? "#f5a524" : "#e5484d" }} /></div>
           {e.elite && <div data-elite="1" style={{ position: "absolute", left: "50%", top: "-28%", transform: "translateX(-50%)", fontSize: 8, letterSpacing: 0.6, fontWeight: 800, color: "#c9a24a", textShadow: "0 1px 2px #000", pointerEvents: "none", fontFamily: "Palatino, Georgia, serif" }}>ELITE</div>}
           {(e.stun > 0 || e.burnT > 0 || e.poisT > 0) && <div style={{ position: "absolute", left: 0, right: 0, bottom: "-30%", textAlign: "center", fontSize: 8, fontWeight: 800, letterSpacing: 0.4, pointerEvents: "none", textShadow: "0 1px 2px #000" }}>{e.stun > 0 ? <span style={{ color: "#c9a24a" }}>STUN </span> : null}{e.burnT > 0 ? <span style={{ color: "#b45020" }}>BRN </span> : null}{e.poisT > 0 ? <span style={{ color: "#5a6a38" }}>PSN</span> : null}</div>}
@@ -7532,7 +7570,6 @@ export default function DungeonOfEchoes() {
   const mapView = (): ReactNode => (
       <div style={{ position: "absolute", inset: 0, overflow: "hidden", width: "100%", height: "100%", background: "#07060a" }}>
         <canvas ref={mapCv} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", imageRendering: "pixelated" }} />
-        {FLASH_T > 0 ? <div data-flash="1" style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "#f4f1ea", opacity: Math.min(0.62, FLASH_T * 5), zIndex: 8 }} /> : null}
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(circle at 50% 50%, ${bio === "warren" ? "rgba(255,150,60,.10)" : "rgba(90,110,140,.10)"} 0, rgba(0,0,0,0) ${2.6 * tilePx}px), radial-gradient(circle at 50% 50%, rgba(0,0,0,0) ${1.15 * tilePx}px, rgba(0,0,0,.82) ${(R + 0.85) * tilePx}px)` }} />
         <div ref={worldEl} style={{ position: "absolute", left: 0, top: 0, width: `${(W / VTX) * 100}%`, height: `${(H / VTY) * 100}%`, transform: worldTf(g), pointerEvents: "none", willChange: "transform" }}>{objs}</div>
         <div data-hero="1" style={{ position: "absolute", left: "50%", top: "50%", width: tileW, height: tileH, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 2px rgba(0,0,0,.9)) drop-shadow(0 6px 4px rgba(0,0,0,.75))", opacity: c && (c.iT ?? 0) > 0 ? 0.55 : 1, zIndex: 4, overflow: "visible" }}>
@@ -7579,7 +7616,6 @@ export default function DungeonOfEchoes() {
             {g.fx.filter((x: Fx) => x.at === "p" && nowMs - x.ts < 1000).map((x: Fx) => <span key={x.id} style={{ animation: "doeFloat 1s ease-out forwards", fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000" }}>{x.text}</span>)}
           </div>
         </div>
-        {g.hurtTs && nowMs - g.hurtTs < 700 ? <div key={`h${g.hurtTs}`} style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse at center, transparent 40%, rgba(190,0,0,.5) 100%)", animation: "doeFlash .55s ease-out forwards", zIndex: 6 }} /> : null}
         {(g.buffs.fury > 0 || g.buffs.iron > 0) ? (
           <div data-scrollbuffs="1" style={{ position: "absolute", left: "max(8px, env(safe-area-inset-left))", top: c ? "max(94px, calc(env(safe-area-inset-top) + 86px))" : "max(64px, calc(env(safe-area-inset-top) + 56px))", display: "flex", gap: 6, pointerEvents: "none", zIndex: 7 }}>
             {g.buffs.fury > 0 && <span title="Scroll of Fury: +50% ATK" style={{ padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#fff0d0", background: "rgba(80,30,10,.78)", border: "1px solid rgba(255,180,80,.7)", textShadow: "0 1px 2px #000" }}>📜 Fury {fmtBuff(g.buffs.fury)}</span>}
@@ -7587,15 +7623,15 @@ export default function DungeonOfEchoes() {
           </div>
         ) : null}
         {c ? <div data-incombat="1" style={{ position: "absolute", left: "max(8px, env(safe-area-inset-left))", top: "max(64px, calc(env(safe-area-inset-top) + 56px))", padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#ffe0d0", background: "rgba(120,10,10,.72)", border: "1px solid rgba(255,90,70,.7)", textShadow: "0 1px 2px #000", pointerEvents: "none", zIndex: 7 }}>{alive(c).length === 0 ? "✅ Clear…" : cBoss ? `☠️ ${cBoss.name.replace(/^The /, "")} · Phase ${c.phase}/${cBoss.bk === "lord" ? 3 : 2}` : `⚔️ In combat · ${alive(c).length}`}{(g.buffs.hex ?? 0) > 0 ? " · 🌀 Hexed" : ""}</div> : null}
-        {c && c.charging ? <div style={{ position: "absolute", left: 0, right: 0, top: "30%", textAlign: "center", fontWeight: 800, fontSize: 12, color: "#ffb0ff", animation: "doePulse .8s infinite", textShadow: "0 1px 3px #000", pointerEvents: "none", zIndex: 7 }}>⚠️ CATACLYSM — leave the purple ring!</div> : null}
+        {c && c.charging ? <div style={{ position: "absolute", left: 0, right: 0, top: "30%", textAlign: "center", fontWeight: 800, fontSize: 12, color: "#ffb0ff", animation: REDUCE_FX ? undefined : "doePulse .8s infinite", textShadow: "0 1px 3px #000", pointerEvents: "none", zIndex: 7 }}>⚠️ CATACLYSM — leave the purple ring!</div> : null}
         <div style={{ position: "absolute", left: "50%", bottom: `${50 + 50 / VTY}%`, transform: "translateX(-50%)", display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 1, pointerEvents: "none", zIndex: 6 }}>
           {floats.map((x: Fx) => <span key={x.id} data-float="1" style={{ fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000, 0 0 2px #000", whiteSpace: "nowrap", animation: `doeRise 1.2s ease-out ${-(nowMs - x.ts)}ms forwards` }}>{x.text}</span>)}
         </div>
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
+        {!REDUCE_FX ? <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
           {bio === "warren"
             ? [0, 1, 2, 3, 4, 5, 6, 7].map((i: number) => <span key={i} style={{ position: "absolute", left: `${(i * 37 + 8) % 92}%`, top: `${60 + (i * 23) % 35}%`, width: 3 + (i % 3), height: 3 + (i % 3), borderRadius: "50%", background: i % 3 === 0 ? "rgba(230,230,240,.7)" : "rgba(160,255,90,.7)", opacity: 0, animation: `doeDrift ${5 + (i % 4)}s linear ${i * 0.7}s infinite` }} />)
             : [0, 1, 2].map((i: number) => <span key={i} style={{ position: "absolute", left: "-20%", width: "140%", top: `${10 + i * 30}%`, height: "30%", background: "radial-gradient(ellipse at center, rgba(150,70,220,.22), transparent 70%)", animation: `doeMist ${9 + i * 3}s ease-in-out ${i}s infinite alternate` }} />)}
-        </div>
+        </div> : null}
         <button data-noj="1" data-minimap="1" aria-disabled={!!c} aria-label={c ? "Map locked in combat" : "Open map (M)"} title={c ? "Locked in combat" : "Map (M)"} onClick={c ? lockNote : toggleMap} style={{ position: "absolute", right: "max(8px, env(safe-area-inset-right))", top: "max(8px, env(safe-area-inset-top))", width: mini, height: mini, padding: 0, border: `1px solid ${c ? "rgba(255,90,70,.55)" : "rgba(255,230,180,.4)"}`, borderRadius: 8, background: "transparent", overflow: "hidden", zIndex: 8, cursor: c ? "default" : "pointer", boxShadow: "0 2px 8px rgba(0,0,0,.6)" }}>
           <canvas ref={miniCv} style={{ width: "100%", height: "100%", display: "block" }} />
           <span style={{ position: "absolute", left: 3, bottom: 1, fontSize: 9, fontWeight: 800, color: "rgba(255,240,210,.85)", textShadow: "0 1px 2px #000" }}>{c ? "🔒" : "M"}</span>
