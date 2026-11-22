@@ -60,7 +60,7 @@ interface Game {
 const W = 32, H = 32, R = 4, MAXINV = 24, STORY_END = 10;
 const POTION_ID = "c_hp1", POTION_HEAL_PCT = 35, POTION_DROP_CHANCE = 0.10, POTION_DROP_ELITE = 0.25;
 const RAR = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
-const RCOL = ["#9aa0a6", "#22a55b", "#3b82f6", "#a855f7", "#f59e0b"];
+const RCOL = ["#8a8680", "#5a7a58", "#5a6e88", "#6a5480", "#b8943a"];
 const GEAR: GearSlot[] = ["weapon", "armor", "helmet", "ring", "amulet"];
 const SLOT_ICON: Record<GearSlot, string> = { weapon: "⚔️", armor: "🛡️", helmet: "⛑️", ring: "💍", amulet: "📿" };
 const SLOT_NAME: Record<Slot, string> = { weapon: "Weapon", armor: "Armor", helmet: "Helmet", ring: "Ring", amulet: "Amulet", consumable: "Consumable" };
@@ -2013,6 +2013,95 @@ function addFx(g: Game, text: string, c: string, at: string): void { g.fx.push({
 const GOLDC = "#ffcc4d", XPC = "#c79bff";
 function gain(g: Game, text: string, color: string): void { addFx(g, text, color, "m"); }
 function rarCol(inv: Inv): string { return inv.ident ? RCOL[IT[inv.id].r] : "#d8cfc0"; }
+function rarGlow(r: number, ident = true): string | undefined {
+  if (!ident || r < 2) return undefined;
+  const c = RCOL[r];
+  return `0 0 6px ${c}55, inset 0 0 0 1px ${c}66`;
+}
+
+type PartKind = "spark" | "puff" | "crit" | "blood" | "ember";
+interface Part { id: number; x: number; y: number; vx: number; vy: number; life: number; max: number; col: string; r: number; kind: PartKind; ang: number; }
+const PARTS: Part[] = [];
+let PART_SEQ = 1;
+const PART_MAX = 64;
+let FLASH_T = 0;
+function triggerFlash(n = 0.12): void { FLASH_T = Math.max(FLASH_T, n); }
+
+function elemTint(g: Game): string {
+  const f = full(g);
+  let best = 0, col = "#8a8070";
+  const pairs: [number, string][] = [[f.fire, "#b45020"], [f.ice, "#6a8498"], [f.holy, "#c4b070"], [f.poison, "#5a6a38"]];
+  for (const [n, c] of pairs) if (n > best) { best = n; col = c; }
+  return col;
+}
+function atXY(g: Game, e?: { x?: number; y?: number } | null): [number, number] {
+  if (e) return [e.x ?? g.wx ?? g.px + 0.5, e.y ?? g.wy ?? g.py + 0.5];
+  if (g.combat) return [g.combat.px ?? g.wx ?? g.px + 0.5, g.combat.py ?? g.wy ?? g.py + 0.5];
+  return [g.wx ?? g.px + 0.5, g.wy ?? g.py + 0.5];
+}
+function addPart(x: number, y: number, kind: PartKind, col: string, ang: number, spd: number, life: number, r: number, up = 0): void {
+  if (PARTS.length >= PART_MAX) return;
+  PARTS.push({
+    id: PART_SEQ++, x, y,
+    vx: Math.cos(ang) * spd, vy: Math.sin(ang) * spd - up,
+    life, max: life, col, r, kind, ang,
+  });
+}
+function spawnBurst(x: number, y: number, mode: "hit" | "crit" | "death" | "cast", col: string): void {
+  const room = () => Math.max(0, PART_MAX - PARTS.length);
+  if (mode === "crit") triggerFlash(0.14);
+  const blood = ["#5a0a0c", "#7a1014", "#3a0608"];
+  if (mode === "hit" || mode === "crit") {
+    const sparks = Math.min(mode === "crit" ? 10 : 6, room());
+    for (let i = 0; i < sparks; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const spd = (mode === "crit" ? 1.6 : 1.1) + Math.random() * 2.0;
+      addPart(x, y, mode === "crit" && i < 5 ? "crit" : "spark", mode === "crit" ? "#f3efe6" : col, ang, spd, 0.18 + Math.random() * 0.14, 0.16 + Math.random() * 0.12, 0.15);
+    }
+    const drops = Math.min(mode === "crit" ? 8 : 6, room());
+    for (let i = 0; i < drops; i++) {
+      const ang = (Math.random() - 0.5) * 2.2;
+      addPart(x, y, "blood", blood[i % blood.length], ang, 0.5 + Math.random() * 1.1, 0.35 + Math.random() * 0.22, 0.10 + Math.random() * 0.08, -0.1);
+    }
+    if (mode === "crit") {
+      const em = Math.min(4, room());
+      for (let i = 0; i < em; i++) addPart(x, y, "ember", "#b45020", Math.random() * Math.PI * 2, 0.25 + Math.random() * 0.4, 0.45 + Math.random() * 0.2, 0.07 + Math.random() * 0.04, 0.7);
+    }
+    return;
+  }
+  if (mode === "death") {
+    const puffs = Math.min(8, room());
+    for (let i = 0; i < puffs; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      addPart(x, y, "puff", "#3a3630", ang, 0.25 + Math.random() * 0.7, 0.5 + Math.random() * 0.25, 0.28 + Math.random() * 0.18, 0.35);
+    }
+    const drops = Math.min(6, room());
+    for (let i = 0; i < drops; i++) addPart(x, y, "blood", blood[i % blood.length], Math.random() * Math.PI * 2, 0.4 + Math.random() * 0.9, 0.4, 0.1 + Math.random() * 0.08, 0);
+    const em = Math.min(4, room());
+    for (let i = 0; i < em; i++) addPart(x, y, "ember", "#8a4a20", Math.random() * Math.PI * 2, 0.2 + Math.random() * 0.4, 0.5, 0.06 + Math.random() * 0.04, 0.55);
+    return;
+  }
+  const n = Math.min(8, room());
+  for (let i = 0; i < n; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    addPart(x, y, "spark", col, ang, 0.9 + Math.random() * 1.4, 0.22 + Math.random() * 0.14, 0.14 + Math.random() * 0.1, 0.1);
+  }
+  const em = Math.min(3, room());
+  for (let i = 0; i < em; i++) addPart(x, y, "ember", col === "#b45020" ? "#b45020" : "#8a6a40", Math.random() * Math.PI * 2, 0.2 + Math.random() * 0.35, 0.4, 0.06, 0.5);
+}
+function tickParts(dt: number): void {
+  if (FLASH_T > 0) FLASH_T = Math.max(0, FLASH_T - dt);
+  for (let i = PARTS.length - 1; i >= 0; i--) {
+    const p = PARTS[i];
+    p.life -= dt; p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.kind === "puff") { p.vx *= Math.max(0, 1 - 3 * dt); p.vy -= 0.5 * dt; p.r += 0.28 * dt; }
+    else if (p.kind === "ember") { p.vy -= 1.1 * dt; p.vx *= Math.max(0, 1 - 1.5 * dt); }
+    else if (p.kind === "blood") { p.vy += 5.5 * dt; p.vx *= Math.max(0, 1 - 2.5 * dt); }
+    else { p.vy += 1.4 * dt; p.vx *= Math.max(0, 1 - 1.2 * dt); }
+    if (p.life <= 0) PARTS.splice(i, 1);
+  }
+}
+
 
 // ---- item instances ----
 const NOUN: Record<string, string> = { "🪄": "Staff", "🏹": "Bow", "🔪": "Dagger", "🪓": "Axe", "🔨": "Mace", "🔱": "Scepter", "✨": "Wand" };
@@ -2727,6 +2816,7 @@ function hitEnemy(g: Game, e: Enemy, mult: number, forceCrit: boolean, label: st
   if (f.sp.includes("graveRot") && e.hp > 0) { e.poisT = Math.max(e.poisT, 4); e.poisD = Math.max(e.poisD, Math.max(f.poison, Math.round(f.atk * 0.25))); }
   log(g, `${label} → ${e.name}: ${dmg}${crit ? " CRIT! 🩸 Blood sprays!" : ""}`, "dmg");
   addFx(g, `-${dmg}${crit ? "!" : ""}`, crit ? "loot" : "dmg", "e" + e.uid);
+  { const [bx, by] = atXY(g, e); spawnBurst(bx, by, crit ? "crit" : "hit", crit ? "#f3efe6" : elemTint(g)); }
   if (f.ls > 0) healPlayer(g, Math.max(1, Math.round(dmg * f.ls / 100)), false);
   if (crit && f.sp.includes("critHeal")) healPlayer(g, Math.round(f.maxHp * 0.05), false);
   if (f.ice > 0 && e.hp > 0 && Math.random() < 0.1) stunE(g, e, 1.5);
@@ -2769,7 +2859,7 @@ function damagePlayer(g: Game, e: Enemy, raw: number, magic: boolean, verb: stri
   g.hp -= d;
   log(g, `${e.name} ${verb} you for ${d}.`, "bad");
   addFx(g, `-${d}`, "bad", "p");
-  if (d > 0) g.hurtTs = Date.now();
+  if (d > 0) { g.hurtTs = Date.now(); const [hx, hy] = atXY(g); spawnBurst(hx, hy, "hit", "#8a8070"); }
   if (d > 0 && f.sp.includes("shadowVeil")) b.veil = 3;
   const th = f.th / 100 + (f.sp.includes("thorns") ? 0.25 : 0) + (f.sp.includes("thorns15") ? 0.15 : 0) + (g.perks.includes("juggernaut") ? 0.35 : 0);
   if (th > 0 && e.hp > 0) { const r = Math.max(1, Math.round(total * th)); e.hp -= r; log(g, `Thorns reflect ${r} to ${e.name}.`, "dmg"); }
@@ -2783,6 +2873,7 @@ function resolveDeaths(g: Game): void {
   for (const e of c.enemies) {
     if (e.dead || e.hp > 0) continue;
     e.dead = true; e.hp = 0; e.wind = 0; e.wk = ""; e.dt0 = Date.now(); g.kills++;
+    { const [dx, dy] = atXY(g, e); spawnBurst(dx, dy, "death", e.undead ? "#b8d080" : "#c8bfb0"); }
     if (full(g).sp.includes("bloodlust")) { const h = healPlayer(g, Math.max(1, Math.round(full(g).maxHp * 0.08)), false); if (h > 0) { log(g, `🩸 Bloodlust heals ${h}.`, "heal"); addFx(g, `+${h}`, "heal", "p"); } }
     if (full(g).sp.includes("reapSoul")) { const F = full(g); const h = healPlayer(g, Math.max(1, Math.round(F.maxHp * 0.08)), false); const m = Math.max(1, Math.round(F.maxMp * 0.10)); g.mp = Math.min(F.maxMp, g.mp + m); if (h > 0) { log(g, `💀 Reaper's Kiss restores ${h} HP and ${m} MP.`, "heal"); addFx(g, `+${h}`, "heal", "p"); } }
     const ex = clampN(Math.floor(e.x ?? g.px + 0.5), 0, W - 1), ey = clampN(Math.floor(e.y ?? g.py + 0.5), 0, H - 1);
@@ -3052,6 +3143,7 @@ function rtAbility(g: Game, id: string): void {
   }
   if (c) combatAct(g, "ability", id);
   else useAbility(g, id);
+  { const tgt = c ? c.enemies[c.target] : undefined; const [cx, cy] = atXY(g, tgt && !tgt.dead ? tgt : null); spawnBurst(cx, cy, "cast", elemTint(g)); }
 }
 function dashSec(g: Game): number { return (g.cls === "rogue" ? 1.6 : 2.2) * (g.perks.includes("fleet") ? 0.75 : 1); }
 function rtDodge(g: Game, mx: number, my: number, I?: Inp): void {
@@ -3527,12 +3619,12 @@ function bakeTile(c: CanvasRenderingContext2D, g: Game, x: number, y: number, bi
   if (v === 0) {
     const anyOpen = !sol(0, 1) || !sol(0, -1) || !sol(1, 0) || !sol(-1, 0) || !sol(1, 1) || !sol(-1, 1) || !sol(1, -1) || !sol(-1, -1);
     const j = (r(1) - 0.5) * 10;
-    const tb = war ? [30, 36, 25] : [30, 24, 40];
+    const tb = war ? [22, 22, 18] : [20, 20, 26];
     c.fillStyle = rgbS(tb[0] + j, tb[1] + j, tb[2] + j); c.fillRect(X, Y, TS, TS);
     if (!anyOpen) { c.fillStyle = "rgba(0,0,0,.35)"; c.fillRect(X, Y, TS, TS); c.restore(); return; }
     for (let i = 0; i < 7; i++) { c.fillStyle = `rgba(0,0,0,${0.12 + r(10 + i) * 0.2})`; c.fillRect(X + r(20 + i) * TS, Y + r(30 + i) * TS, 2 + r(40 + i) * 4, 1 + r(50 + i) * 2); }
-    for (let i = 0; i < 3; i++) { c.fillStyle = war ? "rgba(150,180,110,.12)" : "rgba(170,140,220,.12)"; c.fillRect(X + r(60 + i) * TS, Y + r(65 + i) * TS, 3, 1); }
-    const rim = war ? "rgba(170,205,120,.4)" : "rgba(195,160,255,.4)";
+    for (let i = 0; i < 3; i++) { c.fillStyle = war ? "rgba(160,140,90,.12)" : "rgba(140,150,170,.12)"; c.fillRect(X + r(60 + i) * TS, Y + r(65 + i) * TS, 3, 1); }
+    const rim = "rgba(200,160,90,.28)";
     c.fillStyle = rim;
     if (!sol(0, -1)) c.fillRect(X, Y, TS, 2);
     if (!sol(-1, 0)) c.fillRect(X, Y, 2, TS);
@@ -3540,9 +3632,9 @@ function bakeTile(c: CanvasRenderingContext2D, g: Game, x: number, y: number, bi
     if (!sol(0, 1)) {
       const fy = Y + Math.round(TS * 0.38), fh = Y + TS - fy;
       const gr = c.createLinearGradient(0, fy, 0, Y + TS);
-      gr.addColorStop(0, war ? "#4d573a" : "#4b3e60"); gr.addColorStop(1, war ? "#20251a" : "#1f1828");
+      gr.addColorStop(0, war ? "#3a3a32" : "#32343c"); gr.addColorStop(1, war ? "#14140e" : "#121318");
       c.fillStyle = gr; c.fillRect(X, fy, TS, fh);
-      c.fillStyle = war ? "rgba(205,235,150,.5)" : "rgba(215,185,255,.5)"; c.fillRect(X, fy, TS, 1.5);
+      c.fillStyle = "rgba(200,170,110,.28)"; c.fillRect(X, fy, TS, 1.5);
       if (war) {
         for (let i = 0; i < 5; i++) { c.fillStyle = `rgba(0,0,0,${0.18 + r(100 + i) * 0.2})`; c.beginPath(); c.ellipse(X + r(110 + i) * TS, fy + 3 + r(120 + i) * (fh - 5), 3 + r(130 + i) * 5, 2 + r(140 + i) * 3, 0, 0, 7); c.fill(); }
         c.strokeStyle = "rgba(90,70,40,.7)"; c.lineWidth = 1; c.beginPath();
@@ -3553,8 +3645,8 @@ function bakeTile(c: CanvasRenderingContext2D, g: Game, x: number, y: number, bi
           const off = (ri % 2) * 8 + r(160 + ri) * 4;
           for (let bx = -16 + off; bx < TS; bx += 16) {
             const sh = (r(170 + ri * 5 + Math.round(bx)) - 0.5) * 16;
-            c.fillStyle = rgbS(64 + sh, 52 + sh, 80 + sh); c.fillRect(X + bx + 1, fy + 2 + ri * bh, 14, bh - 1.5);
-            c.fillStyle = "rgba(255,255,255,.06)"; c.fillRect(X + bx + 1, fy + 2 + ri * bh, 14, 1);
+            c.fillStyle = rgbS(48 + sh, 48 + sh, 56 + sh); c.fillRect(X + bx + 1, fy + 2 + ri * bh, 14, bh - 1.5);
+            c.fillStyle = "rgba(200,210,220,.06)"; c.fillRect(X + bx + 1, fy + 2 + ri * bh, 14, 1);
           }
         }
         if (r(180) < 0.35) { c.strokeStyle = "rgba(10,6,14,.8)"; c.lineWidth = 1; c.beginPath(); let cx = X + r(181) * TS, cy = fy + 2; c.moveTo(cx, cy); for (let k = 0; k < 4; k++) { cx += (r(182 + k) - 0.5) * 9; cy += fh / 4; c.lineTo(cx, cy); } c.stroke(); }
@@ -3567,7 +3659,7 @@ function bakeTile(c: CanvasRenderingContext2D, g: Game, x: number, y: number, bi
         c.fillStyle = "#0c0810"; c.beginPath(); c.moveTo(X + 10, Y + TS - 3); c.lineTo(X + 10, fy + 9); c.arc(X + 16, fy + 9, 6, Math.PI, 0); c.lineTo(X + 22, Y + TS - 3); c.closePath(); c.fill();
         candle(c, X + 16, Y + TS - 4, 6); if (lights) lights.push([x + 0.5, y + 0.6, 1]);
       } else if (war && d < 0.12) {
-        for (let i = 0; i < 3; i++) { const fx = X + 8 + r(190 + i) * 16, fyy = fy + 4 + r(195 + i) * (fh - 8); const gl = c.createRadialGradient(fx, fyy, 0, fx, fyy, 6); gl.addColorStop(0, "rgba(170,255,110,.8)"); gl.addColorStop(1, "rgba(120,255,80,0)"); c.fillStyle = gl; c.fillRect(fx - 6, fyy - 6, 12, 12); c.fillStyle = "#c8ff8a"; c.beginPath(); c.arc(fx, fyy, 1.6, 0, 7); c.fill(); }
+        for (let i = 0; i < 3; i++) { const fx = X + 8 + r(190 + i) * 16, fyy = fy + 4 + r(195 + i) * (fh - 8); const gl = c.createRadialGradient(fx, fyy, 0, fx, fyy, 6); gl.addColorStop(0, "rgba(140,130,60,.4)"); gl.addColorStop(1, "rgba(80,70,30,0)"); c.fillStyle = gl; c.fillRect(fx - 6, fyy - 6, 12, 12); c.fillStyle = "#6a6a38"; c.beginPath(); c.arc(fx, fyy, 1.6, 0, 7); c.fill(); }
         if (lights) lights.push([x + 0.5, y + 0.7, 2]);
       } else if (war && d < 0.3) {
         c.strokeStyle = "rgba(230,230,240,.45)"; c.lineWidth = 0.7; c.beginPath();
@@ -3579,47 +3671,49 @@ function bakeTile(c: CanvasRenderingContext2D, g: Game, x: number, y: number, bi
   }
   // ----- floor -----
   if (war) {
-    c.fillStyle = "#151a10"; c.fillRect(X, Y, TS, TS);
-    const j = (r(1) - 0.5) * 10;
-    const n = 3 + Math.floor(r(2) * 3);
+    c.fillStyle = "#12110c"; c.fillRect(X, Y, TS, TS);
+    const j = (r(1) - 0.5) * 8;
+    const n = 4 + Math.floor(r(2) * 3);
     for (let i = 0; i < n; i++) {
-      const cx = X + 4 + r(300 + i) * 24, cy = Y + 4 + r(310 + i) * 24, rx = 6 + r(320 + i) * 7, ry = 5 + r(330 + i) * 6, sh = (r(340 + i) - 0.5) * 14 + j;
-      c.fillStyle = rgbS(44 + sh, 50 + sh, 34 + sh); c.beginPath(); c.ellipse(cx, cy, rx, ry, r(350 + i) * 3, 0, 7); c.fill();
-      c.fillStyle = "rgba(255,255,230,.05)"; c.beginPath(); c.ellipse(cx - 1, cy - 1.5, rx * 0.7, ry * 0.5, r(350 + i) * 3, 0, 7); c.fill();
+      const sx = X + r(300 + i) * 22, sy = Y + r(310 + i) * 22, sw = 5 + r(320 + i) * 9, shh = 4 + r(330 + i) * 7, sh = (r(340 + i) - 0.5) * 10 + j;
+      c.fillStyle = rgbS(38 + sh, 36 + sh, 28 + sh); c.fillRect(sx, sy, sw, shh);
+      c.fillStyle = "rgba(200,190,150,.05)"; c.fillRect(sx, sy, sw, 1);
     }
-    if (r(3) < 0.35) { c.strokeStyle = "rgba(5,8,3,.75)"; c.lineWidth = 1; c.beginPath(); let cx = X + r(360) * TS, cy = Y + r(361) * TS; c.moveTo(cx, cy); for (let k = 0; k < 4; k++) { cx += (r(362 + k) - 0.5) * 14; cy += (r(366 + k) - 0.5) * 14; c.lineTo(cx, cy); } c.stroke(); }
-    for (let i = 0; i < 6; i++) { c.fillStyle = r(370 + i) < 0.5 ? "rgba(110,150,60,.35)" : "rgba(0,0,0,.3)"; c.fillRect(X + r(380 + i) * TS, Y + r(390 + i) * TS, 1.5, 1.5); }
+    if (r(3) < 0.62) { c.strokeStyle = "rgba(8,6,4,.8)"; c.lineWidth = 1; c.beginPath(); let cx = X + r(360) * TS, cy = Y + r(361) * TS; c.moveTo(cx, cy); for (let k = 0; k < 5; k++) { cx += (r(362 + k) - 0.5) * 12; cy += (r(366 + k) - 0.5) * 12; c.lineTo(cx, cy); } c.stroke(); }
+    for (let i = 0; i < 8; i++) { c.fillStyle = r(370 + i) < 0.35 ? "rgba(70,72,48,.35)" : "rgba(0,0,0,.35)"; c.fillRect(X + r(380 + i) * TS, Y + r(390 + i) * TS, 1.2, 1.2); }
+    if (r(8) < 0.14) { const gl = c.createRadialGradient(X + 10 + r(9) * 12, Y + 12 + r(11) * 10, 0, X + 16, Y + 16, 9); gl.addColorStop(0, "rgba(80,10,10,.4)"); gl.addColorStop(1, "rgba(80,10,10,0)"); c.fillStyle = gl; c.fillRect(X, Y, TS, TS); }
     const d = r(4);
     if (d < 0.06) {
       const ex = X + 8 + r(400) * 14, ey = Y + 8 + r(401) * 14;
-      for (let i = 0; i < 4; i++) { const ox = ex + (r(402 + i) - 0.5) * 10, oy = ey + (r(406 + i) - 0.5) * 9; c.fillStyle = "rgba(0,0,0,.35)"; c.beginPath(); c.ellipse(ox + 1, oy + 1.5, 3.2, 4, 0, 0, 7); c.fill(); c.fillStyle = "#d9d4bb"; c.beginPath(); c.ellipse(ox, oy, 3, 3.8, 0, 0, 7); c.fill(); c.fillStyle = "rgba(255,255,255,.55)"; c.beginPath(); c.arc(ox - 1, oy - 1.5, 0.9, 0, 7); c.fill(); }
-      c.strokeStyle = "rgba(230,230,240,.35)"; c.lineWidth = 0.6; c.beginPath(); c.moveTo(ex - 8, ey - 6); c.lineTo(ex + 8, ey + 5); c.moveTo(ex + 7, ey - 7); c.lineTo(ex - 6, ey + 6); c.stroke();
+      for (let i = 0; i < 4; i++) { const ox = ex + (r(402 + i) - 0.5) * 10, oy = ey + (r(406 + i) - 0.5) * 9; c.fillStyle = "rgba(0,0,0,.4)"; c.beginPath(); c.ellipse(ox + 1, oy + 1.5, 3.2, 4, 0, 0, 7); c.fill(); c.fillStyle = "#b8ae90"; c.beginPath(); c.ellipse(ox, oy, 3, 3.8, 0, 0, 7); c.fill(); c.fillStyle = "rgba(255,255,230,.25)"; c.beginPath(); c.arc(ox - 1, oy - 1.5, 0.7, 0, 7); c.fill(); }
+      c.strokeStyle = "rgba(180,170,150,.28)"; c.lineWidth = 0.6; c.beginPath(); c.moveTo(ex - 8, ey - 6); c.lineTo(ex + 8, ey + 5); c.moveTo(ex + 7, ey - 7); c.lineTo(ex - 6, ey + 6); c.stroke();
     } else if (d < 0.12) bones(c, X, Y, r);
-    else if (d < 0.16) { const gl = c.createRadialGradient(X + 16, Y + 16, 0, X + 16, Y + 16, 11); gl.addColorStop(0, "rgba(120,170,40,.45)"); gl.addColorStop(1, "rgba(120,170,40,0)"); c.fillStyle = gl; c.fillRect(X, Y, TS, TS); }
+    else if (d < 0.16) { const gl = c.createRadialGradient(X + 16, Y + 16, 0, X + 16, Y + 16, 11); gl.addColorStop(0, "rgba(80,90,40,.22)"); gl.addColorStop(1, "rgba(80,90,40,0)"); c.fillStyle = gl; c.fillRect(X, Y, TS, TS); }
     const corners: [number, number, number, number, number, number][] = [[-1, 0, 0, -1, 0, 0], [1, 0, 0, -1, 1, 0], [-1, 0, 0, 1, 0, 1], [1, 0, 0, 1, 1, 1]];
     corners.forEach((k: [number, number, number, number, number, number], i: number) => {
       if (sol(k[0], k[1]) && sol(k[2], k[3]) && r(420 + i) < 0.7) webCorner(c, X + k[4] * TS, Y + k[5] * TS, k[4] ? -1 : 1, k[5] ? -1 : 1, 12 + r(430 + i) * 8, 0.45);
     });
   } else {
-    c.fillStyle = "#120e17"; c.fillRect(X, Y, TS, TS);
+    c.fillStyle = "#0c0c10"; c.fillRect(X, Y, TS, TS);
     const j = (r(1) - 0.5) * 8;
     const pat = Math.floor(r(2) * 4);
     const sp = 0.4 + r(5) * 0.2;
     const slabs: [number, number, number, number][] = pat === 0 ? [[0, 0, 1, 1]] : pat === 1 ? [[0, 0, 1, sp], [0, sp, 1, 1 - sp]] : pat === 2 ? [[0, 0, sp, 1], [sp, 0, 1 - sp, 1]] : [[0, 0, sp, 0.5], [sp, 0, 1 - sp, 0.5], [0, 0.5, 1 - sp, 0.5], [1 - sp, 0.5, sp, 0.5]];
     slabs.forEach((s: [number, number, number, number], i: number) => {
       const sx = X + s[0] * TS + 1, sy = Y + s[1] * TS + 1, sw = s[2] * TS - 2, sh = s[3] * TS - 2, d = (r(500 + i) - 0.5) * 14 + j;
-      c.fillStyle = rgbS(50 + d, 43 + d, 60 + d); c.fillRect(sx, sy, sw, sh);
-      c.fillStyle = "rgba(255,240,255,.07)"; c.fillRect(sx, sy, sw, 1); c.fillRect(sx, sy, 1, sh);
+      c.fillStyle = rgbS(38 + d, 38 + d, 46 + d); c.fillRect(sx, sy, sw, sh);
+      c.fillStyle = "rgba(200,210,220,.06)"; c.fillRect(sx, sy, sw, 1); c.fillRect(sx, sy, 1, sh);
       c.fillStyle = "rgba(0,0,0,.35)"; c.fillRect(sx, sy + sh - 1, sw, 1); c.fillRect(sx + sw - 1, sy, 1, sh);
       if (r(510 + i) < 0.3) { c.fillStyle = "rgba(0,0,0,.18)"; c.beginPath(); c.ellipse(sx + r(520 + i) * sw, sy + r(530 + i) * sh, 3 + r(540 + i) * 4, 2 + r(545 + i) * 3, 0, 0, 7); c.fill(); }
     });
     if (r(3) < 0.3) { c.strokeStyle = "rgba(8,5,12,.85)"; c.lineWidth = 1; c.beginPath(); let cx = X + r(560) * TS, cy = Y + r(561) * TS; c.moveTo(cx, cy); for (let k = 0; k < 3; k++) { cx += (r(562 + k) - 0.5) * 16; cy += (r(566 + k) - 0.5) * 16; c.lineTo(cx, cy); } c.stroke(); }
-    for (let i = 0; i < 5; i++) { c.fillStyle = "rgba(200,190,220,.08)"; c.fillRect(X + r(570 + i) * TS, Y + r(580 + i) * TS, 1, 1); }
+    for (let i = 0; i < 5; i++) { c.fillStyle = "rgba(180,190,200,.08)"; c.fillRect(X + r(570 + i) * TS, Y + r(580 + i) * TS, 1, 1); }
+    if (r(8) < 0.16) { const glb = c.createRadialGradient(X + 8 + r(9) * 16, Y + 10 + r(11) * 12, 0, X + 16, Y + 16, 10); glb.addColorStop(0, "rgba(80,10,12,.42)"); glb.addColorStop(1, "rgba(80,10,12,0)"); c.fillStyle = glb; c.fillRect(X, Y, TS, TS); }
     const d = r(4);
     const nearWall = sol(0, -1) || sol(-1, 0) || sol(1, 0);
     if (d < 0.05) {
       c.save(); c.translate(X + 16, Y + 16); c.rotate(r(600) * 6.28);
-      c.strokeStyle = "rgba(150,90,220,.35)"; c.lineWidth = 1; c.beginPath(); c.arc(0, 0, 9, 0, 7); c.moveTo(0, -9); c.lineTo(7.8, 4.5); c.lineTo(-7.8, 4.5); c.closePath(); c.stroke(); c.restore();
+      c.strokeStyle = "rgba(90,110,140,.35)"; c.lineWidth = 1; c.beginPath(); c.arc(0, 0, 9, 0, 7); c.moveTo(0, -9); c.lineTo(7.8, 4.5); c.lineTo(-7.8, 4.5); c.closePath(); c.stroke(); c.restore();
     } else if (d < 0.1) bones(c, X, Y, r);
     else if (d < 0.13) skull(c, X + 10 + r(610) * 12, Y + 12 + r(611) * 10, 3.5);
     else if (nearWall && d < 0.24) {
@@ -3644,12 +3738,17 @@ function bakeTile(c: CanvasRenderingContext2D, g: Game, x: number, y: number, bi
     c.fillStyle = "rgba(255,255,255,.7)"; for (let i = 0; i < 4; i++) { c.beginPath(); c.arc(X + 6 + r(710 + i) * 20, Y + 6 + r(715 + i) * 20, 0.9, 0, 7); c.fill(); }
   } else if (v === 6) {
     const cx = X + 16, cy = Y + 16;
-    const gl = c.createRadialGradient(cx, cy, 2, cx, cy, 15); gl.addColorStop(0, "rgba(190,90,255,.45)"); gl.addColorStop(1, "rgba(120,40,200,0)"); c.fillStyle = gl; c.fillRect(X, Y, TS, TS);
+    const gl = c.createRadialGradient(cx, cy, 2, cx, cy, 15); gl.addColorStop(0, "rgba(90,110,140,.3)"); gl.addColorStop(1, "rgba(40,50,70,0)"); c.fillStyle = gl; c.fillRect(X, Y, TS, TS);
     c.save(); c.translate(cx, cy); c.rotate(r(720) * 6.28);
     c.strokeStyle = "#c27bff"; c.lineWidth = 1.4; c.beginPath(); c.arc(0, 0, 10, 0, 7); c.moveTo(0, -10); c.lineTo(8.7, 5); c.lineTo(-8.7, 5); c.closePath(); c.moveTo(0, -4); c.lineTo(0, 4); c.moveTo(-3, 0); c.lineTo(3, 0); c.stroke();
     c.restore();
   }
   c.restore();
+}
+function crisp(c: CanvasRenderingContext2D): void {
+  c.imageSmoothingEnabled = false;
+  const x = c as CanvasRenderingContext2D & { webkitImageSmoothingEnabled?: boolean; mozImageSmoothingEnabled?: boolean };
+  x.webkitImageSmoothingEnabled = false; x.mozImageSmoothingEnabled = false;
 }
 function artFor(g: Game): Art | null {
   const bio: Biome = g.biome ?? biomeOf(g.floor);
@@ -3657,6 +3756,7 @@ function artFor(g: Game): Art | null {
   if (typeof document === "undefined") return null;
   const cv = document.createElement("canvas"); cv.width = W * TS; cv.height = H * TS;
   const c = cv.getContext("2d"); if (!c) return null;
+  crisp(c);
   const lights: [number, number, number][] = [];
   const baked = new Int8Array(W * H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { bakeTile(c, g, x, y, bio, lights); baked[y * W + x] = g.map[y][x]; }
@@ -3667,33 +3767,35 @@ function litT(g: Game, x: number, y: number): boolean { const dx = x - g.px, dy 
 let VIEW_K = "", VIEW_T = 0;
 function drawView(cv: HTMLCanvasElement, g: Game, force: boolean): void {
   const art = artFor(g); if (!art) return;
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
-  // tile art is 32px per tile, so more canvas pixels than ~1.4x that add no detail, only fill cost; CSS scales it up
-  const cw = Math.min(Math.round(cv.clientWidth * dpr), Math.round(VTX * TS * 1.4)); if (!cw) return;
-  const ch = Math.min(Math.round(cv.clientHeight * dpr), Math.round(VTY * TS * 1.4)); if (!ch) return;
+  const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+  const cw = Math.max(1, Math.round(cv.clientWidth * dpr)); if (!cw) return;
+  const ch = Math.max(1, Math.round(cv.clientHeight * dpr)); if (!ch) return;
   if (cv.width !== cw || cv.height !== ch) { cv.width = cw; cv.height = ch; force = true; }
   // redraw when the camera moves or the view size changes; otherwise only ~12 times a second for candle flicker
   const key = `${(g.wx ?? 0).toFixed(3)},${(g.wy ?? 0).toFixed(3)},${g.floor},${g.px},${g.py},${VTX.toFixed(3)},${VTY.toFixed(3)},${cw}x${ch}`, tn = performance.now();
   if (!force && key === VIEW_K && tn - VIEW_T < 80) return;
   VIEW_K = key; VIEW_T = tn;
   const c = cv.getContext("2d"); if (!c) return;
+  crisp(c);
+  const bio: Biome = g.biome ?? biomeOf(g.floor), war = bio === "warren";
   const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
   // keep tiles square: never stretch even if the canvas is a pixel off the ideal aspect
   const s = Math.min(cw / VTX, ch / VTY), ox = (cw - s * VTX) / 2, oy = (ch - s * VTY) / 2;
   const x0 = px - VTX / 2, y0 = py - VTY / 2;
   const ac = art.cv.getContext("2d");
+  if (ac) crisp(ac);
   for (let ty = Math.max(0, Math.floor(y0)); ty <= Math.min(H - 1, Math.floor(y0 + VTY)); ty++) for (let tx = Math.max(0, Math.floor(x0)); tx <= Math.min(W - 1, Math.floor(x0 + VTX)); tx++) {
     if (art.baked[ty * W + tx] !== g.map[ty][tx] && ac) { bakeTile(ac, g, tx, ty, art.bio, null); art.baked[ty * W + tx] = g.map[ty][tx]; }
   }
   c.setTransform(1, 0, 0, 1, 0, 0);
-  c.fillStyle = "#07060a"; c.fillRect(0, 0, cw, ch);
+  c.fillStyle = "#050505"; c.fillRect(0, 0, cw, ch);
   const sx0 = Math.max(0, x0), sy0 = Math.max(0, y0), sx1 = Math.min(W, x0 + VTX), sy1 = Math.min(H, y0 + VTY);
   if (sx1 > sx0 && sy1 > sy0) c.drawImage(art.cv, sx0 * TS, sy0 * TS, (sx1 - sx0) * TS, (sy1 - sy0) * TS, ox + (sx0 - x0) * s, oy + (sy0 - y0) * s, (sx1 - sx0) * s, (sy1 - sy0) * s);
   for (let ty = Math.floor(y0); ty <= Math.floor(y0 + VTY); ty++) for (let tx = Math.floor(x0); tx <= Math.floor(x0 + VTX); tx++) {
     const inb = tx >= 0 && ty >= 0 && tx < W && ty < H;
     const dx = ox + (tx - x0) * s, dy = oy + (ty - y0) * s;
-    if (!inb || !g.seen[ty][tx]) { c.fillStyle = "#07060a"; c.fillRect(Math.floor(dx), Math.floor(dy), Math.ceil(s) + 1, Math.ceil(s) + 1); }
-    else if (!litT(g, tx, ty)) { c.fillStyle = "rgba(6,4,10,.62)"; c.fillRect(Math.floor(dx), Math.floor(dy), Math.ceil(s) + 1, Math.ceil(s) + 1); }
+    if (!inb || !g.seen[ty][tx]) { c.fillStyle = "#050505"; c.fillRect(Math.floor(dx), Math.floor(dy), Math.ceil(s) + 1, Math.ceil(s) + 1); }
+    else if (!litT(g, tx, ty)) { c.fillStyle = "rgba(0,0,0,.74)"; c.fillRect(Math.floor(dx), Math.floor(dy), Math.ceil(s) + 1, Math.ceil(s) + 1); }
   }
   c.globalCompositeOperation = "lighter";
   const now = performance.now() / 1000;
@@ -3703,29 +3805,48 @@ function drawView(cv: HTMLCanvasElement, g: Game, force: boolean): void {
     if (lx < 0 || ly < 0 || lx >= W || ly >= H || !g.seen[ly][lx]) return;
     const f = 0.75 + 0.25 * Math.sin(now * (7 + (i % 5)) + i * 1.7) * Math.sin(now * 3.1 + i);
     const gx = ox + (L[0] - x0) * s, gy = oy + (L[1] - y0) * s, rad = s * (L[2] === 2 ? 1.1 : 1.5);
-    const lg = c.createRadialGradient(gx, gy, 0, gx, gy, rad); lg.addColorStop(0, L[2] === 2 ? `rgba(140,255,90,${0.22 * f})` : `rgba(255,180,90,${0.3 * f})`); lg.addColorStop(1, "rgba(0,0,0,0)");
+    const lg = c.createRadialGradient(gx, gy, 0, gx, gy, rad); lg.addColorStop(0, L[2] === 2 ? `rgba(160,150,70,${0.16 * f})` : `rgba(255,160,60,${0.36 * f})`); lg.addColorStop(1, "rgba(0,0,0,0)");
     c.fillStyle = lg; c.fillRect(gx - rad, gy - rad, rad * 2, rad * 2);
   });
   c.globalCompositeOperation = "source-over";
+  const txp = ox + (px - x0) * s, typ = oy + (py - y0) * s;
+  c.globalCompositeOperation = "lighter";
+  const torch = c.createRadialGradient(txp, typ, s * 0.25, txp, typ, s * (R + 0.4));
+  torch.addColorStop(0, "rgba(255,170,80,.14)");
+  torch.addColorStop(0.45, "rgba(255,120,40,.04)");
+  torch.addColorStop(1, "rgba(0,0,0,0)");
+  c.fillStyle = torch; c.fillRect(0, 0, cw, ch);
+  c.globalCompositeOperation = "multiply";
+  const veil = c.createRadialGradient(txp, typ, s * 1.05, txp, typ, Math.max(cw, ch) * 0.62);
+  veil.addColorStop(0, "rgb(255,236,214)");
+  veil.addColorStop(0.4, "rgb(170,150,130)");
+  veil.addColorStop(1, "rgb(18,14,12)");
+  c.fillStyle = veil; c.fillRect(0, 0, cw, ch);
+  c.globalCompositeOperation = "source-over";
+  const vg = c.createRadialGradient(cw * 0.5, ch * 0.5, Math.min(cw, ch) * 0.28, cw * 0.5, ch * 0.5, Math.max(cw, ch) * 0.7);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(1, "rgba(0,0,0,.55)");
+  c.fillStyle = vg; c.fillRect(0, 0, cw, ch);
 }
 function drawMini(cv: HTMLCanvasElement, g: Game, big: boolean): void {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const cw = Math.round(cv.clientWidth * dpr); if (!cw) return;
   if (cv.width !== cw || cv.height !== cw) { cv.width = cw; cv.height = cw; }
   const c = cv.getContext("2d"); if (!c) return;
+  crisp(c);
   const bio: Biome = g.biome ?? biomeOf(g.floor), war = bio === "warren";
   // the corner minimap follows the hero with a 16-tile window; the full map shows the whole floor
   const span = big ? W : 16, px0 = g.wx ?? g.px + 0.5, py0 = g.wy ?? g.py + 0.5;
   const ox = big ? 0 : clampN(px0 - span / 2, 0, W - span), oy = big ? 0 : clampN(py0 - span / 2, 0, H - span);
   const s = cw / span;
   c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cw, cw);
-  c.fillStyle = "rgba(6,5,10,.82)"; c.fillRect(0, 0, cw, cw);
+  c.fillStyle = "rgba(8,8,8,.9)"; c.fillRect(0, 0, cw, cw);
   c.translate(-ox * s, -oy * s);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     if (!g.seen[y][x]) continue;
     const v = g.map[y][x];
-    if (v === 0) { if (!solidT(g, x, y + 1) || !solidT(g, x, y - 1) || !solidT(g, x + 1, y) || !solidT(g, x - 1, y)) { c.fillStyle = war ? "#3b4630" : "#3d3150"; c.fillRect(x * s, y * s, s, s); } continue; }
-    c.fillStyle = litT(g, x, y) ? (war ? "#8b9b6a" : "#9a86b8") : (war ? "#5d6b47" : "#64557c");
+    if (v === 0) { if (!solidT(g, x, y + 1) || !solidT(g, x, y - 1) || !solidT(g, x + 1, y) || !solidT(g, x - 1, y)) { c.fillStyle = war ? "#2a2a24" : "#262830"; c.fillRect(x * s, y * s, s, s); } continue; }
+    c.fillStyle = litT(g, x, y) ? (war ? "#6a6a52" : "#5a6270") : (war ? "#3a3a30" : "#32343c");
     c.fillRect(x * s, y * s, s + 0.3, s + 0.3);
   }
   const dot = (x: number, y: number, col: string, r0: number): void => { c.fillStyle = col; c.beginPath(); c.arc(x * s, y * s, Math.max(1.5 * dpr, r0 * s), 0, 7); c.fill(); };
@@ -4843,7 +4964,7 @@ const HELP: [string, string][] = [
 ];
 
 // ---- dark-fantasy SVG sprites (viewBox 64x64, scale to any size) ----
-const BONE = "#ddd2b2", BONED = "#a3967a", BLOOD = "#7d0a10", BLOODB = "#b3141c", STEEL = "#8b94a3", STEELD = "#4a505c", STEELL = "#c3cad6", BLK = "#0d0a10";
+const BONE = "#c4b896", BONED = "#8e8268", BLOOD = "#6a080c", BLOODB = "#8a1016", STEEL = "#6e7682", STEELD = "#3a4048", STEELL = "#8e96a0", BLK = "#0a080c";
 function eye(x: number, y: number, c: string, r?: number): ReactNode {
   const rr = r ?? 1.1;
   return <g><circle cx={x} cy={y} r={rr * 4.2} fill={c} opacity={0.22} /><circle cx={x} cy={y} r={rr * 2.2} fill={c} opacity={0.45} /><circle cx={x} cy={y} r={rr * 0.85} fill={c} /><circle cx={x} cy={y} r={Math.max(0.35, rr * 0.28)} fill="#fff" opacity={0.9} /></g>;
@@ -4851,7 +4972,7 @@ function eye(x: number, y: number, c: string, r?: number): ReactNode {
 function blot(x: number, y: number, r: number, c?: string): ReactNode {
   return <g fill={c ?? BLOODB} opacity={0.9}><circle cx={x} cy={y} r={r} /><circle cx={x + r * 0.9} cy={y + r * 0.5} r={r * 0.55} /><circle cx={x - r * 0.7} cy={y + r * 0.7} r={r * 0.4} /><rect x={x - r * 0.18} y={y} width={r * 0.36} height={r * 2.2} rx={r * 0.18} /></g>;
 }
-function shd(rx: number): ReactNode { return <ellipse cx={32} cy={60} rx={rx} ry={3} fill="#000" opacity={0.4} />; }
+function shd(rx: number): ReactNode { return <ellipse cx={32} cy={61} rx={rx * 1.15} ry={5.5} fill="#000" opacity={0.62} />; }
 function pud(cx: number, cy: number, rx: number, ry: number, c: string, op?: number): ReactNode {
   return <g fill={c} opacity={op ?? 0.9}><ellipse cx={cx} cy={cy} rx={rx} ry={ry} /><circle cx={cx + rx * 0.8} cy={cy - ry * 0.6} r={ry * 0.5} /><circle cx={cx - rx * 0.9} cy={cy + ry * 0.5} r={ry * 0.35} /><circle cx={cx + rx * 1.1} cy={cy + ry * 0.9} r={ry * 0.25} /></g>;
 }
@@ -4875,10 +4996,10 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M32 8 L46 30 L50 58 L14 58 L18 30 Z" fill="#4a2366" /><path d="M32 8 L40 24 L38 58 L26 58 L24 24 Z" fill="#1d1426" opacity={0.55} />
     <path d="M14 58 L18 52 L22 58 L26 53 L30 58 L34 52 L38 58 L42 53 L46 58 L50 52 L50 58 Z" fill={BLOOD} opacity={0.85} />
     <path d="M20 26 Q20 8 32 5 Q44 8 44 26 Q38 22 32 22 Q26 22 20 26 Z" fill="#3a1c52" /><ellipse cx="32" cy="20" rx="8" ry="7" fill={BLK} />
-    {eye(29, 20, "#5ff3ff", 1.1)}{eye(35, 20, "#5ff3ff", 1.1)}<path d="M30 25 L34 25 L32 28 Z" fill={BONED} opacity={0.6} />
+    {eye(29, 20, "#7a9aaa", 1.1)}{eye(35, 20, "#7a9aaa", 1.1)}<path d="M30 25 L34 25 L32 28 Z" fill={BONED} opacity={0.6} />
     <rect x="20" y="36" width="24" height="2.5" fill="#2a1a10" /><circle cx="32" cy="37.2" r="1.8" fill={BONE} />
     <rect x="11" y="10" width="2.6" height="50" fill="#3b2a1c" /><path d="M12.3 12 Q6 6 9 2 M12.3 12 Q19 6 16 2" fill="none" stroke={BONED} strokeWidth="1.2" />
-    <circle cx="12.3" cy="7" r="7" fill="#7cf0ff" opacity={0.25} /><circle cx="12.3" cy="7" r="3.2" fill="#9ff8ff" /><circle cx="12.3" cy="7" r="1.4" fill="#fff" />
+    <circle cx="12.3" cy="7" r="7" fill="#7a9aaa" opacity={0.25} /><circle cx="12.3" cy="7" r="3.2" fill="#8aadb0" /><circle cx="12.3" cy="7" r="1.4" fill="#fff" />
     <circle cx="14" cy="34" r="2.8" fill="#b9ac8e" />{blot(40, 46, 1.6)}{blot(24, 50, 1.1)}</g>),
   rogue: () => (<g>{shd(15)}
     <path d="M18 22 Q32 14 46 22 L50 56 L40 50 L32 58 L24 50 L14 56 Z" fill="#1f1a24" />
@@ -4946,7 +5067,7 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M22 48 Q30 40 40 48 Q34 52 28 50 Z" fill="#4a0d10" opacity={0.7} />
     <path d="M26 34 Q28 28 32 34" stroke={BONE} strokeWidth="1.4" fill="none" />
     <ellipse cx="30" cy="32" rx="4" ry="3.2" fill="#1a140c" /><path d="M27 32 L33 32 M30 30 L30 35" stroke={BONED} strokeWidth="0.7" />
-    {eye(24, 36, "#b6ff3a", 1.0)}{eye(38, 34, "#b6ff3a", 0.7)}
+    {eye(24, 36, "#7a8a3a", 1.0)}{eye(38, 34, "#7a8a3a", 0.7)}
     <path d="M20 56 Q22 62 24 56 M36 56 Q38 64 40 56 M44 52 Q46 60 48 52" fill="#3e6a18" />
     <circle cx="18" cy="44" r="2.2" fill="#0c1408" /><circle cx="46" cy="42" r="1.6" fill="#0c1408" />
   </g>),
@@ -4984,7 +5105,7 @@ const SPR: Record<string, () => ReactNode> = {
     <ellipse cx="32" cy="24" rx="9" ry="8" fill="#e6d8b0" />
     <path d="M26 22 Q32 20 38 22" stroke="#8a7a60" strokeWidth="0.8" fill="none" />
     <ellipse cx="29" cy="23" rx="2.4" ry="3" fill={BLK} /><ellipse cx="36" cy="23" rx="2.1" ry="2.6" fill={BLK} />
-    {eye(29.2, 23.2, "#7cff6a", 0.7)}
+    {eye(29.2, 23.2, "#6a8a50", 0.7)}
     <path d="M28 28 L30 30 L32 28 L34 31 L36 28" fill="none" stroke={BLK} strokeWidth="0.8" />
     <path d="M24 20 L22 14 M40 20 L44 12" stroke={BONE} strokeWidth="1.3" />
     {blot(40, 36, 1.0)}
@@ -5001,7 +5122,7 @@ const SPR: Record<string, () => ReactNode> = {
     <g>{eye(27, 34, "#ff2a2a", 0.55)}{eye(31, 32, "#ff2a2a", 0.5)}{eye(35, 32, "#ff2a2a", 0.5)}{eye(39, 34, "#ff2a2a", 0.55)}
     {eye(29, 36, "#ff2a2a", 0.4)}{eye(35, 36, "#ff2a2a", 0.4)}</g>
     <path d="M26 42 L22 48 M38 42 L42 48" stroke="#c8b89a" strokeWidth="1.4" />
-    <path d="M22 48 L20 52 M42 48 L44 53" stroke="#6aff3a" strokeWidth="1.1" opacity={0.8} />
+    <path d="M22 48 L20 52 M42 48 L44 53" stroke="#6a7a38" strokeWidth="1.1" opacity={0.8} />
   </g>),
   kobold: () => (<g>
     {shd(13)}
@@ -5012,7 +5133,7 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M26 26 Q34 28 40 24" fill="#2a2010" />
     {eye(30, 22, "#ffcc4d", 0.75)}{eye(38, 21, "#ffcc4d", 0.7)}
     <path d="M32 26 L30 30 L34 28 Z" fill="#1a1008" />
-    <path d="M44 32 L50 18" stroke="#6a5a40" strokeWidth="2" /><circle cx="50" cy="16" r="3.2" fill="#6aff3a" opacity={0.45} /><circle cx="50" cy="16" r="1.4" fill="#d8ff9a" />
+    <path d="M44 32 L50 18" stroke="#6a5a40" strokeWidth="2" /><circle cx="50" cy="16" r="3.2" fill="#6a7a38" opacity={0.45} /><circle cx="50" cy="16" r="1.4" fill="#8a9a68" />
     <path d="M20 34 L14 38 L20 40 Z" fill="#4a3820" />
   </g>),
   orc: () => (<g>
@@ -5033,17 +5154,17 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M20 58 Q16 36 28 24 Q32 8 36 22 Q50 30 46 58 Q36 64 20 58 Z" fill="#0e1c1c" opacity={0.92} />
     <path d="M24 54 Q28 36 32 28 Q38 36 42 54" fill="#143230" opacity={0.8} />
     <path d="M26 30 Q32 22 40 30 L38 40 Q32 36 26 40 Z" fill="#0a1212" />
-    <path d="M28 34 L36 34 M30 38 L34 38" stroke="#7cf0ff" strokeWidth="0.6" opacity={0.4} />
-    {eye(29, 28, "#7cf0ff", 0.7)}{eye(36, 27, "#7cf0ff", 0.65)}
-    <path d="M22 48 Q18 60 14 64 M42 50 Q50 62 56 66 M32 52 Q32 62 30 66" stroke="#7cf0ff" strokeWidth="1" opacity={0.35} fill="none" />
+    <path d="M28 34 L36 34 M30 38 L34 38" stroke="#7a9aaa" strokeWidth="0.6" opacity={0.4} />
+    {eye(29, 28, "#7a9aaa", 0.7)}{eye(36, 27, "#7a9aaa", 0.65)}
+    <path d="M22 48 Q18 60 14 64 M42 50 Q50 62 56 66 M32 52 Q32 62 30 66" stroke="#7a9aaa" strokeWidth="1" opacity={0.35} fill="none" />
   </g>),
   shade: () => (<g>
     <ellipse cx="32" cy="40" rx="18" ry="20" fill="#1a0a2a" opacity={0.4} />
     <path d="M18 58 Q14 30 30 16 Q40 6 44 22 Q54 30 48 58 Q34 66 18 58 Z" fill="#0a0614" />
     <path d="M26 28 Q34 10 42 26 Q36 22 32 24 Z" fill="#14081e" />
-    {eye(30, 26, "#d06bff", 0.65)}{eye(37, 24, "#d06bff", 0.85)}
+    {eye(30, 26, "#6a4a78", 0.65)}{eye(37, 24, "#6a4a78", 0.85)}
     <path d="M20 44 Q28 36 34 44 Q30 50 24 48 Z" fill="#2a1050" opacity={0.6} />
-    <path d="M16 50 Q8 62 4 66 M48 48 Q58 62 62 68" stroke="#b84aff" strokeWidth="1" opacity={0.35} fill="none" />
+    <path d="M16 50 Q8 62 4 66 M48 48 Q58 62 62 68" stroke="#6a4a78" strokeWidth="1" opacity={0.35} fill="none" />
   </g>),
   elf: () => (<g>
     {shd(13)}
@@ -5052,7 +5173,7 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M24 28 Q20 10 32 8 Q46 8 44 26 Q38 32 28 30 Z" fill="#3a2a38" />
     <path d="M22 16 L12 2 L26 18 M44 14 L56 0 L46 18" fill="#2a1a28" />
     <ellipse cx="32" cy="20" rx="6" ry="7" fill="#1a1014" />
-    {eye(29.5, 20, "#d06bff", 0.7)}{eye(35, 19, "#d06bff", 0.7)}
+    {eye(29.5, 20, "#6a4a78", 0.7)}{eye(35, 19, "#6a4a78", 0.7)}
     <path d="M30 25 L32 28 L34 25" fill="#4a0a10" />
     <path d="M44 32 L54 26" stroke="#2a1a28" strokeWidth="2.2" /><path d="M54 26 L60 18 L56 28 Z" fill={STEELD} />
     <path d="M22 40 L18 38 L22 44 Z" fill="#4a1a22" />
@@ -5074,9 +5195,9 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M18 30 Q32 0 46 30 Q38 22 32 22 Q26 22 18 30 Z" fill="#0e0a14" />
     <ellipse cx="32" cy="26" rx="6" ry="6" fill="#0a060c" />
     <path d="M28 24 L30 28 L32 24 L34 29 L36 24" stroke={BONE} strokeWidth="0.8" fill="none" />
-    {eye(30, 25, "#6aff3a", 0.7)}{eye(35, 25, "#6aff3a", 0.7)}
-    <path d="M44 38 L56 22" stroke="#3a2a1a" strokeWidth="2" /><path d="M54 18 L60 8 L58 22 Z" fill="#6aff3a" opacity={0.45} />
-    <circle cx="16" cy="40" r="3" fill="#6aff3a" opacity={0.3} /><path d="M16 44 L16 54" stroke="#6aff3a" strokeWidth="0.8" opacity={0.5} />
+    {eye(30, 25, "#6a7a38", 0.7)}{eye(35, 25, "#6a7a38", 0.7)}
+    <path d="M44 38 L56 22" stroke="#3a2a1a" strokeWidth="2" /><path d="M54 18 L60 8 L58 22 Z" fill="#6a7a38" opacity={0.45} />
+    <circle cx="16" cy="40" r="3" fill="#6a7a38" opacity={0.3} /><path d="M16 44 L16 54" stroke="#6a7a38" strokeWidth="0.8" opacity={0.5} />
   </g>),
   basil: () => (<g>
     {shd(22)}
@@ -5084,9 +5205,9 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M16 44 Q24 32 38 30 Q48 28 52 38 Q46 46 32 48 Q20 50 16 44 Z" fill="#2a4418" />
     <path d="M40 22 L46 10 L44 22 M48 20 L56 8 L50 22 M36 20 L34 8 L40 20" fill="#1a2a10" />
     <path d="M48 32 Q56 28 58 34 Q52 38 48 36 Z" fill="#4a0a10" />
-    {eye(42, 28, "#e8ff3a", 0.9)}{eye(50, 30, "#e8ff3a", 0.6)}
+    {eye(42, 28, "#8a8a3a", 0.9)}{eye(50, 30, "#8a8a3a", 0.6)}
     <path d="M50 36 L58 40 L52 38" fill={BONE} />
-    <path d="M58 40 L62 44" stroke="#6aff3a" strokeWidth="1.2" />
+    <path d="M58 40 L62 44" stroke="#6a7a38" strokeWidth="1.2" />
     {blot(28, 44, 1.0, "#4a6a10")}
   </g>),
   demon: () => (<g>
@@ -5110,9 +5231,9 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M20 22 L16 6 L24 16 M44 22 L50 4 L42 16 M32 12 L32 2" stroke={BONE} strokeWidth="2" strokeLinecap="round" />
     <ellipse cx="32" cy="22" rx="9" ry="8" fill="#e8dcc0" />
     <ellipse cx="29" cy="21" rx="2.3" ry="3" fill={BLK} /><ellipse cx="36" cy="21" rx="2.3" ry="3" fill={BLK} />
-    {eye(29, 21, "#d06bff", 0.75)}{eye(36, 21, "#d06bff", 0.75)}
+    {eye(29, 21, "#6a4a78", 0.75)}{eye(36, 21, "#6a4a78", 0.75)}
     <path d="M28 26 L30 29 L32 26 L34 29 L36 26" stroke={BLK} strokeWidth="0.8" fill="none" />
-    <path d="M42 36 L54 16" stroke="#3a2a4a" strokeWidth="2" /><circle cx="55" cy="14" r="5" fill="#d06bff" opacity={0.35} /><circle cx="55" cy="14" r="2" fill="#f0d0ff" />
+    <path d="M42 36 L54 16" stroke="#3a2a4a" strokeWidth="2" /><circle cx="55" cy="14" r="5" fill="#6a4a78" opacity={0.35} /><circle cx="55" cy="14" r="2" fill="#9a80a8" />
   </g>),
   wyvern: () => (<g>
     {shd(20)}
@@ -5140,7 +5261,7 @@ const SPR: Record<string, () => ReactNode> = {
     {eye(24, 30, "#ff1a1a", 0.7)}{eye(30, 26, "#ff1a1a", 0.6)}{eye(36, 26, "#ff1a1a", 0.6)}{eye(42, 30, "#ff1a1a", 0.7)}
     {eye(28, 32, "#ff1a1a", 0.45)}{eye(38, 32, "#ff1a1a", 0.45)}
     <path d="M26 36 L20 44 M38 36 L44 44" stroke="#c8b89a" strokeWidth="1.6" />
-    <path d="M20 44 L16 50 M44 44 L48 51" stroke="#6aff3a" strokeWidth="1.1" opacity={0.75} />
+    <path d="M20 44 L16 50 M44 44 L48 51" stroke="#6a7a38" strokeWidth="1.1" opacity={0.75} />
   </g>),
   lord: () => (<g>
     <ellipse cx="32" cy="48" rx="26" ry="14" fill="#1a0a2a" opacity={0.5} />
@@ -5149,11 +5270,11 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M18 22 L8 0 L22 20 M46 22 L56 0 L44 20 M32 16 L32 2 M24 16 L20 4 M40 16 L44 4" stroke="#cfc3a0" strokeWidth="2.2" strokeLinecap="round" />
     <path d="M20 28 Q32 8 44 28 Q38 22 32 22 Z" fill="#0a0610" />
     <ellipse cx="32" cy="24" rx="8" ry="8" fill="#07040c" />
-    {eye(28.5, 24, "#f0e8ff", 0.85)}{eye(36, 24, "#f0e8ff", 0.85)}
+    {eye(28.5, 24, "#b0a8b8", 0.85)}{eye(36, 24, "#b0a8b8", 0.85)}
     <path d="M26 30 Q32 36 38 30" fill="#1a0a20" />
     <path d="M12 40 L4 36 L14 48 Z M52 40 L62 34 L50 50 Z" fill="#1a0e24" />
-    <path d="M24 44 L40 44" stroke="#d06bff" strokeWidth="0.8" opacity={0.5} />
-    <circle cx="32" cy="40" r="10" fill="#7a2aff" opacity={0.12} />
+    <path d="M24 44 L40 44" stroke="#6a4a78" strokeWidth="0.8" opacity={0.5} />
+    <circle cx="32" cy="40" r="10" fill="#5a3a68" opacity={0.12} />
   </g>),
   garcher: () => (<g>{SPR.goblin()}
     <path d="M6 16 Q-4 32 6 50" stroke="#3a2a1a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
@@ -5172,10 +5293,10 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M16 50 Q18 34 32 28 Q46 34 48 50 Q32 56 16 50 Z" fill="#2a4414" />
     <path d="M20 36 L12 20 L24 34 M44 36 L54 18 L42 34" fill="#1a2a0c" />
     <path d="M22 32 Q32 26 42 32 Q36 40 32 40 Q26 40 22 32 Z" fill="#0e1608" />
-    {eye(26, 34, "#b6ff3a", 0.9)}{eye(38, 34, "#b6ff3a", 0.9)}
+    {eye(26, 34, "#7a8a3a", 0.9)}{eye(38, 34, "#7a8a3a", 0.9)}
     <path d="M28 42 Q32 48 36 42" fill="#4a0a10" />
-    <circle cx="32" cy="48" r="3" fill="#8aff3a" opacity={0.7} />
-    <path d="M32 50 Q30 58 28 60 M34 50 Q38 58 40 62" stroke="#8aff3a" strokeWidth="1.2" fill="none" opacity={0.8} />
+    <circle cx="32" cy="48" r="3" fill="#6a7a38" opacity={0.7} />
+    <path d="M32 50 Q30 58 28 60 M34 50 Q38 58 40 62" stroke="#6a7a38" strokeWidth="1.2" fill="none" opacity={0.8} />
   </g>),
   hexer: () => (<g>
     {shd(14)}
@@ -5183,11 +5304,11 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M20 34 Q32 16 44 34 L42 50 Q32 56 22 50 Z" fill="#1e102c" />
     <path d="M18 28 Q32 2 46 28 Q38 20 32 20 Z" fill="#0c0814" />
     <ellipse cx="32" cy="24" rx="6" ry="6" fill="#07040c" />
-    {eye(29.5, 24, "#d06bff", 0.7)}{eye(35, 23, "#d06bff", 0.85)}
+    {eye(29.5, 24, "#6a4a78", 0.7)}{eye(35, 23, "#6a4a78", 0.85)}
     <path d="M30 28 Q32 32 35 28" fill="#2a1040" />
     <path d="M44 36 L56 22" stroke="#2a1638" strokeWidth="2.2" />
-    <circle cx="57" cy="20" r="6" fill="#c04cff" opacity={0.28} /><circle cx="57" cy="20" r="2.2" fill="#f0d0ff" />
-    <path d="M28 40 L36 40 M32 36 L32 46" stroke="#c04cff" strokeWidth="0.9" opacity={0.7} />
+    <circle cx="57" cy="20" r="6" fill="#6a4a78" opacity={0.28} /><circle cx="57" cy="20" r="2.2" fill="#9a80a8" />
+    <path d="M28 40 L36 40 M32 36 L32 46" stroke="#6a4a78" strokeWidth="0.9" opacity={0.7} />
   </g>),
   pimp: () => (<g>{shd(11)}
     <path d="M22 50 Q20 34 32 32 Q44 34 42 50 Z" fill="#a8241a" /><circle cx="32" cy="26" r="9" fill="#c8301f" />
@@ -5195,28 +5316,28 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M18 36 Q8 30 12 22 Q16 30 22 32 Z M46 36 Q56 30 52 22 Q48 30 42 32 Z" fill="#6a140c" />
     <path d="M42 48 Q52 52 50 44" stroke="#a8241a" strokeWidth="2" fill="none" /><circle cx="46" cy="38" r="4" fill="#ff9a3a" opacity={0.7} /><circle cx="46" cy="38" r="2" fill="#fff0a0" /></g>),
   powl: () => (<g>{shd(12)}
-    <ellipse cx="32" cy="38" rx="12" ry="15" fill="#bfe8ff" opacity={0.85} /><ellipse cx="32" cy="42" rx="7" ry="9" fill="#eaf8ff" />
+    <ellipse cx="32" cy="38" rx="12" ry="15" fill="#8aa8b8" opacity={0.85} /><ellipse cx="32" cy="42" rx="7" ry="9" fill="#a0b4c0" />
     <path d="M20 32 Q10 38 14 50 Q20 44 22 40 Z M44 32 Q54 38 50 50 Q44 44 42 40 Z" fill="#8fc8f0" />
     <path d="M22 24 L24 18 L28 23 Z M42 24 L40 18 L36 23 Z" fill="#8fc8f0" /><circle cx="27" cy="29" r="4.2" fill="#fff" /><circle cx="37" cy="29" r="4.2" fill="#fff" />
     <circle cx="27" cy="29" r="2.2" fill="#1a3a6a" /><circle cx="37" cy="29" r="2.2" fill="#1a3a6a" /><path d="M31 32 L32 35 L33 32 Z" fill="#e0b03a" />
-    <circle cx="32" cy="36" r="18" fill="#9fd8ff" opacity={0.12} /></g>),
+    <circle cx="32" cy="36" r="18" fill="#7a9aaa" opacity={0.12} /></g>),
   phound: () => (<g>{shd(20)}
     <path d="M14 30 Q20 22 34 24 Q46 22 52 28 Q58 26 62 20 Q60 30 54 34 L54 48 L50 48 L49 38 Q40 40 30 39 L28 48 L24 48 L23 38 Q18 36 14 30 Z" fill={BONE} />
     <path d="M24 28 Q32 26 46 28 M26 32 Q34 30 46 32" stroke={BONED} strokeWidth="1.4" fill="none" />
     <path d="M4 30 L10 25 L14 18 L16 24 L22 22 Q24 32 18 36 L8 35 Z" fill="#e6dcc0" /><path d="M14 18 L16 11 L18 22 Z" fill={BONED} />
-    {eye(13, 27, "#7cf0ff", 1.1)}<path d="M4 31 L9 33 L8 35 L4 33 Z" fill={BLK} /><circle cx="13" cy="27" r="4" fill="#7cf0ff" opacity={0.18} /></g>),
-  stairs: () => (<g><rect x="6" y="6" width="52" height="52" rx="4" fill="#0a0806" /><rect x="9" y="10" width="46" height="9" fill="#5a5048" /><rect x="13" y="21" width="38" height="9" fill="#463e38" /><rect x="17" y="32" width="30" height="9" fill="#322c28" /><rect x="21" y="43" width="22" height="9" fill="#201c1a" /><circle cx="32" cy="50" r="10" fill="#b84aff" opacity={0.22} /></g>),
+    {eye(13, 27, "#7a9aaa", 1.1)}<path d="M4 31 L9 33 L8 35 L4 33 Z" fill={BLK} /><circle cx="13" cy="27" r="4" fill="#7a9aaa" opacity={0.18} /></g>),
+  stairs: () => (<g><rect x="6" y="6" width="52" height="52" rx="4" fill="#0a0806" /><rect x="9" y="10" width="46" height="9" fill="#5a5048" /><rect x="13" y="21" width="38" height="9" fill="#463e38" /><rect x="17" y="32" width="30" height="9" fill="#322c28" /><rect x="21" y="43" width="22" height="9" fill="#201c1a" /><circle cx="32" cy="50" r="10" fill="#6a4a78" opacity={0.22} /></g>),
   chest: () => (<g>{shd(22)}<rect x="10" y="26" width="44" height="28" rx="2" fill="#4a2e18" stroke="#2a1a0c" strokeWidth="1.5" /><path d="M10 26 Q32 10 54 26 Z" fill="#5a3a1e" stroke="#2a1a0c" strokeWidth="1.5" /><rect x="10" y="30" width="44" height="3" fill="#6a6e78" /><rect x="18" y="19" width="3" height="35" fill="#6a6e78" /><rect x="43" y="19" width="3" height="35" fill="#6a6e78" /><rect x="29" y="30" width="6" height="8" rx="1" fill="#c9a23a" />{blot(40, 42, 2)}</g>),
   merchant: () => (<g><ellipse cx="32" cy="58" rx="20" ry="4" fill="rgba(0,0,0,.45)" /><ellipse cx="16" cy="55" rx="9" ry="3.2" fill="#8a6010" /><ellipse cx="16" cy="52.5" rx="7" ry="2.6" fill="#e0b03a" stroke="#8a6010" strokeWidth="0.8" /><ellipse cx="19" cy="49.5" rx="5" ry="2" fill="#f0c84a" stroke="#8a6010" strokeWidth="0.8" /><path d="M20 57 L24 30 Q32 22 40 30 L44 57 Z" fill="#3a2a4a" stroke="#1a1020" strokeWidth="1.2" /><path d="M24 40 L40 40 L41 46 L23 46 Z" fill="#6a4a2a" /><circle cx="32" cy="43" r="1.6" fill="#e0b03a" /><path d="M22 31 Q32 8 42 31 Q37 27 32 27 Q27 27 22 31 Z" fill="#4a3460" stroke="#1a1020" strokeWidth="1.2" /><ellipse cx="32" cy="29" rx="6.5" ry="5" fill="#120a16" /><circle cx="29.6" cy="29" r="1.1" fill="#ffd77a" /><circle cx="34.4" cy="29" r="1.1" fill="#ffd77a" /><path d="M41 38 L49 36" stroke="#2a1a10" strokeWidth="2" strokeLinecap="round" /><line x1="49" y1="36" x2="49" y2="40" stroke="#2a1a10" strokeWidth="1" /><circle cx="49" cy="45" r="7" fill="rgba(255,190,90,.35)" /><rect x="46" y="40" width="6" height="8" rx="1.5" fill="#ffd77a" stroke="#6a4a10" strokeWidth="1" /><rect x="47.5" y="41.5" width="3" height="5" rx="1" fill="#fff4c0" /></g>),
   gold: () => (<g><ellipse cx="32" cy="50" rx="18" ry="6" fill="#6a4a10" /><ellipse cx="32" cy="46" rx="14" ry="6" fill="#b8861e" /><ellipse cx="26" cy="40" rx="7" ry="3" fill="#e0b03a" stroke="#8a6010" /><ellipse cx="38" cy="38" rx="7" ry="3" fill="#e0b03a" stroke="#8a6010" /><ellipse cx="32" cy="33" rx="7" ry="3" fill="#f0c84a" stroke="#8a6010" /><circle cx="35" cy="32" r="1.2" fill="#fff" opacity={0.8} /></g>),
   torch: () => (<g><rect x="30" y="30" width="4" height="18" fill="#3a2a1a" /><rect x="26" y="28" width="12" height="4" fill="#4a4e58" /><circle cx="32" cy="20" r="16" fill="#ff8a1a" opacity={0.22} /><path d="M32 28 Q24 20 30 10 Q31 16 34 14 Q40 20 32 28 Z" fill="#ff8a1a" /><path d="M32 27 Q28 22 31 16 Q33 20 34 19 Q36 23 32 27 Z" fill="#ffe08a" /></g>),
   web: () => (<g><g stroke="#d8d4e0" strokeWidth="1" fill="none" opacity={0.75}><path d="M4 4 L60 60 M60 4 L4 60 M32 2 L32 62 M2 32 L62 32" /><circle cx="32" cy="32" r="8" /><circle cx="32" cy="32" r="16" /><circle cx="32" cy="32" r="25" /></g><circle cx="21" cy="23" r="2.4" fill="#d8d4e0" opacity={0.7} />{blot(40, 40, 1.2)}</g>),
-  rune: () => (<g><circle cx="32" cy="32" r="22" fill="#7a2aff" opacity={0.18} /><circle cx="32" cy="32" r="18" fill="none" stroke="#b84aff" strokeWidth="2" /><path d="M32 16 L44 42 L20 42 Z" fill="none" stroke="#b84aff" strokeWidth="1.8" /><circle cx="32" cy="34" r="3" fill="#e0b0ff" /></g>),
-  eggs: () => (<g><path d="M12 46 Q32 56 52 46" stroke="#d8d4e0" strokeWidth="0.8" fill="none" opacity={0.6} /><g fill="#d8d0b0" stroke="#8a8270" strokeWidth="0.8"><ellipse cx="26" cy="40" rx="8" ry="6" /><ellipse cx="38" cy="38" rx="7" ry="5.5" /><ellipse cx="32" cy="30" rx="6" ry="5" /></g><g fill="#9dff3a" opacity={0.5}><circle cx="26" cy="40" r="2" /><circle cx="38" cy="38" r="1.6" /></g></g>),
+  rune: () => (<g><circle cx="32" cy="32" r="22" fill="#5a3a68" opacity={0.18} /><circle cx="32" cy="32" r="18" fill="none" stroke="#6a4a78" strokeWidth="2" /><path d="M32 16 L44 42 L20 42 Z" fill="none" stroke="#6a4a78" strokeWidth="1.8" /><circle cx="32" cy="34" r="3" fill="#8a6a9a" /></g>),
+  eggs: () => (<g><path d="M12 46 Q32 56 52 46" stroke="#d8d4e0" strokeWidth="0.8" fill="none" opacity={0.6} /><g fill="#d8d0b0" stroke="#8a8270" strokeWidth="0.8"><ellipse cx="26" cy="40" rx="8" ry="6" /><ellipse cx="38" cy="38" rx="7" ry="5.5" /><ellipse cx="32" cy="30" rx="6" ry="5" /></g><g fill="#7a8a3c" opacity={0.5}><circle cx="26" cy="40" r="2" /><circle cx="38" cy="38" r="1.6" /></g></g>),
   cocoon: () => (<g><path d="M32 4 L32 20" stroke="#d8d4e0" strokeWidth="0.8" /><ellipse cx="32" cy="36" rx="9" ry="16" fill="#d8d4e0" opacity={0.85} /><path d="M24 26 Q32 30 40 26 M23 34 Q32 38 41 34 M24 42 Q32 46 40 42" stroke="#a8a4b0" strokeWidth="1" fill="none" /><circle cx="32" cy="24" r="3" fill={BONE} />{blot(34, 50, 1.4)}</g>),
   wweb: () => (<g stroke="#d8d4e0" strokeWidth="1" fill="none" opacity={0.7}><path d="M0 0 L40 0 M0 0 L0 40 M0 0 L30 30 M0 0 L38 16 M0 0 L16 38" /><path d="M12 0 Q10 10 0 12 M24 0 Q20 20 0 24 M36 0 Q30 30 0 36" /></g>),
-  wfungus: () => (<g><circle cx="30" cy="40" r="18" fill="#6aff6a" opacity={0.15} /><rect x="20" y="40" width="4" height="12" fill="#cfd8b0" /><ellipse cx="22" cy="40" rx="9" ry="5" fill="#6aff6a" opacity={0.85} /><rect x="38" y="44" width="3" height="9" fill="#cfd8b0" /><ellipse cx="39.5" cy="44" rx="6" ry="3.5" fill="#9dff3a" /></g>),
-  candle: () => (<g><circle cx="32" cy="22" r="16" fill="#b84aff" opacity={0.2} /><rect x="22" y="36" width="20" height="4" fill="#3a3040" /><rect x="26" y="26" width="4" height="10" fill="#e8e0c8" /><rect x="34" y="28" width="4" height="8" fill="#e8e0c8" /><path d="M28 26 Q26 20 28 16 Q30 20 28 26 Z M36 28 Q34 22 36 18 Q38 22 36 28 Z" fill="#c27aff" /></g>),
+  wfungus: () => (<g><circle cx="30" cy="40" r="18" fill="#5a7a48" opacity={0.15} /><rect x="20" y="40" width="4" height="12" fill="#cfd8b0" /><ellipse cx="22" cy="40" rx="9" ry="5" fill="#5a7a48" opacity={0.85} /><rect x="38" y="44" width="3" height="9" fill="#cfd8b0" /><ellipse cx="39.5" cy="44" rx="6" ry="3.5" fill="#7a8a3c" /></g>),
+  candle: () => (<g><circle cx="32" cy="22" r="16" fill="#6a4a78" opacity={0.2} /><rect x="22" y="36" width="20" height="4" fill="#3a3040" /><rect x="26" y="26" width="4" height="10" fill="#e8e0c8" /><rect x="34" y="28" width="4" height="8" fill="#e8e0c8" /><path d="M28 26 Q26 20 28 16 Q30 20 28 26 Z M36 28 Q34 22 36 18 Q38 22 36 28 Z" fill="#7a5a88" /></g>),
   niche: () => (<g><path d="M18 50 L18 24 Q32 8 46 24 L46 50 Z" fill="#0d0a10" /><circle cx="32" cy="38" r="7" fill={BONE} /><circle cx="29.5" cy="37" r="1.6" fill={BLK} /><circle cx="34.5" cy="37" r="1.6" fill={BLK} /><rect x="29" y="43" width="6" height="3" fill={BONE} /></g>),
   tomb: () => (<g><rect x="14" y="16" width="36" height="34" rx="3" fill="#3a3448" stroke="#1a1522" strokeWidth="1.5" /><path d="M32 22 L32 40 M25 28 L39 28" stroke="#6a5a80" strokeWidth="2.4" /><path d="M14 30 L22 34 L18 42" stroke="#1a1522" strokeWidth="1" fill="none" /></g>),
   bonepile: () => (<g><g stroke={BONE} strokeWidth="2.6" strokeLinecap="round"><path d="M18 46 L30 40" /><path d="M34 48 L46 42" /><path d="M24 50 L40 50" /></g><circle cx="32" cy="38" r="6" fill={BONE} /><circle cx="30" cy="37.5" r="1.3" fill={BLK} /><circle cx="34" cy="37.5" r="1.3" fill={BLK} /></g>),
@@ -5226,31 +5347,32 @@ const REM: Record<string, () => ReactNode> = {
   gen: () => (<g>{pud(32, 38, 16, 9, "#5a080d")}{pud(30, 37, 9, 5, "#8f0d13")}</g>),
   rat: () => (<g>{pud(34, 40, 12, 7, "#5a080d")}<ellipse cx="30" cy="36" rx="8" ry="4.5" fill="#4a3f3a" /><path d="M38 36 Q46 32 50 38" stroke="#8a6a6a" strokeWidth="1.4" fill="none" /><path d="M24 38 L22 41 M28 39 L27 42" stroke="#3a302c" strokeWidth="1.4" /><path d="M28 34 Q31 37 34 34" stroke={BONED} strokeWidth="1" fill="none" /></g>),
   bat: () => (<g>{pud(32, 40, 10, 6, "#5a080d")}<path d="M22 36 Q28 30 32 36 Q36 30 42 36 Q36 40 32 38 Q28 40 22 36 Z" fill="#2a1830" /><circle cx="32" cy="37" r="2.4" fill="#3a2440" /></g>),
-  slime: () => (<g><path d="M8 44 Q10 30 24 34 Q34 26 46 34 Q58 34 56 46 Q44 54 30 50 Q14 54 8 44 Z" fill="#7d9e46" opacity={0.6} /><path d="M16 44 Q22 38 32 40 Q44 38 48 44 Q38 48 28 47 Z" fill="#4b6527" opacity={0.55} /><circle cx="36" cy="42" r="4" fill={BONE} opacity={0.65} /><circle cx="20" cy="40" r="1.6" fill="#c8ff8a" opacity={0.6} /><circle cx="46" cy="40" r="1.1" fill="#c8ff8a" opacity={0.6} /></g>),
+  slime: () => (<g><path d="M8 44 Q10 30 24 34 Q34 26 46 34 Q58 34 56 46 Q44 54 30 50 Q14 54 8 44 Z" fill="#7d9e46" opacity={0.6} /><path d="M16 44 Q22 38 32 40 Q44 38 48 44 Q38 48 28 47 Z" fill="#4b6527" opacity={0.55} /><circle cx="36" cy="42" r="4" fill={BONE} opacity={0.65} /><circle cx="20" cy="40" r="1.6" fill="#8a9a68" opacity={0.6} /><circle cx="46" cy="40" r="1.1" fill="#8a9a68" opacity={0.6} /></g>),
   goblin: () => (<g>{pud(32, 40, 14, 8, "#5a080d")}<path d="M14 30 L28 28 L28 36 L16 37 Z" fill="#7a7468" /><rect x="28" y="31" width="10" height="2" fill="#3b2a1c" transform="rotate(10 30 32)" /><path d="M40 40 L52 35 L45 45 Z" fill="#5e7a3a" /></g>),
   skel: () => (<g><g stroke={BONE} strokeWidth="3" strokeLinecap="round"><path d="M12 44 L26 38" /><path d="M36 50 L52 44" /><path d="M20 54 L30 52" /><path d="M46 30 L54 36" /></g><g fill={BONE}><circle cx="12" cy="44" r="2" /><circle cx="26" cy="38" r="2" /><circle cx="36" cy="50" r="2" /><circle cx="52" cy="44" r="2" /></g><path d="M24 46 Q32 42 40 46 M25 49 Q32 45 39 49" stroke={BONED} strokeWidth="1.6" fill="none" /><path d="M30 22 Q30 14 37 14 Q44 14 44 22 Q44 26 41 27 L41 29 L33 29 L33 27 Q30 26 30 22 Z" fill={BONE} /><circle cx="34.5" cy="21.5" r="1.8" fill={BLK} /><circle cx="39.5" cy="21.5" r="1.8" fill={BLK} /></g>),
   spider: () => (<g>{pud(32, 38, 15, 8, "#4f8a1e", 0.75)}<g stroke="#2a2030" strokeWidth="1.8" fill="none" strokeLinecap="round"><path d="M26 34 Q20 28 24 25" /><path d="M26 37 Q18 36 20 31" /><path d="M27 39 Q20 44 23 46" /><path d="M28 40 Q24 48 28 48" /><path d="M38 34 Q44 28 40 25" /><path d="M38 37 Q46 36 44 31" /><path d="M37 39 Q44 44 41 46" /><path d="M36 40 Q40 48 36 48" /></g><ellipse cx="32" cy="37" rx="7" ry="5" fill="#2e2236" /></g>),
   kobold: () => (<g>{pud(32, 40, 13, 7, "#5a080d")}<path d="M14 46 L32 37" stroke="#4a3826" strokeWidth="2" /><path d="M37 34 L48 29" stroke="#4a3826" strokeWidth="2" /><circle cx="47" cy="45" r="3" fill={BONE} /><path d="M18 30 Q26 25 30 31" stroke="#7a6a38" strokeWidth="2.4" fill="none" /></g>),
   orc: () => (<g>{pud(32, 40, 18, 10, "#5a080d")}{pud(30, 39, 10, 5, "#8f0d13")}<path d="M12 30 L34 24 L35 28 L13 34 Z" fill="#4a3220" /><path d="M18 28 L17 24 M24 26 L23 22 M30 25 L29 21" stroke={STEELL} strokeWidth="1.2" /><path d="M42 46 Q47 41 45 36" stroke={BONE} strokeWidth="2.4" fill="none" /></g>),
-  wraith: () => (<g><path d="M18 46 Q22 30 32 36 Q40 24 46 40 Q52 48 40 50 Q30 54 18 46 Z" fill="#7cf0ff" opacity={0.2} /><path d="M30 40 Q34 30 30 22 Q38 28 36 16" stroke="#7cf0ff" strokeWidth="1.2" fill="none" opacity={0.45} /><path d="M26 44 L36 42 L34 48 L30 46 Z" fill="#2a2a3e" opacity={0.7} /></g>),
-  shade: () => (<g><path d="M18 46 Q22 30 32 36 Q40 24 46 40 Q52 48 40 50 Q30 54 18 46 Z" fill="#7a4aff" opacity={0.22} /><path d="M30 40 Q34 30 30 22 Q38 28 36 16" stroke="#b84aff" strokeWidth="1.2" fill="none" opacity={0.45} /></g>),
+  wraith: () => (<g><path d="M18 46 Q22 30 32 36 Q40 24 46 40 Q52 48 40 50 Q30 54 18 46 Z" fill="#7a9aaa" opacity={0.2} /><path d="M30 40 Q34 30 30 22 Q38 28 36 16" stroke="#7a9aaa" strokeWidth="1.2" fill="none" opacity={0.45} /><path d="M26 44 L36 42 L34 48 L30 46 Z" fill="#2a2a3e" opacity={0.7} /></g>),
+  shade: () => (<g><path d="M18 46 Q22 30 32 36 Q40 24 46 40 Q52 48 40 50 Q30 54 18 46 Z" fill="#6a4a78" opacity={0.22} /><path d="M30 40 Q34 30 30 22 Q38 28 36 16" stroke="#6a4a78" strokeWidth="1.2" fill="none" opacity={0.45} /></g>),
   elf: () => (<g>{pud(32, 40, 14, 8, "#5a080d")}<path d="M14 34 Q28 26 42 30" stroke={STEELL} strokeWidth="2" fill="none" /><path d="M34 44 Q40 40 46 44 M35 47 Q41 43 47 47" stroke="#e8e4f0" strokeWidth="1" fill="none" /></g>),
   golem: () => (<g><ellipse cx="32" cy="46" rx="24" ry="8" fill="#2a2620" opacity={0.5} /><path d="M10 46 L18 38 L26 44 L22 52 Z" fill="#6e6a60" /><path d="M28 40 L38 33 L44 42 L36 48 Z" fill="#5e5a52" /><path d="M42 50 L50 42 L56 50 L48 55 Z" fill="#7a766a" /><rect x="24" y="48" width="8" height="6" fill="#4e4a44" /><circle cx="36" cy="41" r="2" fill="#ff8a1a" opacity={0.6} /></g>),
-  necro: () => (<g>{pud(32, 42, 14, 7, "#5a080d")}<path d="M14 36 Q24 28 36 32 Q48 30 52 40 L46 46 L40 42 L34 48 L28 42 L20 46 Z" fill="#1e1a14" /><path d="M24 38 L30 40 M38 36 L42 40" stroke={BLOODB} strokeWidth="1.6" /><circle cx="28" cy="35" r="2.4" fill="#7a8a5a" /><circle cx="40" cy="37" r="1.8" fill="#6a7a4a" /><path d="M44 46 Q48 44 50 47" stroke={BONE} strokeWidth="1.6" fill="none" /><circle cx="24" cy="30" r="1.5" fill="#8aff3a" opacity={0.5} /></g>),
+  necro: () => (<g>{pud(32, 42, 14, 7, "#5a080d")}<path d="M14 36 Q24 28 36 32 Q48 30 52 40 L46 46 L40 42 L34 48 L28 42 L20 46 Z" fill="#1e1a14" /><path d="M24 38 L30 40 M38 36 L42 40" stroke={BLOODB} strokeWidth="1.6" /><circle cx="28" cy="35" r="2.4" fill="#7a8a5a" /><circle cx="40" cy="37" r="1.8" fill="#6a7a4a" /><path d="M44 46 Q48 44 50 47" stroke={BONE} strokeWidth="1.6" fill="none" /><circle cx="24" cy="30" r="1.5" fill="#6a7a38" opacity={0.5} /></g>),
   basil: () => (<g>{pud(32, 42, 15, 8, "#2e4a14")}<path d="M16 40 Q20 30 32 32 Q44 34 44 42 Q40 48 30 46 Q24 44 28 40" stroke="#3e5a2a" strokeWidth="4" fill="none" strokeLinecap="round" /><path d="M16 40 L10 42 L15 44 Z" fill="#4a6a32" /></g>),
   demon: () => (<g><ellipse cx="32" cy="40" rx="20" ry="11" fill="#140a06" /><ellipse cx="32" cy="40" rx="13" ry="7" fill="#2a1208" /><ellipse cx="32" cy="40" rx="6" ry="3" fill="#ff5a1a" opacity={0.55} /><path d="M20 40 L14 38 M44 42 L50 44 M30 47 L28 51" stroke="#ff5a1a" strokeWidth="0.9" opacity={0.6} /><path d="M26 32 Q22 24 28 18 Q32 12 28 6 M38 32 Q42 26 38 20" stroke="#6a6060" strokeWidth="2.4" fill="none" opacity={0.4} /><path d="M44 44 Q50 40 48 34" stroke={BONE} strokeWidth="2" fill="none" /></g>),
-  lich: () => (<g><ellipse cx="32" cy="44" rx="16" ry="6" fill={BONED} opacity={0.45} /><path d="M16 42 L17 34 L20 38 L22 33 L24 37 L26 32 L28 42 Z" fill="#9a8a3a" /><path d="M22 34 L23 41" stroke={BLK} strokeWidth="0.7" /><path d="M40 38 L44 34 L46 40 Z M48 42 L50 38 L52 43 Z" fill="#7a2aff" opacity={0.8} /><circle cx="36" cy="46" r="3.2" fill={BONE} /><circle cx="44" cy="30" r="4" fill="#a24aff" opacity={0.2} /></g>),
+  lich: () => (<g><ellipse cx="32" cy="44" rx="16" ry="6" fill={BONED} opacity={0.45} /><path d="M16 42 L17 34 L20 38 L22 33 L24 37 L26 32 L28 42 Z" fill="#9a8a3a" /><path d="M22 34 L23 41" stroke={BLK} strokeWidth="0.7" /><path d="M40 38 L44 34 L46 40 Z M48 42 L50 38 L52 43 Z" fill="#5a3a68" opacity={0.8} /><circle cx="36" cy="46" r="3.2" fill={BONE} /><circle cx="44" cy="30" r="4" fill="#6a4a78" opacity={0.2} /></g>),
   wyvern: () => (<g>{pud(32, 42, 16, 9, "#5a080d")}<path d="M14 36 L24 22 L30 30 Z" fill="#2e2a3e" opacity={0.85} /><path d="M14 36 L30 30 L46 34 M30 30 L24 22 M30 30 L36 22" stroke={BONE} strokeWidth="1.8" fill="none" /></g>),
   brood: () => (<g>{pud(32, 38, 24, 14, "#4f8a1e", 0.7)}<g stroke="#1e1424" strokeWidth="2.6" fill="none" strokeLinecap="round"><path d="M20 30 Q10 22 14 16" /><path d="M18 38 Q6 38 8 30" /><path d="M20 44 Q12 52 18 54" /><path d="M44 30 Q54 22 50 16" /><path d="M46 38 Q58 38 56 30" /><path d="M44 44 Q52 52 46 54" /></g><ellipse cx="32" cy="34" rx="16" ry="12" fill="#2a1c34" /><path d="M24 26 L30 34 L26 42 M38 28 L34 36 L40 42" stroke={BLK} strokeWidth="1.5" fill="none" /><path d="M8 52 L12 46 L15 52 Z M50 54 L54 48 L57 54 Z M44 12 L48 8 L50 14 Z M14 12 L17 8 L19 13 Z" fill="#d8d0b0" /></g>),
-  lord: () => (<g><ellipse cx="32" cy="40" rx="28" ry="15" fill="#2a1038" opacity={0.65} /><ellipse cx="32" cy="40" rx="16" ry="8" fill="#4a2366" opacity={0.5} /><path d="M40 26 Q48 24 52 30 L48 36 L42 34 Z" fill="#3a3d48" /><path d="M10 46 L28 44" stroke="#5a5e6a" strokeWidth="2.4" /><path d="M18 38 L19 30 L22 34 L24 29 L27 38 Z" fill="#8a7a2a" /><path d="M34 46 L36 39 L38 43 L40 38 L42 46 Z" fill="#8a7a2a" /><circle cx="30" cy="40" r="1.4" fill="#b84aff" /><circle cx="22" cy="26" r="1.6" fill="#b84aff" opacity={0.5} /></g>),
+  lord: () => (<g><ellipse cx="32" cy="40" rx="28" ry="15" fill="#2a1038" opacity={0.65} /><ellipse cx="32" cy="40" rx="16" ry="8" fill="#4a2366" opacity={0.5} /><path d="M40 26 Q48 24 52 30 L48 36 L42 34 Z" fill="#3a3d48" /><path d="M10 46 L28 44" stroke="#5a5e6a" strokeWidth="2.4" /><path d="M18 38 L19 30 L22 34 L24 29 L27 38 Z" fill="#8a7a2a" /><path d="M34 46 L36 39 L38 43 L40 38 L42 46 Z" fill="#8a7a2a" /><circle cx="30" cy="40" r="1.4" fill="#6a4a78" /><circle cx="22" cy="26" r="1.6" fill="#6a4a78" opacity={0.5} /></g>),
 };
 function remKey(k: string): string { return k === "spiderling" ? "spider" : k; }
 function spr(k: string, size: number | string, st?: CSSProperties): ReactNode {
   const body = k === "spiderling" ? <g transform="translate(10 14) scale(0.7)">{SPR.spider()}</g> : (SPR[k] ?? SPR.gen)();
-  return <svg viewBox="0 0 64 64" width={size} height={size} style={{ display: "block", overflow: "visible", ...st }} aria-hidden="true">{body}</svg>;
+  const { filter: extraFilter, ...rest } = st ?? {};
+  return <svg viewBox="0 0 64 64" width={size} height={size} shapeRendering="geometricPrecision" style={{ display: "block", overflow: "visible", filter: ["drop-shadow(0 1px 0 #000) drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 -1px 0 #000) drop-shadow(0 2px 2px rgba(0,0,0,.75))", extraFilter].filter(Boolean).join(" "), ...rest }} aria-hidden="true">{body}</svg>;
 }
 function remSvg(k: string): ReactNode {
-  return <svg viewBox="0 0 64 64" width="100%" height="100%" style={{ display: "block" }} aria-hidden="true">{(REM[remKey(k)] ?? REM.gen)()}</svg>;
+  return <svg viewBox="0 0 64 64" width="100%" height="100%" shapeRendering="geometricPrecision" style={{ display: "block", filter: "drop-shadow(0 1px 0 #000) drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 2px 2px rgba(0,0,0,.75))" }} aria-hidden="true">{(REM[remKey(k)] ?? REM.gen)()}</svg>;
 }
 function sprOf(e: Enemy): string {
   if (e.spr) return e.spr;
@@ -5722,7 +5844,8 @@ export default function DungeonOfEchoes() {
       learn: (id: string) => { const g = G.current; if (!g) return false; const ok = learnTreeNode(g, id); LAST_SAVE = saveRun(g); refresh(); return ok; },
       openSkills: () => { const g = G.current; if (!g) return; g.prev = g.screen; g.screen = "skills"; setTreeCat(null); setTreeSel(null); LAST_SAVE = saveRun(g); refresh(); },
       openCat: (id: string) => { setTreeCat(id as CatId); setTreeSel(null); fitCatTree(id as CatId); },
-      clearFx: () => { AB_POPS.splice(0, AB_POPS.length); const g = G.current; if (g) { g.fx = []; g.bannerTs = 0; } setToast(""); refresh(); },
+      clearFx: () => { AB_POPS.splice(0, AB_POPS.length); PARTS.splice(0, PARTS.length); FLASH_T = 0; const g = G.current; if (g) { g.fx = []; g.bannerTs = 0; } setToast(""); refresh(); },
+      burst: (mode?: string) => { const g = G.current; if (!g) return 0; const m = mode === "crit" || mode === "death" || mode === "cast" ? mode : "hit"; const e = g.combat ? g.combat.enemies[g.combat.target] : undefined; const [x, y] = atXY(g, e && !e.dead ? e : null); spawnBurst(x, y, m, m === "death" ? "#3a3630" : m === "crit" ? "#f3efe6" : elemTint(g)); refresh(); return PARTS.length; },
       treeZoom: (s0: number, x: number, y: number) => { treeCam.current.s = s0; treeCam.current.x = x; treeCam.current.y = y; refresh(); },
 
       slot: (i: number, id: string | null) => { const g = G.current; if (!g) return; setSlot(g, i, id); LAST_SAVE = saveRun(g); refresh(); },
@@ -5911,7 +6034,9 @@ export default function DungeonOfEchoes() {
   useEffect(() => { const gg = G.current; const cv = bigCv.current; if (bigMap && gg && cv) drawMini(cv, gg, true); }, [bigMap, vp]);
 
   const col = (c: string): string => c.startsWith("#") ? c : c === "bad" ? t.text.danger : c === "heal" ? t.text.success : c === "loot" ? t.text.warning : c === "good" ? t.text.accent : c === "dmg" ? t.text.primary : t.text.secondary;
-  const card: CSSProperties = { background: t.bg.elevated, border: `1px solid ${t.border.default}`, borderRadius: 12, padding: 10, boxSizing: "border-box", minWidth: 0 };
+  const TITLE_FONT = "Palatino, 'Palatino Linotype', 'Book Antiqua', Georgia, 'Times New Roman', serif";
+  const titleSx: CSSProperties = { fontFamily: TITLE_FONT, fontWeight: 700, letterSpacing: "0.06em", color: "#e8dcc0" };
+  const card: CSSProperties = { background: "linear-gradient(180deg, #1a1814 0%, #12110e 100%)", border: "1px solid #5a5346", boxShadow: "inset 0 1px 0 rgba(210,190,150,.16), inset 0 0 0 1px #0c0b09, 0 4px 14px rgba(0,0,0,.5)", borderRadius: 5, padding: 10, boxSizing: "border-box", minWidth: 0 };
   const row: CSSProperties = { display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" };
   const small: CSSProperties = { fontSize: 12, color: t.text.secondary, lineHeight: 1.35 };
   const head: CSSProperties = { fontWeight: 700, fontSize: 13, color: t.text.secondary };
@@ -6475,6 +6600,7 @@ export default function DungeonOfEchoes() {
     if (coop.isGuest() && coop.playing() && gg.screen === "map") {
       coop.sendInput({ mx, my, atk: !!(I.atk || I.katk || I.gatk), dodge: COOP_Q.dodge, drink: COOP_Q.drink, abil: COOP_Q.abil, seq: ++COOP_SEQ });
       COOP_Q = { dodge: false, drink: false, abil: -1 };
+      tickParts(dt);
       rtMap(gg, dt, mx, my, I, { mons: false, tiles: false, shop: false });
       drawRef.current(false);
       I.rT += dt; if (I.rT >= 0.05) { I.rT = 0; refresh(); }
@@ -6484,6 +6610,7 @@ export default function DungeonOfEchoes() {
     }
     if (gg.screen === "map") {
       const was = !!gg.combat;
+      tickParts(dt);
       let chg = rtMap(gg, dt, mx, my, I);
       if (coop.isHost() && coop.playing()) stepGuests(gg, dt);
       if (gg.combat && (gg.screen as Screen) === "map") { combatStep(gg, dt, I.atk || I.katk || I.gatk); chg = true; }
@@ -6495,7 +6622,7 @@ export default function DungeonOfEchoes() {
       drawRef.current(false);
       if (currentAbPop() && (AB_POPS[0]?.ts ?? 0) !== (I as Inp & { abTs?: number }).abTs) { (I as Inp & { abTs?: number }).abTs = AB_POPS[0]?.ts; setToast(`✨ New ability unlocked: ${currentAbPop()!.name}`); }
       if ((gg.screen as Screen) !== "map" || was !== !!gg.combat) { I.rT = 0; refresh(); }
-      else if (chg || currentAbPop() || livePulses(Date.now()).length || gg.buffs.fury > 0 || gg.buffs.iron > 0 || (gg.buffs.pethaste ?? 0) > 0) { I.rT += dt; if (I.rT >= (gg.combat ? 0.066 : 0.033)) { I.rT = 0; refresh(); } }
+      else if (chg || PARTS.length || FLASH_T > 0 || currentAbPop() || livePulses(Date.now()).length || gg.buffs.fury > 0 || gg.buffs.iron > 0 || (gg.buffs.pethaste ?? 0) > 0) { I.rT += dt; if (I.rT >= ((gg.combat && !PARTS.length) ? 0.066 : 0.033)) { I.rT = 0; refresh(); } }
     } else return;
     I.saveT += dt;
     if (I.saveT >= 1.5 || (gg.screen as Screen) === "dead") { I.saveT = 0; LAST_SAVE = saveRun(gg); }
@@ -6507,7 +6634,7 @@ export default function DungeonOfEchoes() {
     const slots: Slot[] = ["weapon", "armor", "helmet", "ring", "amulet", "consumable"];
     return (
       <div style={root}>{style}
-        <div style={row}><div style={{ fontSize: 20, fontWeight: 700, flex: "1 1 auto" }}>📖 Item Codex</div>{btn("Back", back)}</div>
+        <div style={row}><div style={{ ...titleSx, fontSize: 20, flex: "1 1 auto" }}>📖 Item Codex</div>{btn("Back", back)}</div>
         <div style={small}>Discovered {ITEMS.filter((i: ItemT) => m.disc.includes(i.id)).length} of {ITEMS.length} items. Items are discovered when you find or identify them.</div>
         <div style={row}>{RAR.map((r: string, i: number) => <span key={r} style={{ color: RCOL[i], fontSize: 12, fontWeight: 700 }}>● {r}</span>)}</div>
         {slots.map((s: Slot) => (
@@ -6526,7 +6653,7 @@ export default function DungeonOfEchoes() {
   if ((g && g.screen === "help") || (!g && ui === "help")) {
     return (
       <div className={land ? "doe-cols" : undefined} style={land ? { ...root, display: "block", columnCount: 2, columnGap: 16 } : root}>{style}
-        <div style={row}><div style={{ fontSize: 20, fontWeight: 700, flex: "1 1 auto" }}>❓ How to Play</div>{btn("Back", back)}</div>
+        <div style={row}><div style={{ ...titleSx, fontSize: 20, flex: "1 1 auto" }}>❓ How to Play</div>{btn("Back", back)}</div>
         {HELP.map((h: [string, string]) => (
           <div key={h[0]} style={card}><div style={{ fontWeight: 700, marginBottom: 3 }}>{h[0]}</div><div style={{ fontSize: 13, lineHeight: 1.45 }}>{h[1]}</div></div>
         ))}
@@ -6548,7 +6675,7 @@ export default function DungeonOfEchoes() {
     const sv = parseRun(rawRun());
     return (
       <div style={root}>{style}
-        <div style={row}><div style={{ fontSize: 20, fontWeight: 700, flex: "1 1 auto" }}>💾 Save Code</div>{btn("Back", () => { setMsg(""); setImpFocus(false); setUi("title"); })}</div>
+        <div style={row}><div style={{ ...titleSx, fontSize: 20, flex: "1 1 auto" }}>💾 Save Code</div>{btn("Back", () => { setMsg(""); setImpFocus(false); setUi("title"); })}</div>
         <div style={small}>Autosave: {storageOk() ? "on (this browser keeps your progress)" : "kept while this page stays open, but this browser may not keep it between visits"}. Storage check: {storeReport()}. A save code backs up tokens, upgrades, best depth, codex{sv ? ` and your current run (${CLS[sv.cls].name}, ${sv.mode === "story" ? "floor" : "depth"} ${sv.floor})` : ""}.</div>
         {msg && <div style={{ ...card, fontSize: 13 }}>{msg}</div>}
         <div style={cols}>
@@ -6573,7 +6700,7 @@ export default function DungeonOfEchoes() {
     const nodes = TREE[treeCls]; const o = owned(treeCls);
     return (
       <div style={root}>{style}
-        <div style={row}><div style={{ fontSize: 20, fontWeight: 700, flex: "1 1 auto" }}>🌳 Endless Upgrades</div>{btn("Back", () => setUi("title"))}</div>
+        <div style={row}><div style={{ ...titleSx, fontSize: 20, flex: "1 1 auto" }}>🌳 Endless Upgrades</div>{btn("Back", () => setUi("title"))}</div>
         <div style={{ ...card, ...row, justifyContent: "space-between" }}>
           <span style={{ fontWeight: 700, color: t.text.warning }}>🪙 {m.tokens} token{m.tokens === 1 ? "" : "s"}</span>
           <span style={small}>Best depth: {m.best || "—"} · +1 token per 10 Endless floors</span>
@@ -6620,8 +6747,8 @@ export default function DungeonOfEchoes() {
     return (
       <div className={land ? "doe-cols" : undefined} style={land ? { ...root, display: "block", columnCount: 2, columnGap: 16 } : root}>{style}
         <div style={{ textAlign: "center", padding: "10px 0 2px" }}>
-          <div style={{ width: 120, height: 120, margin: "0 auto", borderRadius: "50%", background: "radial-gradient(circle at 50% 55%, #2a1038, #0d0a10 72%)", filter: "drop-shadow(0 0 10px rgba(150,40,200,.45))" }}>{spr("lord", 120)}</div>
-          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: 0.5 }}>Dungeon of Echoes</div>
+          <div style={{ width: 120, height: 120, margin: "0 auto", borderRadius: "50%", background: "radial-gradient(circle at 50% 40%, #2a2620, #0a0908 72%)", boxShadow: "inset 0 0 0 2px #5a5346, inset 0 0 0 3px #0c0b09, 0 10px 22px rgba(0,0,0,.8)" }}>{spr("lord", 120)}</div>
+          <div style={{ ...titleSx, fontSize: 30, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", textShadow: "0 1px 0 #000, 0 0 18px rgba(0,0,0,.7)" }}>Dungeon of Echoes</div>
           <div style={small}>Ten floors. A Broodmother. The Echo Lord. Endless depths beyond.</div>
         </div>
         {(() => {
@@ -6799,7 +6926,7 @@ export default function DungeonOfEchoes() {
       <div style={root}>{style}
         <div style={{ textAlign: "center", padding: "24px 0" }}>
           <div style={{ fontSize: 56 }}>🪦</div>
-          <div style={{ fontSize: 26, fontWeight: 800 }}>You have fallen</div>
+          <div style={{ ...titleSx, fontSize: 26 }}>You have fallen</div>
           <div style={small}>{playerName(g)} · {CLS[g.cls].name} · Level {g.lvl} · {g.mode === "story" ? `Floor ${g.floor}/${STORY_END}` : `Depth ${g.floor} · Best ${m.best} · +${g.tokensEarned} token(s) this run`} · {g.kills} kills</div>
         </div>
         {logBox(g, 6)}
@@ -6814,7 +6941,7 @@ export default function DungeonOfEchoes() {
       <div style={root}>{style}
         <div style={{ textAlign: "center", padding: "20px 0" }}>
           <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end", gap: 4 }}><div style={{ width: 104, height: 104 }}>{spr(g.cls, 104)}</div><div style={{ width: 96, height: 96 }}>{remSvg("lord")}</div></div>
-          <div style={{ fontSize: 26, fontWeight: 800 }}>Victory!</div>
+          <div style={{ ...titleSx, fontSize: 26 }}>Victory</div>
           <div style={{ fontSize: 14 }}>The Echo Lord is silenced. The dungeon falls quiet.</div>
           <div style={small}>{playerName(g)} · {CLS[g.cls].name} · Level {g.lvl} · {g.kills} kills · {g.turns} tiles walked</div>
         </div>
@@ -6834,7 +6961,7 @@ export default function DungeonOfEchoes() {
     return (
       <div style={root}>{style}
         {hud}
-        <div data-screen="vault" style={{ fontSize: 20, fontWeight: 800 }}>🏦 The Echo Vault</div>
+        <div data-screen="vault" style={{ ...titleSx, fontSize: 20 }}>The Echo Vault</div>
         <div style={small}>You may seal ONE item here. It leaves this run, keeps its rolled bonuses, and survives death and permadeath. At the start of your next run you can choose to bring it along. Optional — you can skip.</div>
         <div style={{ ...card, display: "flex", flexDirection: "column", gap: 6, border: `2px solid ${v ? RCOL[3] : t.border.default}` }}>
           <div style={{ fontWeight: 700, fontSize: 13 }}>Currently stored</div>
@@ -6862,7 +6989,7 @@ export default function DungeonOfEchoes() {
     return (
       <div style={root}>{style}
         {hud}
-        <div data-screen={g.startPick ? "starter" : g.vaultOffer ? "vaultoffer" : "upgrade"} style={{ fontSize: 20, fontWeight: 800 }}>{g.startPick ? "✨ Choose your starting perk" : g.vaultOffer ? "🏦 Bring vaulted item?" : "∞ Boss slain — choose a perk"}</div>
+        <div data-screen={g.startPick ? "starter" : g.vaultOffer ? "vaultoffer" : "upgrade"} style={{ ...titleSx, fontSize: 20 }}>{g.startPick ? "✨ Choose your starting perk" : g.vaultOffer ? "🏦 Bring vaulted item?" : "∞ Boss slain — choose a perk"}</div>
         <div style={small}>{g.startPick ? `Pick one of these 3 Common perks for this ${g.mode === "story" ? "Story" : "Endless"} run. The choice is rolled once — reloading won't reroll it.` : g.vaultOffer ? "Your starting perk is locked in. You can still bring the sealed item or leave it in the vault." : g.floor % 10 === 0 ? "A 10th-floor reward: at least one of these is Epic or Legendary. The offer is saved — reloading won't reroll it." : "Pick one perk. Offers are rolled once and saved — reloading won't reroll them. Deeper floors favour rarer tiers."}</div>
         {g.vaultOffer && (() => { const v = vaultGet(); if (!v) return null; return (
           <div data-vaultoffer="1" style={{ ...card, display: "flex", flexDirection: "column", gap: 8, border: `2px solid ${RCOL[3]}` }}>
@@ -6894,7 +7021,7 @@ export default function DungeonOfEchoes() {
     return (
       <div style={root}>{style}
         {hud}
-        <div style={row}><div style={{ fontSize: 20, fontWeight: 800, flex: "1 1 auto" }}>💰 Merchant</div>{btn("Leave", () => run((gg: Game) => { gg.screen = "map"; }))}</div>
+        <div style={row}><div style={{ ...titleSx, fontSize: 20, flex: "1 1 auto" }}>Merchant</div>{btn("Leave", () => run((gg: Game) => { gg.screen = "map"; }))}</div>
         <div style={cols}><div style={colS}>
         <div style={head}>FOR SALE</div>
         {g.shop.map((inv: Inv, i: number) => {
@@ -6955,7 +7082,7 @@ export default function DungeonOfEchoes() {
       const selInv = from === "inv" ? sel : undefined;
       const selSlot = from === "eq" ? slot : undefined;
       return (
-        <div ref={detRef} data-itempanel={sel.uid} style={{ gridColumn: "1 / -1", ...card, display: "flex", flexDirection: "column", gap: 8, border: `2px solid ${sel.ident ? RCOL[IT[sel.id].r] : t.border.strong}` }}>
+        <div ref={detRef} data-itempanel={sel.uid} style={{ gridColumn: "1 / -1", ...card, display: "flex", flexDirection: "column", gap: 8, border: `2px solid ${sel.ident ? RCOL[IT[sel.id].r] : t.border.strong}`, boxShadow: rarGlow(IT[sel.id].r, sel.ident) }}>
           {instDetail(sel, g)}
           <div style={row}>
             {selSlot && btn(locked(sel) ? "🔒 Cursed" : "Unequip", () => run((gg: Game) => { unequip(gg, selSlot); if (!gg.eq[selSlot]) gg.sel = -1; }), { grow: true, disabled: locked(sel) })}
@@ -6980,7 +7107,7 @@ export default function DungeonOfEchoes() {
       <div style={root}>{style}
         {hud}
         <div style={row}>
-          <div style={{ fontSize: 20, fontWeight: 800, flex: "1 1 auto" }}>🎒 Inventory · <span data-player-name="1">{playerName(g)}</span></div>
+          <div style={{ ...titleSx, fontSize: 20, flex: "1 1 auto" }}>Inventory · <span data-player-name="1">{playerName(g)}</span></div>
           {btn("📖 Codex", () => run((gg: Game) => { gg.prev = "inventory"; gg.screen = "codex"; }))}
           {btn("Back", () => run((gg: Game) => { gg.screen = "map"; gg.sel = -1; }), { tone: "primary" })}
         </div>
@@ -7011,7 +7138,7 @@ export default function DungeonOfEchoes() {
             const it = g.eq[k]; const on = !!(it && g.sel === it.uid);
             return (
               <div key={k} style={{ display: "contents" }}>
-                <button onClick={() => it ? toggleSel(it.uid) : run((gg: Game) => { gg.sel = -1; })} style={{ minWidth: 0, minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: it && k !== "ring" && k !== "amulet" ? bloodBg(it.uid) : undefined, border: `2px solid ${it ? RCOL[IT[it.id].r] : t.border.default}`, borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 4, cursor: "pointer" }}>
+                <button onClick={() => it ? toggleSel(it.uid) : run((gg: Game) => { gg.sel = -1; })} style={{ minWidth: 0, minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: it && k !== "ring" && k !== "amulet" ? bloodBg(it.uid) : undefined, border: `2px solid ${it ? RCOL[IT[it.id].r] : t.border.default}`, boxShadow: it ? rarGlow(IT[it.id].r) : undefined, borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 4, cursor: "pointer" }}>
                   <div style={{ fontSize: 22, filter: it && k === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{it ? IT[it.id].icon : SLOT_ICON[k]}{it && (it.pin || locked(it)) ? "🔒" : ""}</div>
                   <div style={{ fontSize: 11, color: t.text.secondary }}>{it ? instName(it) : `No ${SLOT_NAME[k].toLowerCase()}`}</div>
                 </button>
@@ -7038,7 +7165,7 @@ export default function DungeonOfEchoes() {
             const tt = IT[it.id]; const on = g.sel === it.uid;
             return (
               <div key={it.uid} style={{ display: "contents" }}>
-                <button onClick={() => toggleSel(it.uid)} style={{ minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: tt.slot === "weapon" || tt.slot === "armor" || tt.slot === "helmet" ? bloodBg(it.uid) : undefined, border: `2px ${it.ident ? "solid" : "dashed"} ${it.ident ? RCOL[tt.r] : t.border.strong}`, borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 2, cursor: "pointer", minWidth: 0, position: "relative" }}>
+                <button onClick={() => toggleSel(it.uid)} style={{ minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: tt.slot === "weapon" || tt.slot === "armor" || tt.slot === "helmet" ? bloodBg(it.uid) : undefined, border: `2px ${it.ident ? "solid" : "dashed"} ${it.ident ? RCOL[tt.r] : t.border.strong}`, boxShadow: rarGlow(tt.r, it.ident), borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 2, cursor: "pointer", minWidth: 0, position: "relative" }}>
                   <div style={{ fontSize: 24, filter: tt.slot === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{instIcon(it)}</div>
                   <div style={{ fontSize: 9, color: t.text.secondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.pin ? "🔒 " : ""}{it.ident ? tt.name : "???"}</div>
                 </button>
@@ -7287,7 +7414,7 @@ export default function DungeonOfEchoes() {
     const kind = mm.boss ? (mm.t === "lord" ? "lord" : (mm.t === "brood" ? "brood" : mm.t)) : mm.t;
     const ghost = kind === "wraith" || kind === "shade" || kind === "lich";
     const chasing = mm.awake && vis;
-    const sty: CSSProperties | undefined = !vis && mm.boss ? { filter: "brightness(0)", opacity: 0.55 } : mm.stun > 0 ? { opacity: 0.6 } : mm.el ? { filter: "drop-shadow(0 0 6px rgba(200,30,30,.95)) drop-shadow(0 0 10px rgba(255,160,40,.65))" } : mm.boss ? { filter: "drop-shadow(0 0 7px rgba(140,0,0,.95)) drop-shadow(0 0 12px rgba(80,0,40,.7))" } : { filter: "drop-shadow(0 2px 3px rgba(0,0,0,.9))" };
+    const sty: CSSProperties | undefined = !vis && mm.boss ? { filter: "brightness(0)", opacity: 0.55 } : mm.stun > 0 ? { opacity: 0.6 } : mm.el ? { filter: "drop-shadow(0 0 7px rgba(255,40,40,1)) drop-shadow(0 0 14px rgba(255,180,50,.8))" } : mm.boss ? { filter: "drop-shadow(0 0 8px rgba(180,0,40,1)) drop-shadow(0 0 16px rgba(120,20,80,.85))" } : { filter: "drop-shadow(0 2px 3px rgba(0,0,0,.9))" };
     const anim = ghost ? "doeFlicker 2.1s ease-in-out infinite" : chasing ? "doeLean 0.7s ease-in-out infinite" : "doeBreath 2.4s ease-in-out infinite";
     objs.push(
       <div key={`m${mm.id}`} data-mon={kind} data-elite={mm.el ? "1" : undefined} style={{ ...tPos(mfx - 0.5, mfy - 0.5), overflow: "visible" }}>
@@ -7314,7 +7441,7 @@ export default function DungeonOfEchoes() {
       const ring = z.k === "sanct" ? "#ffe08a" : z.k === "meteor" ? "#ff5a2a" : z.k === "gwell" ? "#a88cff" : "#d0b070";
       objs.push(<div key={`z${z.id}`} data-zone={z.k} style={{ ...wBox(z.x, z.y, z.r * 2), borderRadius: "50%", border: `2px solid ${ring}`, background: col, boxSizing: "border-box", zIndex: 1, pointerEvents: "none", opacity: z.k === "meteor" ? 0.7 : 0.85 }} />);
     }
-    for (const tr of c.traps ?? []) if ((tr.fuse ?? 0) >= 0) objs.push(<div key={`tr${tr.id}`} data-xtrap={tr.id} style={{ ...wBox(tr.x, tr.y, 0.7), borderRadius: "50%", background: (tr.fuse ?? 0) > 0 ? "rgba(255,80,20,.7)" : "rgba(40,20,0,.7)", border: "2px solid #ffb040", boxSizing: "border-box", zIndex: 2, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12 }}>💣</div>);
+    for (const tr of c.traps ?? []) if ((tr.fuse ?? 0) >= 0) objs.push(<div key={`tr${tr.id}`} data-xtrap={tr.id} style={{ ...wBox(tr.x, tr.y, 0.7), borderRadius: "50%", background: (tr.fuse ?? 0) > 0 ? "radial-gradient(circle at 50% 40%, #5a2a14, #1a0c08)" : "radial-gradient(circle at 50% 40%, #2a2018, #0c0a08)", border: "2px solid #6a5a38", boxSizing: "border-box", zIndex: 2, pointerEvents: "none", boxShadow: (tr.fuse ?? 0) > 0 ? "0 0 8px rgba(180,60,20,.7)" : "0 2px 4px #000" }} />);
     for (const w of c.walls ?? []) {
       const ang = Math.atan2(w.dy, w.dx) * 180 / Math.PI;
       objs.push(<div key={`w${w.id}`} data-iwall={w.id} style={{ position: "absolute", left: `${((w.x) / W) * 100}%`, top: `${((w.y) / H) * 100}%`, width: `${(w.len / W) * 100}%`, height: `${(0.4 / H) * 100}%`, transform: `rotate(${ang}deg)`, transformOrigin: "0 50%", background: "linear-gradient(90deg, rgba(180,230,255,.2), rgba(200,240,255,.85), rgba(180,230,255,.2))", border: "1px solid #d8f4ff", boxShadow: "0 0 8px rgba(140,200,255,.8)", zIndex: 3, pointerEvents: "none", boxSizing: "border-box" }} />);
@@ -7344,10 +7471,10 @@ export default function DungeonOfEchoes() {
       objs.push(
         <div key={`e${e.uid}`} data-enemy={e.uid} data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLDivElement>) => { ev.preventDefault(); ev.stopPropagation(); run((gg: Game) => { const cc = gg.combat; if (!cc) return; const k = cc.enemies.findIndex((x: Enemy) => x.uid === e.uid && !x.dead); if (k >= 0) cc.target = k; }); }} style={{ ...wBox(ex, ey, sz), zIndex: 4, pointerEvents: "auto", cursor: "pointer", overflow: "visible" }}>
           {on && <div style={{ position: "absolute", inset: "-12%", borderRadius: "50%", border: "2px dashed #ffcc4d", pointerEvents: "none" }} />}
-          <div style={{ position: "absolute", inset: e.boss ? "-8% -4% 0" : "-8% -4% 0", transformOrigin: "50% 88%", filter: e.stun > 0 ? "brightness(1.5) saturate(.4)" : e.elite ? "drop-shadow(0 0 6px rgba(200,30,30,.95)) drop-shadow(0 0 10px rgba(255,160,40,.6))" : e.boss ? "drop-shadow(0 0 8px rgba(160,0,0,1)) drop-shadow(0 0 14px rgba(80,0,40,.8))" : "drop-shadow(0 2px 3px rgba(0,0,0,.9))", animation: (e.wk === "cast" || e.wk === "hex" || e.wk === "spit") && (e.wind ?? 0) > 0 ? "doePulse .4s infinite" : (e.wk === "melee" && (e.wind ?? 0) > 0) ? "doeLean 0.45s ease-in-out infinite" : (sprOf(e) === "wraith" || sprOf(e) === "shade" || sprOf(e) === "lich") ? "doeFlicker 2.1s ease-in-out infinite" : "doeBreath 2.4s ease-in-out infinite" }}>{spr(sprOf(e), "100%")}</div>
+          <div style={{ position: "absolute", inset: e.boss ? "-8% -4% 0" : "-8% -4% 0", transformOrigin: "50% 88%", filter: e.stun > 0 ? "brightness(1.5) saturate(.4)" : e.elite ? "drop-shadow(0 0 7px rgba(255,40,40,1)) drop-shadow(0 0 14px rgba(255,180,50,.8))" : e.boss ? "drop-shadow(0 0 9px rgba(180,0,40,1)) drop-shadow(0 0 16px rgba(120,20,80,.85))" : "drop-shadow(0 2px 3px rgba(0,0,0,.9))", animation: (e.wk === "cast" || e.wk === "hex" || e.wk === "spit") && (e.wind ?? 0) > 0 ? "doePulse .4s infinite" : (e.wk === "melee" && (e.wind ?? 0) > 0) ? "doeLean 0.45s ease-in-out infinite" : (sprOf(e) === "wraith" || sprOf(e) === "shade" || sprOf(e) === "lich") ? "doeFlicker 2.1s ease-in-out infinite" : "doeBreath 2.4s ease-in-out infinite" }}>{spr(sprOf(e), "100%")}</div>
           <div style={{ position: "absolute", left: "5%", right: "5%", top: "-14%", height: 4, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden", outline: e.elite ? "1px solid #ffcc4d" : undefined }}><div style={{ width: `${(Math.max(0, e.hp) / e.max) * 100}%`, height: "100%", background: e.boss ? "#a855f7" : e.elite ? "#f5a524" : "#e5484d" }} /></div>
-          {e.elite && <div data-elite="1" style={{ position: "absolute", left: "-12%", top: "-30%", fontSize: 10, color: "#ffcc4d", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>★</div>}
-          {(e.stun > 0 || e.burnT > 0 || e.poisT > 0) && <div style={{ position: "absolute", left: 0, right: 0, bottom: "-30%", textAlign: "center", fontSize: 10, pointerEvents: "none" }}>{e.stun > 0 ? "😵" : ""}{e.burnT > 0 ? "🔥" : ""}{e.poisT > 0 ? "☠️" : ""}</div>}
+          {e.elite && <div data-elite="1" style={{ position: "absolute", left: "50%", top: "-28%", transform: "translateX(-50%)", fontSize: 8, letterSpacing: 0.6, fontWeight: 800, color: "#c9a24a", textShadow: "0 1px 2px #000", pointerEvents: "none", fontFamily: "Palatino, Georgia, serif" }}>ELITE</div>}
+          {(e.stun > 0 || e.burnT > 0 || e.poisT > 0) && <div style={{ position: "absolute", left: 0, right: 0, bottom: "-30%", textAlign: "center", fontSize: 8, fontWeight: 800, letterSpacing: 0.4, pointerEvents: "none", textShadow: "0 1px 2px #000" }}>{e.stun > 0 ? <span style={{ color: "#c9a24a" }}>STUN </span> : null}{e.burnT > 0 ? <span style={{ color: "#b45020" }}>BRN </span> : null}{e.poisT > 0 ? <span style={{ color: "#5a6a38" }}>PSN</span> : null}</div>}
           {g.fx.filter((x: Fx) => x.at === "e" + e.uid && x.text.startsWith("-") && nowMs - x.ts < 900).map((x: Fx) => splat(x.id))}
           {arenaFx(g, "e" + e.uid)}
         </div>
@@ -7357,6 +7484,22 @@ export default function DungeonOfEchoes() {
     const sh = (c.shots ?? []).filter((x: Shot) => x.ts <= nowMs && nowMs - x.ts < 160);
     if (sh.length > 0) objs.push(<svg key="shots" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 5 }}>{sh.map((x: Shot) => <line key={x.id} x1={x.x1} y1={x.y1} x2={x.x2} y2={x.y2} stroke={x.c} strokeWidth={0.11} strokeLinecap="round" opacity={0.9} />)}</svg>);
   }
+  for (const p of PARTS) {
+    const u = Math.max(0, p.life / p.max);
+    if (p.kind === "spark" || p.kind === "crit") {
+      const len = p.r * (0.9 + 0.4 * u), thick = p.kind === "crit" ? 0.07 : 0.045;
+      objs.push(<div key={`pt${p.id}`} data-part={p.kind} style={{ position: "absolute", left: `${(p.x / W) * 100}%`, top: `${(p.y / H) * 100}%`, width: `${(len / W) * 100}%`, height: `${(thick / H) * 100}%`, transform: `translate(-50%,-50%) rotate(${p.ang}rad)`, transformOrigin: "50% 50%", background: p.col, borderRadius: 1, opacity: 0.95 * u, boxShadow: p.kind === "crit" ? `0 0 6px ${p.col}` : "none", zIndex: 6, pointerEvents: "none" }} />);
+    } else if (p.kind === "blood") {
+      const sz = p.r * (0.8 + 0.4 * u);
+      objs.push(<div key={`pt${p.id}`} data-part="blood" style={{ position: "absolute", left: `${(p.x / W) * 100}%`, top: `${(p.y / H) * 100}%`, width: `${(sz / W) * 100}%`, height: `${((sz * 1.45) / H) * 100}%`, transform: `translate(-50%,-50%) rotate(${p.ang}rad)`, background: p.col, borderRadius: "40% 40% 50% 50%", opacity: 0.9 * u, zIndex: 6, pointerEvents: "none" }} />);
+    } else if (p.kind === "ember") {
+      const sz = p.r;
+      objs.push(<div key={`pt${p.id}`} data-part="ember" style={{ ...wBox(p.x, p.y, sz), borderRadius: "50%", background: p.col, opacity: 0.85 * u, boxShadow: `0 0 5px ${p.col}`, zIndex: 6, pointerEvents: "none" }} />);
+    } else {
+      const sz = p.r * (1.1 + 0.5 * (1 - u));
+      objs.push(<div key={`pt${p.id}`} data-part="puff" style={{ ...wBox(p.x, p.y, sz), borderRadius: "50%", background: p.col, opacity: 0.45 * u, zIndex: 6, pointerEvents: "none" }} />);
+    }
+  }
   (g.pets ?? []).forEach((p: Pet, i: number) => {
     if (!inViewP(p.x, p.y)) return;
     const ko = p.ko > 0;
@@ -7365,7 +7508,7 @@ export default function DungeonOfEchoes() {
       <div key={`pet${i}`} data-pet={i} data-petk={p.k} data-ko={ko ? "1" : "0"} data-sz={sz} style={{ ...wBox(p.x, p.y, sz), zIndex: 3, pointerEvents: "none", overflow: "visible" }}>
         <div data-pet-an="1" style={{ position: "absolute", inset: 0, transformOrigin: "50% 70%" }}>{spr(petSpr(p.k), "100%")}</div>
         <svg data-pet-fx="1" viewBox="0 0 20 20" style={{ position: "absolute", inset: "-20%", width: "140%", height: "140%", overflow: "visible", opacity: 0, pointerEvents: "none" }}><path d="M4 3 L14 15 M8 2 L17 12 M2 7 L11 18" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" fill="#ffb24a" /></svg>
-        {ko ? <div style={{ position: "absolute", left: 0, right: 0, top: "-45%", textAlign: "center", fontSize: 10 }}>💫</div>
+        {ko ? <div style={{ position: "absolute", left: 0, right: 0, top: "-45%", textAlign: "center", fontSize: 8, fontWeight: 800, color: "#9a9286", textShadow: "0 1px 2px #000" }}>KO</div>
           : c && <div style={{ position: "absolute", left: "8%", right: "8%", top: "-16%", height: 3, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden" }}><div style={{ width: `${(Math.max(0, p.hp) / p.max) * 100}%`, height: "100%", background: "#3fcf6a" }} /></div>}
         {arenaFx(g, "pt" + i)}
       </div>
@@ -7388,10 +7531,11 @@ export default function DungeonOfEchoes() {
   const onMerchant = nearMerchant(g);
   const mapView = (): ReactNode => (
       <div style={{ position: "absolute", inset: 0, overflow: "hidden", width: "100%", height: "100%", background: "#07060a" }}>
-        <canvas ref={mapCv} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(circle at 50% 50%, ${bio === "warren" ? "rgba(255,170,80,.13)" : "rgba(220,150,255,.11)"} 0, rgba(0,0,0,0) ${2.6 * tilePx}px), radial-gradient(circle at 50% 50%, rgba(0,0,0,0) ${1.3 * tilePx}px, rgba(0,0,0,.6) ${(R + 1.4) * tilePx}px)` }} />
+        <canvas ref={mapCv} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", imageRendering: "pixelated" }} />
+        {FLASH_T > 0 ? <div data-flash="1" style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "#f4f1ea", opacity: Math.min(0.62, FLASH_T * 5), zIndex: 8 }} /> : null}
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(circle at 50% 50%, ${bio === "warren" ? "rgba(255,150,60,.10)" : "rgba(90,110,140,.10)"} 0, rgba(0,0,0,0) ${2.6 * tilePx}px), radial-gradient(circle at 50% 50%, rgba(0,0,0,0) ${1.15 * tilePx}px, rgba(0,0,0,.82) ${(R + 0.85) * tilePx}px)` }} />
         <div ref={worldEl} style={{ position: "absolute", left: 0, top: 0, width: `${(W / VTX) * 100}%`, height: `${(H / VTY) * 100}%`, transform: worldTf(g), pointerEvents: "none", willChange: "transform" }}>{objs}</div>
-        <div data-hero="1" style={{ position: "absolute", left: "50%", top: "50%", width: tileW, height: tileH, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 3px rgba(0,0,0,.9))", opacity: c && (c.iT ?? 0) > 0 ? 0.55 : 1, zIndex: 4, overflow: "visible" }}>
+        <div data-hero="1" style={{ position: "absolute", left: "50%", top: "50%", width: tileW, height: tileH, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 2px rgba(0,0,0,.9)) drop-shadow(0 6px 4px rgba(0,0,0,.75))", opacity: c && (c.iT ?? 0) > 0 ? 0.55 : 1, zIndex: 4, overflow: "visible" }}>
           <div data-hero-an="1" style={{ position: "absolute", inset: 0, transformOrigin: "50% 70%" }}>
             {spr(g.cls, "100%")}
           </div>

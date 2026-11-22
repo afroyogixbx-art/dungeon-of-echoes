@@ -12,10 +12,10 @@ export interface GrokTheme {
 }
 
 const THEME: GrokTheme = {
-  bg: { base: "#0e0b12", elevated: "#1a1520", subtle: "#141018" },
-  text: { primary: "#ece4d6", secondary: "#b3a896", tertiary: "#7d7468", danger: "#ff6b6b", success: "#5fd38d", warning: "#f5b84a", accent: "#c79bff", onPrimary: "#1a1206" },
-  border: { default: "#3a3040", focus: "#e0b25a", strong: "#5a4a60" },
-  fill: { primary: "#d9a441", secondary: "#262030", accentSubtle: "#2e2340", dangerSubtle: "#3a1618", successSubtle: "#16301f", warningSubtle: "#3a2c12" },
+  bg: { base: "#0b0a09", elevated: "#161410", subtle: "#10100d" },
+  text: { primary: "#e4dcd0", secondary: "#9a9286", tertiary: "#6e6860", danger: "#b43a36", success: "#6a8a62", warning: "#c9a24a", accent: "#a89878", onPrimary: "#1a140c" },
+  border: { default: "#4a453c", focus: "#c9a24a", strong: "#6a6256" },
+  fill: { primary: "#8a6a32", secondary: "#1e1c18", accentSubtle: "#241e16", dangerSubtle: "#2a1210", successSubtle: "#142016", warningSubtle: "#2a2210" },
   font: {
     family: "ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji', sans-serif",
     mono: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
