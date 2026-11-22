@@ -14,7 +14,7 @@ type Ui = "title" | "help" | "tree" | "codex" | "save";
 type Mode = "story" | "endless";
 type ActRes = "none" | "turn" | "end";
 
-interface ItemT { id: string; name: string; icon: string; slot: Slot; r: number; minF: number; price: number; st?: Stats; cls?: ClassId[]; sp?: string; desc?: string; fx?: string; pw?: number; set?: string; cursed?: boolean; curse?: string; pet?: string; ff?: number; mpreg?: number; uranges?: Partial<Record<StatKey, [number, number]>>; }
+interface ItemT { id: string; name: string; icon: string; slot: Slot; r: number; minF: number; price: number; st?: Stats; cls?: ClassId[]; sp?: string; desc?: string; fx?: string; pw?: number; set?: string; cursed?: boolean; curse?: string; pet?: string; ff?: number; mpreg?: number; uranges?: Partial<Record<StatKey, [number, number]>>; dropBoss?: string; }
 interface SetT { name: string; n: number; b2: Stats; bf: Stats; sp: string; desc: string; b3?: Stats; cls?: ClassId; }
 interface Ab { id: string; name: string; icon: string; mp: number; cd: number; desc: string; tree?: boolean; }
 interface Base { hp: number; mp: number; atk: number; def: number; crit: number; dodge: number; }
@@ -321,6 +321,53 @@ const ITEMS: ItemT[] = [
   I("x_glass", "Glassfang", "🗡️", "weapon", 3, 4, 480, { atk: 28, crit: 22 }, { cursed: true, curse: "c_brittle", desc: "Curse: your DEF is halved." }),
   I("x_pendulum", "Pendulum Amulet", "⏳", "amulet", 3, 4, 480, { atk: 10, mp: 50, crit: 8 }, { cursed: true, curse: "c_lag", desc: "Curse: ability cooldowns last 50% longer." }),
   I("x_living", "Ring of Living Lightning", "⚡", "ring", 4, 5, 650, { atk: 10, crit: 12, fire: 8 }, { cursed: true, curse: "c_manatick", sp: "chainShock", desc: "Attacks arc lightning to all other foes for 35%. Curse: lose 8% of max MP every 2 s in combat." }),
+  I("bs_brood_a", "Broodwoven Carapace", "🧥", "armor", 3, 1, 360, { def: 12, hp: 20, poison: 3 }, { set: "b_brood", dropBoss: "brood" }),
+  I("bs_brood_h", "Broodwoven Cowl", "🎭", "helmet", 3, 1, 360, { dodge: 5, poison: 3, hp: 10 }, { set: "b_brood", dropBoss: "brood" }),
+  I("bs_brood_r", "Broodwoven Band", "💍", "ring", 3, 1, 360, { poison: 5, atk: 3 }, { set: "b_brood", dropBoss: "brood" }),
+  I("bs_brood_m", "Broodwoven Amulet", "📿", "amulet", 3, 1, 360, { hp: 20, poison: 4 }, { set: "b_brood", dropBoss: "brood" }),
+  I("bs_lord_w", "Echobound Blade", "⚔️", "weapon", 3, 1, 360, { atk: 16, mp: 15, crit: 4 }, { set: "b_lord", dropBoss: "lord" }),
+  I("bs_lord_a", "Echobound Robes", "👘", "armor", 3, 1, 360, { def: 10, mp: 25 }, { set: "b_lord", dropBoss: "lord" }),
+  I("bs_lord_h", "Echobound Circlet", "💠", "helmet", 3, 1, 360, { mp: 25, atk: 3 }, { set: "b_lord", dropBoss: "lord" }),
+  I("bs_lord_r", "Echobound Signet", "💍", "ring", 3, 1, 360, { atk: 4, mp: 15, crit: 4 }, { set: "b_lord", dropBoss: "lord" }),
+  I("bs_rot_a", "Mireborn Hide", "🦺", "armor", 3, 1, 360, { def: 13, hp: 25, poison: 3 }, { set: "b_rot", dropBoss: "rotking" }),
+  I("bs_rot_h", "Mireborn Helm", "⛑️", "helmet", 3, 1, 360, { def: 6, poison: 3, hp: 15 }, { set: "b_rot", dropBoss: "rotking" }),
+  I("bs_rot_r", "Mireborn Ring", "💍", "ring", 3, 1, 360, { poison: 5, hp: 15 }, { set: "b_rot", dropBoss: "rotking" }),
+  I("bs_rot_m", "Mireborn Charm", "🍄", "amulet", 3, 1, 360, { hp: 25, poison: 4 }, { set: "b_rot", dropBoss: "rotking" }),
+  I("bs_choir_w", "Hollow Censer", "🔱", "weapon", 3, 1, 360, { atk: 14, holy: 6, mp: 20 }, { cls: ["cleric","warrior"], set: "b_choir", dropBoss: "choir" }),
+  I("bs_choir_a", "Hollow Vestments", "🥼", "armor", 3, 1, 360, { def: 12, hp: 20, holy: 3 }, { set: "b_choir", dropBoss: "choir" }),
+  I("bs_choir_h", "Hollow Mitre", "👑", "helmet", 3, 1, 360, { def: 5, holy: 4, mp: 15 }, { set: "b_choir", dropBoss: "choir" }),
+  I("bs_choir_m", "Hollow Relic", "📿", "amulet", 3, 1, 360, { holy: 5, hp: 20 }, { set: "b_choir", dropBoss: "choir" }),
+  I("bs_ash_w", "Cinderhide Axe", "🪓", "weapon", 3, 1, 360, { atk: 17, fire: 5 }, { cls: ["warrior"], set: "b_ash", dropBoss: "behemoth" }),
+  I("bs_ash_a", "Cinderhide Mail", "🦺", "armor", 3, 1, 360, { def: 15, hp: 25, fire: 3 }, { set: "b_ash", dropBoss: "behemoth" }),
+  I("bs_ash_h", "Cinderhide Helm", "🪖", "helmet", 3, 1, 360, { def: 7, fire: 3, hp: 15 }, { set: "b_ash", dropBoss: "behemoth" }),
+  I("bs_ash_r", "Cinderhide Band", "💍", "ring", 3, 1, 360, { fire: 5, atk: 3 }, { set: "b_ash", dropBoss: "behemoth" }),
+  I("bs_fish_w", "Drowned Harpoon", "🔱", "weapon", 3, 1, 360, { atk: 16, ice: 5, crit: 4 }, { cls: ["warrior","ranger"], set: "b_fish", dropBoss: "fisher" }),
+  I("bs_fish_a", "Drowned Coat", "🧥", "armor", 3, 1, 360, { def: 11, dodge: 5, ice: 3 }, { set: "b_fish", dropBoss: "fisher" }),
+  I("bs_fish_h", "Drowned Cowl", "🎩", "helmet", 3, 1, 360, { dodge: 5, ice: 3, hp: 10 }, { set: "b_fish", dropBoss: "fisher" }),
+  I("bs_fish_m", "Drowned Charm", "🌙", "amulet", 3, 1, 360, { ice: 5, dodge: 3 }, { set: "b_fish", dropBoss: "fisher" }),
+  I("bs_witch_w", "Hexwoven Wand", "✨", "weapon", 3, 1, 360, { atk: 13, mp: 30, crit: 5 }, { cls: ["mage"], set: "b_witch", dropBoss: "witch" }),
+  I("bs_witch_a", "Hexwoven Robe", "👘", "armor", 3, 1, 360, { def: 8, mp: 30 }, { cls: MC, set: "b_witch", dropBoss: "witch" }),
+  I("bs_witch_h", "Hexwoven Hood", "🎩", "helmet", 3, 1, 360, { mp: 25, crit: 4 }, { cls: MC, set: "b_witch", dropBoss: "witch" }),
+  I("bs_witch_r", "Hexwoven Loop", "💍", "ring", 3, 1, 360, { mp: 20, atk: 3, crit: 4 }, { set: "b_witch", dropBoss: "witch" }),
+  I("bs_colo_w", "Foundry Maul", "🔨", "weapon", 3, 1, 360, { atk: 18, def: 3 }, { cls: ["warrior"], set: "b_colo", dropBoss: "colossus" }),
+  I("bs_colo_a", "Foundry Plate", "🦺", "armor", 3, 1, 360, { def: 18, hp: 30 }, { cls: ["warrior","cleric"], set: "b_colo", dropBoss: "colossus" }),
+  I("bs_colo_h", "Foundry Helm", "⛑️", "helmet", 3, 1, 360, { def: 8, hp: 20 }, { set: "b_colo", dropBoss: "colossus" }),
+  I("bs_colo_r", "Foundry Seal", "💍", "ring", 3, 1, 360, { def: 5, hp: 20, th: 6 }, { set: "b_colo", dropBoss: "colossus" }),
+  I("bs_hung_w", "Devourer Fang", "🗡️", "weapon", 3, 1, 360, { atk: 16, ls: 5 }, { set: "b_hung", dropBoss: "hunger" }),
+  I("bs_hung_a", "Devourer Hide", "🧥", "armor", 3, 1, 360, { def: 12, hp: 25, ls: 3 }, { set: "b_hung", dropBoss: "hunger" }),
+  I("bs_hung_h", "Devourer Mask", "🎭", "helmet", 3, 1, 360, { ls: 4, atk: 3, hp: 15 }, { set: "b_hung", dropBoss: "hunger" }),
+  I("bs_hung_m", "Devourer Heart", "💎", "amulet", 3, 1, 360, { ls: 5, hp: 20 }, { set: "b_hung", dropBoss: "hunger" }),
+  I("u_brood_fang", "Broodvenom Fang", "🔪", "weapon", 4, 1, 900, undefined, { cls: ["rogue"], sp: "graveRot", desc: "Kills nothing extra — attacks inflict a heavier rot.", dropBoss: "brood", uranges: { atk: [16, 22], poison: [8, 14], crit: [8, 14] } }),
+  I("u_brood_veil", "Spinneret Veil", "🎭", "helmet", 4, 1, 900, undefined, { sp: "shadowVeil", desc: "After you are hit, gain +20% dodge for 3 s.", dropBoss: "brood", uranges: { def: [5, 9], dodge: [8, 14], hp: [20, 35] } }),
+  I("u_lord_blade", "Tomb-Echo Blade", "⚔️", "weapon", 4, 1, 900, undefined, { sp: "doubleStrike", desc: "20% chance to strike twice.", dropBoss: "lord", uranges: { atk: [18, 24], crit: [8, 14], mp: [20, 35] } }),
+  I("u_lord_sigil", "Lord's Void Sigil", "🌀", "ring", 4, 1, 900, undefined, { sp: "void", desc: "+15% damage dealt.", dropBoss: "lord", uranges: { atk: [6, 10], crit: [6, 12], mp: [20, 40] } }),
+  I("u_rot_crown", "Crown of Blight", "👑", "helmet", 4, 1, 900, undefined, { sp: "graveRot", desc: "Attacks inflict a heavier rot.", dropBoss: "rotking", uranges: { def: [6, 10], poison: [8, 14], hp: [25, 45] } }),
+  I("u_choir_censer", "Ossuary Censer", "🔱", "weapon", 4, 1, 900, undefined, { cls: ["cleric"], sp: "healBoost", desc: "Heal restores 50% more.", dropBoss: "choir", uranges: { atk: [14, 20], holy: [8, 14], mp: [30, 50] } }),
+  I("u_ash_heart", "Heart of Cinders", "🔥", "amulet", 4, 1, 900, undefined, { sp: "flameHit", desc: "Attacks can ignite foes.", dropBoss: "behemoth", uranges: { fire: [10, 16], hp: [30, 50], atk: [4, 8] } }),
+  I("u_fish_hook", "Tidehook", "🔱", "weapon", 4, 1, 900, undefined, { cls: ["warrior","ranger"], sp: "freezeHit", desc: "Attacks have a 25% chance to freeze.", dropBoss: "fisher", uranges: { atk: [18, 24], ice: [8, 14], crit: [6, 10] } }),
+  I("u_witch_wand", "Veilhex Wand", "✨", "weapon", 4, 1, 900, undefined, { cls: ["mage"], sp: "soulburn", desc: "Ability hits ignite the target and restore 10 MP.", dropBoss: "witch", uranges: { atk: [14, 20], mp: [45, 70], crit: [6, 12] } }),
+  I("u_colo_maul", "Slag Maul", "🔨", "weapon", 4, 1, 900, undefined, { cls: ["warrior"], sp: "cleaveHit", desc: "Basic attacks also cleave a nearby foe for 50%.", dropBoss: "colossus", uranges: { atk: [22, 30], def: [4, 8] } }),
+  I("u_hung_maw", "The Endless Maw", "🗡️", "weapon", 4, 1, 900, undefined, { sp: "reapSoul", desc: "Kills restore 8% HP and 10% MP.", dropBoss: "hunger", uranges: { atk: [18, 26], ls: [6, 12], crit: [6, 10] } }),
 ];
 const IT: Record<string, ItemT> = {};
 for (const it of ITEMS) IT[it.id] = it;
@@ -344,6 +391,15 @@ const SETS: Record<string, SetT> = {
   grave: { name: "Gravebloom Vestments", n: 4, b2: { poison: 6 }, b3: { hp: 30, atk: 4 }, bf: { poison: 5 }, sp: "graveRot", desc: "2 pc: +6 poison · 3 pc: +30 HP, +4 ATK · 4 pc: +5 poison and attacks inflict a heavier rot" },
   rime: { name: "Rimeward Pall", n: 4, b2: { ice: 6 }, b3: { def: 6, hp: 20 }, bf: { ice: 5 }, sp: "freezeHit", desc: "2 pc: +6 ice · 3 pc: +6 DEF, +20 HP · 4 pc: +5 ice and attacks have a 25% chance to freeze" },
   ashen: { name: "Ashen Covenant", n: 3, b2: { mp: 30, fire: 4 }, bf: { atk: 6 }, sp: "flameHit", desc: "2 pc: +30 MP, +4 fire · 3 pc: +6 ATK and attacks can ignite foes" },
+  b_brood: { name: "Broodwoven War-silk", n: 4, b2: { poison: 6, dodge: 4 }, b3: { hp: 30, poison: 4 }, bf: { atk: 6 }, sp: "graveRot", desc: "2 pc: +6 poison, +4% dodge · 3 pc: +30 HP, +4 poison · 4 pc: +6 ATK and attacks inflict a heavier rot" },
+  b_lord: { name: "Echobound Regalia", n: 4, b2: { mp: 30, atk: 4 }, b3: { crit: 6, mp: 20 }, bf: { atk: 6 }, sp: "void", desc: "2 pc: +30 MP, +4 ATK · 3 pc: +6% crit, +20 MP · 4 pc: +6 ATK and +15% damage dealt" },
+  b_rot: { name: "Mireborn Raiment", n: 4, b2: { poison: 6, hp: 20 }, b3: { def: 6, poison: 4 }, bf: { hp: 30 }, sp: "graveRot", desc: "2 pc: +6 poison, +20 HP · 3 pc: +6 DEF, +4 poison · 4 pc: +30 HP and attacks inflict a heavier rot" },
+  b_choir: { name: "Hollow Hymn Vestments", n: 4, b2: { holy: 6, mp: 20 }, b3: { def: 6, hp: 25 }, bf: { holy: 5 }, sp: "holyWard", desc: "2 pc: +6 holy, +20 MP · 3 pc: +6 DEF, +25 HP · 4 pc: +5 holy and take 12% less damage" },
+  b_ash: { name: "Cinderhide Plate", n: 4, b2: { fire: 6, def: 4 }, b3: { hp: 30, fire: 4 }, bf: { atk: 6 }, sp: "flameHit", desc: "2 pc: +6 fire, +4 DEF · 3 pc: +30 HP, +4 fire · 4 pc: +6 ATK and attacks can ignite foes" },
+  b_fish: { name: "Drowned Leaguer", n: 4, b2: { ice: 6, dodge: 4 }, b3: { hp: 25, ice: 4 }, bf: { dodge: 5 }, sp: "freezeHit", desc: "2 pc: +6 ice, +4% dodge · 3 pc: +25 HP, +4 ice · 4 pc: +5% dodge and attacks have a 25% chance to freeze" },
+  b_witch: { name: "Hexwoven Shroud", n: 4, b2: { mp: 30, crit: 4 }, b3: { atk: 5, mp: 20 }, bf: { crit: 6 }, sp: "insight", desc: "2 pc: +30 MP, +4% crit · 3 pc: +5 ATK, +20 MP · 4 pc: +6% crit and abilities deal 20% more damage" },
+  b_colo: { name: "Foundry Panoply", n: 4, b2: { def: 8, hp: 20 }, b3: { th: 10, def: 6 }, bf: { hp: 40 }, sp: "colossus", desc: "2 pc: +8 DEF, +20 HP · 3 pc: +10% thorns, +6 DEF · 4 pc: +40 HP and take 12% less damage" },
+  b_hung: { name: "Devourer's Garb", n: 4, b2: { ls: 5, atk: 4 }, b3: { hp: 30, ls: 4 }, bf: { atk: 6 }, sp: "bloodlust", desc: "2 pc: +5% lifesteal, +4 ATK · 3 pc: +30 HP, +4% lifesteal · 4 pc: +6 ATK and kills heal 8% HP" },
 };
 const PETS: Record<string, PetT> = {
   wolf: { name: "Wolf", icon: "🐺", hpF: 0.1, mult: 0.45, spd: 4.4, reach: 0.95, rate: 1.5, desc: "bites hard" },
@@ -2004,14 +2060,101 @@ function inCone(px: number, py: number, ang: number, x: number, y: number, half:
   return Math.abs(da) <= half;
 }
 function tierOf(f: number): number { return Math.ceil(f / 2); }
-function bossKind(f: number): string { return f % 10 === 0 ? "lord" : "brood"; }
-type Biome = "warren" | "crypt";
-function biomeOf(f: number): Biome { return bossKind(Math.max(1, Math.ceil(f / 5)) * 5) === "lord" ? "crypt" : "warren"; }
-const BIOME: Record<Biome, { name: string; sub: string }> = {
-  warren: { name: "Spider Warrens", sub: "The Broodmother's webbed caverns · webs entangle you" },
-  crypt: { name: "Shadow Crypt", sub: "The Echo Lord's tomb · runes drain life and wake the dead" },
+type Biome = "warren" | "crypt" | "mire" | "cathedral" | "cinder" | "drowned" | "cloister" | "foundry" | "devour";
+const BIOMES: Biome[] = ["warren", "crypt", "mire", "cathedral", "cinder", "drowned", "cloister", "foundry", "devour"];
+function isBiome(x: unknown): x is Biome { return typeof x === "string" && (BIOMES as string[]).includes(x); }
+interface BossDef {
+  id: string; name: string; short: string; icon: string; biome: Biome; undead?: boolean;
+  hp: number; atk: number; def: number; xp: number; gold: number;
+  rt: [number, number, number, number];
+  minion: { spr: string; name: string; icon: string; b: Behav; undead?: boolean };
+  phases: number; hazTile: number; hazLegend: string;
+}
+const BOSSES: Record<string, BossDef> = {
+  brood: { id: "brood", name: "The Broodmother", short: "Broodmother", icon: "🕸️", biome: "warren", hp: 300, atk: 16, def: 7, xp: 150, gold: 150, rt: [26, 16, 0.7, 1.7], minion: { spr: "spiderling", name: "Spiderling", icon: "🕷️", b: "poisoner" }, phases: 2, hazTile: 5, hazLegend: "🕸️ webs slow you and wake the warren" },
+  lord: { id: "lord", name: "The Echo Lord", short: "Echo Lord", icon: "👑", biome: "crypt", undead: true, hp: 700, atk: 28, def: 15, xp: 400, gold: 350, rt: [28, 17, 0.6, 1.5], minion: { spr: "shade", name: "Echo Shade", icon: "👤", b: "drainer", undead: true }, phases: 3, hazTile: 6, hazLegend: "🔮 runes drain 8% HP and wake the dead" },
+  rotking: { id: "rotking", name: "The Rotking", short: "Rotking", icon: "🍄", biome: "mire", hp: 520, atk: 22, def: 12, xp: 280, gold: 240, rt: [24, 16, 0.75, 1.8], minion: { spr: "slime", name: "Rotling", icon: "🟢", b: "poisoner" }, phases: 2, hazTile: 7, hazLegend: "🤢 toxic puddles poison you and slow your step" },
+  choir: { id: "choir", name: "The Hollow Choir", short: "Hollow Choir", icon: "💀", biome: "cathedral", undead: true, hp: 560, atk: 24, def: 11, xp: 300, gold: 260, rt: [25, 16, 0.7, 1.7], minion: { spr: "skel", name: "Ossling", icon: "💀", b: "brute", undead: true }, phases: 3, hazTile: 8, hazLegend: "🔔 wailing bells drain MP and wake the dead" },
+  behemoth: { id: "behemoth", name: "The Ashen Behemoth", short: "Ashen Behemoth", icon: "🔥", biome: "cinder", hp: 680, atk: 30, def: 16, xp: 360, gold: 300, rt: [22, 18, 0.8, 1.9], minion: { spr: "demon", name: "Emberling", icon: "😈", b: "brute" }, phases: 3, hazTile: 9, hazLegend: "🌋 magma vents burn you" },
+  fisher: { id: "fisher", name: "The Pale Fisher", short: "Pale Fisher", icon: "🪝", biome: "drowned", hp: 540, atk: 25, def: 10, xp: 290, gold: 250, rt: [26, 17, 0.65, 1.6], minion: { spr: "shade", name: "Drowned", icon: "👤", b: "drainer", undead: true }, phases: 2, hazTile: 10, hazLegend: "🌊 depth pools cling and slow you" },
+  witch: { id: "witch", name: "The Veil Witch", short: "Veil Witch", icon: "🧹", biome: "cloister", hp: 480, atk: 26, def: 9, xp: 300, gold: 270, rt: [27, 16, 0.6, 1.55], minion: { spr: "hexer", name: "Hexling", icon: "🧙", b: "hexer" }, phases: 3, hazTile: 11, hazLegend: "🔯 curse glyphs hex you, cutting your damage" },
+  colossus: { id: "colossus", name: "The Iron Colossus", short: "Iron Colossus", icon: "⚙️", biome: "foundry", hp: 720, atk: 29, def: 18, xp: 380, gold: 320, rt: [20, 18, 0.85, 2.0], minion: { spr: "golem", name: "Construct", icon: "🪨", b: "tank" }, phases: 3, hazTile: 12, hazLegend: "⚒️ slag pits scorch and slow you" },
+  hunger: { id: "hunger", name: "The Hunger Below", short: "Hunger Below", icon: "👄", biome: "devour", hp: 640, atk: 27, def: 13, xp: 340, gold: 290, rt: [25, 16, 0.7, 1.65], minion: { spr: "rat", name: "Mawling", icon: "🐀", b: "swift" }, phases: 3, hazTile: 13, hazLegend: "🕳️ hungry dark drinks your life" },
 };
-const FAV: Record<Biome, string[]> = { warren: ["spider", "rat", "bat", "slime", "goblin"], crypt: ["skel", "wraith", "necro", "lich", "demon", "shade"] };
+/** First two are story (and Endless 5/10). New roster fills every later boss floor before Broodmother/Echo Lord can repeat. */
+const BOSS_FIRST = ["brood", "lord"] as const;
+const BOSS_NEW = ["rotking", "choir", "behemoth", "fisher", "witch", "colossus", "hunger"] as const;
+const BOSS_ALL = [...BOSS_FIRST, ...BOSS_NEW];
+interface BiomeLook { name: string; sub: string; tint: string; paint: "warren" | "crypt"; banner: string; }
+const BIOME: Record<Biome, BiomeLook> = {
+  warren: { name: "Spider Warrens", sub: "The Broodmother's webbed caverns · webs entangle you", tint: "", paint: "warren", banner: "#6aa83a" },
+  crypt: { name: "Shadow Crypt", sub: "The Echo Lord's tomb · runes drain life and wake the dead", tint: "", paint: "crypt", banner: "#8a4ad0" },
+  mire: { name: "Blight Mire", sub: "The Rotking's drowned fen · toxic puddles fester", tint: "rgba(40,80,16,.20)", paint: "warren", banner: "#7dbb3a" },
+  cathedral: { name: "Bone Cathedral", sub: "The Hollow Choir's nave · wailing bells stir the dead", tint: "rgba(200,190,170,.10)", paint: "crypt", banner: "#d8c8a0" },
+  cinder: { name: "Cinder Vaults", sub: "The Ashen Behemoth's kiln · magma vents scorch the floor", tint: "rgba(120,30,0,.18)", paint: "crypt", banner: "#ff8a30" },
+  drowned: { name: "Drowned Galleries", sub: "The Pale Fisher's hunting grounds · dark pools cling", tint: "rgba(10,40,70,.20)", paint: "warren", banner: "#4ad0ff" },
+  cloister: { name: "Hexed Cloister", sub: "The Veil Witch's sanctum · curse glyphs sap your strength", tint: "rgba(80,20,120,.16)", paint: "crypt", banner: "#c04cff" },
+  foundry: { name: "Foundry Depths", sub: "The Iron Colossus's forge · slag pits glow underfoot", tint: "rgba(70,40,10,.16)", paint: "crypt", banner: "#ffb24a" },
+  devour: { name: "Devouring Dark", sub: "The Hunger Below waits · the dark itself drinks", tint: "rgba(40,0,10,.22)", paint: "warren", banner: "#ff3b5c" },
+};
+const FAV: Record<Biome, string[]> = {
+  warren: ["spider", "rat", "bat", "slime", "goblin"],
+  crypt: ["skel", "wraith", "necro", "lich", "demon", "shade"],
+  mire: ["slime", "spitter", "spider", "rat", "basil"],
+  cathedral: ["skel", "wraith", "necro", "lich", "shade"],
+  cinder: ["demon", "wyvern", "golem", "orc", "kobold"],
+  drowned: ["slime", "shade", "bat", "wraith", "spitter"],
+  cloister: ["hexer", "wraith", "shade", "necro", "elf"],
+  foundry: ["golem", "orc", "kobold", "garcher", "demon"],
+  devour: ["rat", "shade", "demon", "spider", "bat"],
+};
+function isHazard(t: number): boolean { return t >= 5 && t <= 13; }
+function bossFloor(f: number): number { return Math.max(5, Math.ceil(f / 5) * 5); }
+function bossPlan(g: Game | undefined, f: number): { id: string; encore: boolean } {
+  const bossF = bossFloor(f);
+  const idx = Math.floor(bossF / 5) - 1;
+  // Story is only floors 1–10. Endless floors 5 and 10 stay Broodmother / Echo Lord.
+  if ((g && g.mode === "story") || idx <= 1) return { id: idx <= 0 ? "brood" : "lord", encore: false };
+  const newIdx = idx - 2;
+  if (newIdx < BOSS_NEW.length) return { id: BOSS_NEW[newIdx], encore: false };
+  return { id: BOSS_ALL[(newIdx - BOSS_NEW.length) % BOSS_ALL.length], encore: true };
+}
+function bossKind(f: number, g?: Game): string { return bossPlan(g, f).id; }
+function biomeOf(f: number, g?: Game): Biome { return BOSSES[bossKind(bossFloor(f), g)]?.biome ?? "warren"; }
+function bossTitle(id: string, f: number): string {
+  const B = BOSSES[id];
+  if (!B) return "Unknown Horror";
+  if ((f === 5 && id === "brood") || (f === 10 && id === "lord")) return B.name;
+  return `${B.short}, Depth ${f}`;
+}
+function bossName(g: Game | undefined, f: number): string {
+  const p = bossPlan(g, f);
+  return p.encore ? `${bossTitle(p.id, f)} (Returning)` : bossTitle(p.id, f);
+}
+function teleStyle(kind: string): { border: string; fill: string } {
+  if (kind === "acid" || kind === "bile" || kind === "spit") return { border: "#7dff4a", fill: "rgba(110,220,60,.4)" };
+  if (kind === "cata" || kind === "hexnova") return { border: "#c07bff", fill: "rgba(150,60,255,.45)" };
+  if (kind === "tide" || kind === "hook") return { border: "#4ad0ff", fill: "rgba(40,160,255,.4)" };
+  if (kind === "stomp" || kind === "slag") return { border: "#ffb24a", fill: "rgba(255,140,40,.42)" };
+  if (kind === "maw" || kind === "consume") return { border: "#ff3b5c", fill: "rgba(180,0,40,.45)" };
+  if (kind === "ossuary") return { border: "#e8dcb0", fill: "rgba(200,190,160,.4)" };
+  if (kind === "erupt") return { border: "#ff6a20", fill: "rgba(255,80,20,.45)" };
+  return { border: "#ff5a2a", fill: "rgba(255,80,20,.42)" };
+}
+function chargeBanner(c: Combat): string {
+  const tz = (c.tele ?? []).find((t: Tele) => ["cata", "ossuary", "erupt", "hexnova", "stomp", "consume"].includes(t.kind));
+  const k = tz?.kind;
+  if (k === "ossuary") return "⚠️ OSSUARY — leave the pale ring!";
+  if (k === "erupt") return "⚠️ MAGMA STOMP — leave the orange ring!";
+  if (k === "hexnova") return "⚠️ HEX NOVA — leave the violet ring!";
+  if (k === "stomp") return "⚠️ PULVERIZE — leave the gold ring!";
+  if (k === "consume") return "⚠️ CONSUMING MAW — leave the red ring!";
+  return "⚠️ CATACLYSM — leave the purple ring!";
+}
+function teleVerb(kind: string): string {
+  return kind === "spit" ? "spatters acid on" : kind === "acid" ? "splashes acid on" : kind === "bile" ? "splashes bile on" : kind === "cata" ? "💥 OBLITERATES" : kind === "stomp" ? "slams" : kind === "tide" || kind === "hook" ? "drags under" : kind === "ossuary" ? "buries" : kind === "hexnova" ? "hexes" : kind === "slag" || kind === "erupt" ? "scorches" : kind === "maw" || kind === "consume" ? "devours" : "engulfs in shadow flame";
+}
+
 function freshBuffs(): Buffs { return { rage: 0, holy: 0, evade: 0, shield: 0, frenzy: 0, fury: 0, iron: 0, defend: false, dotT: 0, dotD: 0, haste: 0, pethaste: 0, reflect: 0, nextCrit: 0, whirl: 0 }; }
 const FURY_T = 20, IRON_T = 25;
 function keepScrollBuffs(b: Buffs): Buffs { const n = freshBuffs(); n.fury = b.fury; n.iron = b.iron; n.pethaste = b.pethaste ?? 0; return n; }
@@ -2787,14 +2930,29 @@ const LOOT: Record<string, { p: number; minR: number; p2: number }> = {
   chest: { p: 0.6375, minR: 0, p2: 0.09 }, // chest: 63.75% one item (Uncommon+ from floor 5), 9% a second (was 85% / 12%)
   boss: { p: 1, minR: 3, p2: 0.5 },       // boss: 2 Epic+ gear + Identify scroll, 50% an extra Rare+ item (unchanged)
 };
-function lootRoll(g: Game, src: string): Inv[] {
+function rollBossItem(g: Game, bid: string, minR: number, usedSet: number): Inv {
+  const f = g.floor, t = tierOf(f);
+  const table = ITEMS.filter((i: ItemT) => i.dropBoss === bid && i.minF <= t && (!i.ff || f >= i.ff) && i.r >= minR);
+  if (table.length && Math.random() < 0.55) {
+    const pool = table.filter((i: ItemT) => !(i.set && usedSet >= 2));
+    if (pool.length) return makeInst(wpick(pool, g.cls, f).id, f, true, "boss");
+  }
+  return makeInst(rollItem(f, minR, g.cls, "gear"), f, true, "boss");
+}
+function lootRoll(g: Game, src: string, bossId?: string): Inv[] {
   const L = LOOT[src]; const out: Inv[] = [];
   const sc = g.perks.includes("scavenger") ? 1.2 : 1;
   const f = g.floor;
   if (src === "boss") {
-    for (let k = 0; k < 2; k++) out.push(makeInst(rollItem(f, 3, g.cls, "gear"), f, true, "boss"));
+    const bid = bossId && BOSSES[bossId] ? bossId : bossKind(f, g);
+    let usedSet = 0;
+    for (let k = 0; k < 2; k++) {
+      const inv = rollBossItem(g, bid, 3, usedSet);
+      if (IT[inv.id].set) usedSet++;
+      out.push(inv);
+    }
     out.push(makeInst("c_ident", f, false, "boss"));
-    if (Math.random() < L.p2) out.push(makeInst(rollItem(f, 2, g.cls, "any"), f, true, "boss"));
+    if (Math.random() < L.p2) out.push(rollBossItem(g, bid, 2, usedSet));
     return out;
   }
   const minR = src === "chest" ? (f >= 5 ? 1 : 0) : L.minR;
@@ -2806,7 +2964,7 @@ function rollItem(f: number, minR: number, cls: ClassId, kind: "any" | "gear" | 
   const t = tierOf(f);
   const want = kind === "any" ? (Math.random() < 0.4 ? "cons" : "gear") : kind;
   for (let r = Math.min(maxR, rollRarity(t, minR)); r >= 0; r--) {
-    const c = ITEMS.filter((i: ItemT) => i.r === r && i.minF <= t && (!i.ff || f >= i.ff) && (want === "cons") === (i.slot === "consumable") && i.fx !== "heal");
+    const c = ITEMS.filter((i: ItemT) => i.r === r && i.minF <= t && (!i.ff || f >= i.ff) && !i.dropBoss && (want === "cons") === (i.slot === "consumable") && i.fx !== "heal");
     if (c.length === 0) continue;
     return wpick(c, cls, f).id;
   }
@@ -2834,13 +2992,12 @@ function makeEnemy(m: MonT, f: number): Enemy {
   const s = mscale(m, f);
   return applyPartyScale(mkEnemy({ spr: m.id, name: m.name, icon: m.icon, hp: Math.round(m.hp * s), atk: Math.round(m.atk * s), def: Math.round(m.def * (1 + (s - 1) * 0.6)), dodge: m.dodge, xp: Math.round(m.xp * s), gold: Math.round(m.gold * s), b: m.b, undead: !!m.undead }));
 }
-function makeBoss(f: number): Enemy {
-  if (bossKind(f) === "lord") {
-    const s = 1 + 0.15 * Math.max(0, f - 10);
-    return applyPartyScale(mkEnemy({ name: f === 10 ? "The Echo Lord" : `Echo Lord, Depth ${f}`, spr: "lord", icon: "👑", hp: Math.round(700 * s), atk: Math.round(28 * s), def: Math.round(15 * s), xp: Math.round(400 * s), gold: Math.round(350 * s), b: "boss", bk: "lord", undead: true, boss: true }));
-  }
-  const s = 1 + 0.15 * Math.max(0, f - 5);
-  return applyPartyScale(mkEnemy({ name: f === 5 ? "The Broodmother" : `Broodmother, Depth ${f}`, spr: "brood", icon: "🕸️", hp: Math.round(300 * s), atk: Math.round(16 * s), def: Math.round(7 * s), xp: Math.round(150 * s), gold: Math.round(150 * s), b: "boss", bk: "brood", boss: true }));
+function makeBoss(g: Game, f = g.floor): Enemy {
+  const plan = bossPlan(g, f);
+  const B = BOSSES[plan.id] ?? BOSSES.brood;
+  const base = plan.id === "brood" ? 5 : 10;
+  const s = 1 + 0.15 * Math.max(0, f - base);
+  return applyPartyScale(mkEnemy({ name: bossName(g, f), spr: plan.id, icon: B.icon, hp: Math.round(B.hp * s), atk: Math.round(B.atk * s), def: Math.round(B.def * s), xp: Math.round(B.xp * s), gold: Math.round(B.gold * s), b: "boss", bk: plan.id, undead: !!B.undead, boss: true }));
 }
 
 function genFloor(g: Game): void {
@@ -2877,8 +3034,8 @@ function genFloor(g: Game): void {
   g.sx = end.x; g.sy = end.y;
   g.mons = [];
   g.stains = []; g.rem = [];
-  g.biome = biomeOf(g.floor); g.bannerTs = Date.now();
-  if (g.floor % 5 === 0) g.mons.push({ id: UID++, x: end.x, y: end.y, t: bossKind(g.floor), boss: true, awake: true, stun: 0 });
+  g.biome = biomeOf(g.floor, g); g.bannerTs = Date.now();
+  if (g.floor % 5 === 0) g.mons.push({ id: UID++, x: end.x, y: end.y, t: bossKind(g.floor, g), boss: true, awake: true, stun: 0 });
   else map[end.y][end.x] = 2;
   const spot = (from: number, to: number): { x: number; y: number } | null => {
     for (let tries = 0; tries < 60; tries++) {
@@ -2928,7 +3085,7 @@ function genFloor(g: Game): void {
   for (let k = 0, tries = 0; k < nh && tries < 500; tries++) {
     const x = 1 + rnd(W - 2), y = 1 + rnd(H - 2);
     if (map[y][x] !== 1 || Math.abs(x - g.px) + Math.abs(y - g.py) <= 2 || Math.abs(x - end.x) + Math.abs(y - end.y) <= 1) continue;
-    map[y][x] = g.biome === "warren" ? 5 : 6; k++;
+    map[y][x] = (BOSSES[bossKind(g.floor, g)] ?? BOSSES.brood).hazTile; k++;
   }
   const pool = poolFor(g.floor, g.biome);
   const nm = monCount(g.floor);
@@ -2978,7 +3135,7 @@ function descend(g: Game): void {
   genFloor(g); reveal(g);
   for (const p of g.pets ?? []) { p.x = (g.wx ?? g.px + 0.5); p.y = (g.wy ?? g.py + 0.5) + 0.01; }
   syncPets(g);
-  log(g, `${BIOME[biomeOf(g.floor)].name}: you descend to ${g.mode === "story" ? "Floor" : "Depth"} ${g.floor}${g.floor % 5 === 0 ? ` — ${bossKind(g.floor) === "lord" ? "the Echo Lord" : "the Broodmother"} lurks here!` : ""}.`, "good");
+  log(g, `${BIOME[biomeOf(g.floor, g)].name}: you descend to ${g.mode === "story" ? "Floor" : "Depth"} ${g.floor}${g.floor % 5 === 0 ? ` — ${bossName(g, g.floor)} lurks here!` : ""}.`, "good");
   g.screen = "map";
 }
 function makeOffers(g: Game): Perk[] {
@@ -3173,7 +3330,7 @@ function resolveDeaths(g: Game): void {
       const gold = goldGain(hero, e.gold * (0.8 + Math.random() * 0.4));
       gain(hero, `+${e.xp} XP`, XPC); gain(hero, `+${gold} gold`, GOLDC);
       gainXp(hero, e.xp);
-      const drops: Inv[] = e.minion ? (Math.random() < 0.1 ? lootRoll(hero, "mob") : []) : lootRoll(hero, kind);
+      const drops: Inv[] = e.minion ? (Math.random() < 0.1 ? lootRoll(hero, "mob") : []) : lootRoll(hero, kind, kind === "boss" ? e.bk : undefined);
       const found: string[] = [];
       for (const d of drops) { gain(hero, `+ ${instName(d)}`, rarCol(d)); addItem(hero, d); found.push(instName(d)); }
       const pot = maybeDropPotion(hero, kind);
@@ -3229,7 +3386,7 @@ function engage(g: Game, m: MapMon): void {
   const fresh = !g.combat;
   if (!g.combat) { g.combat = newCombat(); g.buffs = keepScrollBuffs(g.buffs); }
   const c = g.combat;
-  const e = m.boss ? makeBoss(g.floor) : makeEnemy(MON[m.t], g.floor);
+  const e = m.boss ? makeBoss(g) : makeEnemy(MON[m.t], g.floor);
   rtScale(e, g.floor);
   // elites: tougher, better loot odds, same gold
   if (m.el && !m.boss) { e.elite = true; e.name = `Elite ${e.name}`; e.max = Math.round(e.max * 1.5); e.hp = e.max; e.atk = Math.round(e.atk * 1.15); e.xp = Math.round(e.xp * 1.5); }
@@ -3284,9 +3441,11 @@ function summon(g: Game, boss: Enemy, n: number): void {
   const c = g.combat; if (!c) return;
   for (let k = 0; k < n; k++) {
     if (alive(c).length >= 5) break;
-    const lord = boss.bk === "lord";
-    const hp = Math.round(boss.max * (lord ? 0.11 : 0.12) * 1.5);
-    const m = mkEnemy({ spr: lord ? "shade" : "spiderling", name: lord ? "Echo Shade" : "Spiderling", icon: lord ? "👤" : "🕷️", hp, atk: Math.round(boss.atk * (lord ? 0.6 : 0.5)), def: Math.round(boss.def * 0.4), dodge: 10, xp: Math.round(boss.xp * 0.06), gold: Math.round(boss.gold * 0.05), b: lord ? "drainer" : "poisoner", undead: lord, stun: 1 });
+    const M = (BOSSES[boss.bk] ?? BOSSES.brood).minion;
+    const hpMul = boss.bk === "lord" ? 0.11 : 0.12;
+    const atkMul = boss.bk === "lord" ? 0.6 : boss.bk === "brood" ? 0.5 : 0.55;
+    const hp = Math.round(boss.max * hpMul * 1.5);
+    const m = mkEnemy({ spr: M.spr, name: M.name, icon: M.icon, hp, atk: Math.round(boss.atk * atkMul), def: Math.round(boss.def * 0.4), dodge: 10, xp: Math.round(boss.xp * 0.06), gold: Math.round(boss.gold * 0.05), b: M.b, undead: !!M.undead, stun: 1 });
     const a = Math.random() * Math.PI * 2, q = { x: (boss.x ?? 0) + Math.cos(a) * 1.3, y: (boss.y ?? 0) + Math.sin(a) * 1.3 };
     pushOut(g, q, MR); if (solidT(g, Math.floor(q.x), Math.floor(q.y)) || !los(g, boss.x ?? 0, boss.y ?? 0, q.x, q.y)) { q.x = boss.x ?? 0; q.y = boss.y ?? 0; }
     m.rt = true; m.minion = true; m.x = q.x; m.y = q.y; m.hx = boss.hx; m.hy = boss.hy; m.lost = 0; m.atkT = 0.8 + Math.random() * 0.6;
@@ -3305,16 +3464,78 @@ function lordMelee(g: Game, e: Enemy): void {
   else if (r < 0.3) damagePlayer(g, e, atk * 1.5, false, "rends with Echo Slash");
   else damagePlayer(g, e, atk, false, "strikes");
 }
+function newBossMelee(g: Game, e: Enemy): void {
+  const c = g.combat; if (!c) return;
+  const atk = e.atk * (c.phase === 3 ? 1.3 : 1);
+  const r = Math.random();
+  if (e.bk === "rotking") {
+    if (r < 0.45) { const d = damagePlayer(g, e, atk, false, "smashes a Rotting Fist into"); if (d > 0) applyDot(g, Math.round(e.atk * 0.3), "poison"); }
+    else damagePlayer(g, e, atk * (c.phase === 2 ? 1.15 : 1), false, "lurches into");
+    return;
+  }
+  if (e.bk === "choir") {
+    if (r < 0.3) damagePlayer(g, e, atk * 1.25, false, "wails a Bone Hymn at");
+    else damagePlayer(g, e, atk, false, "rakes with ossuary claws");
+    return;
+  }
+  if (e.bk === "behemoth") {
+    if (r < 0.4) { const d = damagePlayer(g, e, atk * 1.3, false, "swings a Cinder Maul at"); if (d > 0) applyDot(g, Math.round(e.atk * 0.2), "burn"); }
+    else damagePlayer(g, e, atk, false, "tramples");
+    return;
+  }
+  if (e.bk === "fisher") {
+    if (r < 0.35) { const d = damagePlayer(g, e, atk * 1.1, true, "hooks and drains"); if (d > 0) e.hp = Math.min(e.max, e.hp + Math.round(d * 0.35)); }
+    else damagePlayer(g, e, atk, false, "lashes a pale hook at");
+    return;
+  }
+  if (e.bk === "witch") {
+    if (r < 0.4) { damagePlayer(g, e, atk * 0.9, true, "casts a Hex Bolt at"); g.buffs.hex = Math.max(g.buffs.hex ?? 0, 3); }
+    else damagePlayer(g, e, atk, false, "rakes");
+    return;
+  }
+  if (e.bk === "colossus") {
+    damagePlayer(g, e, atk * (r < 0.35 ? 1.45 : 1.1), false, r < 0.35 ? "brings a Foundry Slam down on" : "shoulders into");
+    return;
+  }
+  if (e.bk === "hunger") {
+    const d = damagePlayer(g, e, atk * (c.phase === 3 ? 1.2 : 1), false, "gnashes at");
+    if (d > 0) e.hp = Math.min(e.max, e.hp + Math.round(d * 0.4));
+    return;
+  }
+  mobAct(g, e);
+}
 function bossPhase(g: Game, e: Enemy): void {
   const c = g.combat; if (!c) return;
   const ratio = e.hp / e.max;
-  if (e.bk === "brood") { if (c.phase === 1 && ratio <= 0.5) { c.phase = 2; log(g, "⚠️ PHASE 2: The Broodmother shrieks — spiderlings pour out and acid rains faster!", "bad"); summon(g, e, 2); } return; }
-  const ph = ratio > 0.6 ? 1 : ratio > 0.25 ? 2 : 3;
-  if (ph > c.phase) {
-    if (ph >= 2 && c.phase < 2) { log(g, "🌘 PHASE 2: The Echo Lord splits its shadow — Echo Shades rise and shadow flame erupts!", "bad"); summon(g, e, 2); }
-    if (ph === 3) { log(g, "🔥 PHASE 3: The Echo Lord ENRAGES! Watch for the CATACLYSM ring!", "bad"); summon(g, e, 1); }
-    c.phase = ph;
+  const B = BOSSES[e.bk] ?? BOSSES.brood;
+  const want = B.phases >= 3 ? (ratio > 0.6 ? 1 : ratio > 0.25 ? 2 : 3) : (ratio > 0.5 ? 1 : 2);
+  if (want <= c.phase) return;
+  if (want >= 2 && c.phase < 2) {
+    const msg: Record<string, string> = {
+      brood: "⚠️ PHASE 2: The Broodmother shrieks — spiderlings pour out and acid rains faster!",
+      lord: "🌘 PHASE 2: The Echo Lord splits its shadow — Echo Shades rise and shadow flame erupts!",
+      rotking: "⚠️ PHASE 2: The Rotking bursts — rotlings spill out and bile rains faster!",
+      choir: "⚠️ PHASE 2: The Hollow Choir rises in a second voice — osslings claw free!",
+      behemoth: "⚠️ PHASE 2: The Ashen Behemoth cracks — emberlings crawl from the slag!",
+      fisher: "⚠️ PHASE 2: The Pale Fisher hauls drowned dead from the black water!",
+      witch: "⚠️ PHASE 2: The Veil Witch peels her shadow — hexlings step through!",
+      colossus: "⚠️ PHASE 2: The Iron Colossus sheds plates — constructs lurch alive!",
+      hunger: "⚠️ PHASE 2: The Hunger Below yawns wider — mawlings pour out!",
+    };
+    log(g, msg[e.bk] ?? "⚠️ PHASE 2: The horror changes!", "bad"); summon(g, e, 2);
   }
+  if (want === 3 && c.phase < 3) {
+    const msg3: Record<string, string> = {
+      lord: "🔥 PHASE 3: The Echo Lord ENRAGES! Watch for the CATACLYSM ring!",
+      choir: "🔥 PHASE 3: The Choir screams in unison — falling bone fills the nave!",
+      behemoth: "🔥 PHASE 3: The Behemoth ENRAGES — the vault itself starts to erupt!",
+      witch: "🔥 PHASE 3: The Veil Witch tears the cloister open!",
+      colossus: "🔥 PHASE 3: The Colossus raises a pulverizing blow!",
+      hunger: "🔥 PHASE 3: The Hunger tries to consume you whole!",
+    };
+    log(g, msg3[e.bk] ?? "🔥 PHASE 3: The horror ENRAGES!", "bad"); summon(g, e, 1);
+  }
+  c.phase = want;
 }
 // ---------- REAL-TIME COMBAT ----------
 // Combat happens on the exploration map, in tile units. U converts the old arena units (26 u/s ≈ 3.25 tiles/s).
@@ -3361,7 +3582,7 @@ function combatNote(g: Game, t: string): void { const n = Date.now(); if (n - NO
 const RTB: Record<string, [number, number, number, number]> = { brute: [30, 11, 0.75, 1.9], swift: [35, 9, 0.4, 1.25], tank: [20, 12, 0.85, 2.3], caster: [26, 50, 0.7, 2.3], poisoner: [34, 9, 0.5, 1.6], drainer: [33, 10, 0.6, 1.7], archer: [26, 52, 0.8, 2.4], spitter: [25, 48, 0.95, 3.2], hexer: [25, 52, 0.85, 3.0] };
 const FAST_B = new Set(["swift", "poisoner", "drainer"]);
 function eSpdOf(b: string, elite = false, boss?: string): number {
-  const P0 = boss ? (boss === "lord" ? 28 : 26) : (RTB[b]?.[0] ?? 30);
+  const P0 = boss ? ((BOSSES[boss]?.rt[0]) ?? (boss === "lord" ? 28 : 26)) : (RTB[b]?.[0] ?? 30);
   let spd = 0.75 + P0 * 0.085;
   if (elite && !boss) spd *= 1.08;
   return spd;
@@ -3472,7 +3693,7 @@ function rtResolve(g: Game, e: Enemy, d: number, reach: number): void {
     return;
   }
   if (d > reach + 5 / U) { addFx(g, "whiff", "sys", "e" + e.uid); return; }
-  if (e.bk === "lord") lordMelee(g, e); else if (e.bk === "brood") broodMelee(g, e); else mobAct(g, e);
+  if (e.bk === "lord") lordMelee(g, e); else if (e.bk === "brood") broodMelee(g, e); else if (e.boss) newBossMelee(g, e); else mobAct(g, e);
 }
 function bossSpecial(g: Game, e: Enemy, dt: number): void {
   const c = g.combat; if (!c || e.stun > 0) return;
@@ -3492,13 +3713,76 @@ function bossSpecial(g: Game, e: Enemy, dt: number): void {
     c.bossT = c.phase === 2 ? 3.2 : 4.5; return;
   }
   const atk = e.atk * (c.phase === 3 ? 1.35 : 1);
-  if (c.phase === 1) { at(11, 1.1, atk * 1.2, "flame", px, py); c.bossT = 5; return; }
-  if (c.phase === 3 && !c.charging && Math.random() < 0.45) {
-    c.charging = true; at(30, 2.2, atk * 2.4, "cata", e.x ?? px, e.y ?? py);
-    log(g, "⚠️ The Echo Lord gathers a CATACLYSM — get out of the purple ring!", "bad"); c.bossT = 4.5; return;
+  const p = c.phase;
+  if (e.bk === "lord") {
+    if (c.phase === 1) { at(11, 1.1, atk * 1.2, "flame", px, py); c.bossT = 5; return; }
+    if (c.phase === 3 && !c.charging && Math.random() < 0.45) {
+      c.charging = true; at(30, 2.2, atk * 2.4, "cata", e.x ?? px, e.y ?? py);
+      log(g, "⚠️ The Echo Lord gathers a CATACLYSM — get out of the purple ring!", "bad"); c.bossT = 4.5; return;
+    }
+    at(12, 1.0, atk * 1.25, "flame", px, py); log(g, "🔥 Shadow flame gathers beneath you — move!", "bad");
+    c.bossT = c.phase === 3 ? 2.8 : 3.5; return;
   }
-  at(12, 1.0, atk * 1.25, "flame", px, py); log(g, "🔥 Shadow flame gathers beneath you — move!", "bad");
-  c.bossT = c.phase === 3 ? 2.8 : 3.5;
+  if (e.bk === "rotking") {
+    at(12, 1.15, atk * 1.25, "bile", px, py);
+    if (p >= 2) { const [x, y] = near(); at(11, 1.35, atk * 1.1, "bile", x, y); }
+    log(g, "🤢 The Rotking vomits bile — get out of the green ring!", "bad");
+    c.bossT = p >= 2 ? 3.1 : 4.4; return;
+  }
+  if (e.bk === "choir") {
+    if (p === 3 && !c.charging && Math.random() < 0.4) {
+      c.charging = true; at(28, 2.1, atk * 2.2, "ossuary", e.x ?? px, e.y ?? py);
+      log(g, "⚠️ The Choir calls a collapsing ossuary — get out of the pale ring!", "bad"); c.bossT = 4.4; return;
+    }
+    at(12, 1.1, atk * 1.2, "ossuary", px, py);
+    if (p >= 2) { const [x, y] = near(); at(10, 1.3, atk, "ossuary", x, y); }
+    log(g, "💀 Falling bone gathers — get out of the pale ring!", "bad");
+    c.bossT = p === 3 ? 2.9 : 4.0; return;
+  }
+  if (e.bk === "behemoth") {
+    if (p === 3 && !c.charging && Math.random() < 0.45) {
+      c.charging = true; at(30, 2.2, atk * 2.4, "erupt", e.x ?? px, e.y ?? py);
+      log(g, "⚠️ The Behemoth stomps a magma CATACLYSM — get out of the orange ring!", "bad"); c.bossT = 4.5; return;
+    }
+    at(12, 1.1, atk * 1.25, "erupt", px, py);
+    if (p >= 2) { const [x, y] = near(); at(10, 1.35, atk, "slag", x, y); }
+    log(g, "🌋 Magma wells up — get out of the orange ring!", "bad");
+    c.bossT = p === 3 ? 2.8 : 4.0; return;
+  }
+  if (e.bk === "fisher") {
+    if (p >= 2 && Math.random() < 0.4) { at(16, 1.3, atk * 1.3, "tide", e.x ?? px, e.y ?? py); log(g, "🌊 A whirlpool opens around the Fisher — get out!", "bad"); c.bossT = 3.4; return; }
+    at(12, 1.1, atk * 1.2, "hook", px, py);
+    log(g, "🪝 A pale hook lashes out — get out of the blue ring!", "bad");
+    c.bossT = p >= 2 ? 3.2 : 4.3; return;
+  }
+  if (e.bk === "witch") {
+    if (p === 3 && !c.charging && Math.random() < 0.4) {
+      c.charging = true; at(28, 2.1, atk * 2.2, "hexnova", e.x ?? px, e.y ?? py);
+      log(g, "⚠️ The Veil Witch opens a hex nova — get out of the violet ring!", "bad"); c.bossT = 4.4; return;
+    }
+    at(12, 1.05, atk * 1.2, "hexnova", px, py);
+    if (p >= 2) { const [x, y] = near(); at(10, 1.3, atk, "hexnova", x, y); }
+    log(g, "🔯 A curse circle forms — get out of the violet ring!", "bad");
+    c.bossT = p === 3 ? 2.8 : 4.0; return;
+  }
+  if (e.bk === "colossus") {
+    if (p === 3 && !c.charging && Math.random() < 0.45) {
+      c.charging = true; at(30, 2.2, atk * 2.4, "stomp", e.x ?? px, e.y ?? py);
+      log(g, "⚠️ The Colossus raises a PULVERIZING blow — get out of the gold ring!", "bad"); c.bossT = 4.6; return;
+    }
+    if (Math.random() < 0.5) { at(14, 1.2, atk * 1.3, "stomp", e.x ?? px, e.y ?? py); log(g, "⚙️ The Colossus slams the foundry — get out of the shockwave!", "bad"); }
+    else { at(12, 1.1, atk * 1.2, "slag", px, py); log(g, "⚒️ Slag erupts under you — move!", "bad"); }
+    c.bossT = p === 3 ? 3.0 : 4.2; return;
+  }
+  // hunger
+  if (p === 3 && !c.charging && Math.random() < 0.4) {
+    c.charging = true; at(28, 2.05, atk * 2.2, "consume", e.x ?? px, e.y ?? py);
+    log(g, "⚠️ The Hunger opens a consuming maw — get out or it will feed!", "bad"); c.bossT = 4.5; return;
+  }
+  at(12, 1.1, atk * 1.25, "maw", px, py);
+  if (p >= 2) { const [x, y] = near(); at(10, 1.3, atk, "maw", x, y); }
+  log(g, "👄 A maw snaps shut — get out of the red ring!", "bad");
+  c.bossT = p === 3 ? 2.9 : 4.0;
 }
 // one step toward the player through the BFS flow field (used when there is no line of sight)
 function flowStep(g: Game, fld: Int16Array, x: number, y: number): [number, number] | null {
@@ -3655,18 +3939,20 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
   for (const tz of tl) {
     tz.t -= dt;
     const e = c.enemies.find((x: Enemy) => x.uid === tz.from);
-    if (!e || e.dead || e.hp <= 0) { tz.t = -1; if (tz.kind === "cata") c.charging = false; continue; }
+    if (!e || e.dead || e.hp <= 0) { tz.t = -1; if (["cata","ossuary","erupt","hexnova","stomp","consume"].includes(tz.kind)) c.charging = false; continue; }
     if (tz.t > 0) continue;
-    if (tz.kind === "cata") c.charging = false;
+    if (["cata","ossuary","erupt","hexnova","stomp","consume"].includes(tz.kind)) c.charging = false;
     for (const pt of g.pets ?? []) if (pt.ko <= 0 && Math.hypot(pt.x - tz.x, pt.y - tz.y) <= tz.r) hurtPet(g, pt, tz.dmg * (tz.kind === "spit" ? 1 : 0.5));
     const focusZ = closestHero(g, tz.x, tz.y);
     const zpx = focusZ.wx ?? focusZ.px + 0.5, zpy = focusZ.wy ?? focusZ.py + 0.5;
     if (Math.hypot(zpx - tz.x, zpy - tz.y) <= tz.r + 2 / U) {
       asHero(g, focusZ, () => {
-        const verb = tz.kind === "spit" ? "spatters acid on" : tz.kind === "acid" ? "splashes acid on" : tz.kind === "cata" ? "💥 OBLITERATES" : "engulfs in shadow flame";
+        const verb = teleVerb(tz.kind);
         const dd = damagePlayer(g, e, tz.dmg, true, verb);
-        if (dd > 0 && tz.kind === "flame") applyDot(g, Math.round(e.atk * 0.25), "burn");
-        if (dd > 0 && (tz.kind === "acid" || tz.kind === "spit")) applyDot(g, Math.round(e.atk * 0.2), "poison");
+        if (dd > 0 && (tz.kind === "flame" || tz.kind === "slag" || tz.kind === "erupt")) applyDot(g, Math.round(e.atk * 0.25), "burn");
+        if (dd > 0 && (tz.kind === "acid" || tz.kind === "spit" || tz.kind === "bile")) applyDot(g, Math.round(e.atk * 0.2), "poison");
+        if (dd > 0 && tz.kind === "hexnova") { g.buffs.hex = Math.max(g.buffs.hex ?? 0, 4); log(g, "🌀 Hexed! Your damage is reduced by 25% for 4 s.", "bad"); addFx(g, "HEXED", "bad", "p"); }
+        if (dd > 0 && (tz.kind === "tide" || tz.kind === "hook" || tz.kind === "maw" || tz.kind === "consume")) e.hp = Math.min(e.max, e.hp + Math.round(dd * 0.3));
         if (g.hp <= 0) die(g);
       });
       if (g.combat !== c || g.screen !== "map") return;
@@ -3677,7 +3963,7 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
 }
 // ----- free (sub-tile) map movement -----
 const PR = 0.3, MR = 0.3, MAP_SPD = 3.25;
-function mSpd(m: MapMon): number { const b = MON[m.t]?.b ?? "brute"; return eSpdOf(b, m.el === true, m.boss ? (m.t === "lord" || m.t === "brood" ? m.t : undefined) : undefined); }
+function mSpd(m: MapMon): number { const b = MON[m.t]?.b ?? "brute"; return eSpdOf(b, m.el === true, m.boss ? m.t : undefined); }
 function solidT(g: Game, x: number, y: number): boolean { return x < 0 || y < 0 || x >= W || y >= H || g.map[y][x] === 0; }
 function pushOut(g: Game, p: { x: number; y: number }, r: number): void {
   for (let it = 0; it < 4; it++) {
@@ -3790,6 +4076,22 @@ function touchTiles(g: Game, p: { x: number; y: number }, I: Inp): boolean {
       for (const mm of g.mons) if (Math.abs(mm.x - tx) + Math.abs(mm.y - ty) <= 7) mm.awake = true;
       log(g, `🔮 A grave rune flares: -${dm} HP, and the dead stir nearby!`, "bad"); addFx(g, `-${dm}`, "bad", "p");
     }
+    if (tile >= 7 && tile <= 13 && d < 0.55) {
+      g.map[ty][tx] = 1;
+      const wake = (r: number): void => { for (const mm of g.mons) if (Math.hypot(mm.x - tx, mm.y - ty) <= r) mm.awake = true; };
+      const hpHit = (pct: number, msg: string, fx: string): void => {
+        const dm = Math.max(1, Math.round(full(g).maxHp * pct));
+        g.hp = Math.max(1, g.hp - dm); g.hurtTs = Date.now();
+        log(g, msg.replace("{d}", String(dm)), "bad"); addFx(g, fx === "hp" ? `-${dm}` : fx, "bad", "p");
+      };
+      if (tile === 7) { I.slowT = Math.max(I.slowT, 1.6); applyDot(g, Math.max(3, Math.round(full(g).maxHp * 0.03)), "poison"); hpHit(0.04, "🤢 A toxic puddle burns you for {d} and clings to your steps.", "hp"); wake(6); }
+      else if (tile === 8) { const m = Math.max(4, Math.round(full(g).maxMp * 0.12)); g.mp = Math.max(0, g.mp - m); wake(7); log(g, `🔔 A wailing bell drains ${m} MP, and the dead stir!`, "bad"); addFx(g, `-${m} MP`, "bad", "p"); }
+      else if (tile === 9) { applyDot(g, Math.max(4, Math.round(full(g).maxHp * 0.04)), "burn"); hpHit(0.08, "🌋 A magma vent scorches you for {d}!", "hp"); wake(6); }
+      else if (tile === 10) { I.slowT = Math.max(I.slowT, 2.5); wake(5); log(g, "🌊 A depth pool clings — you wade, slowed.", "bad"); addFx(g, "SLOWED", "bad", "p"); }
+      else if (tile === 11) { g.buffs.hex = Math.max(g.buffs.hex ?? 0, 4); wake(6); log(g, "🔯 A curse glyph hexes you — your damage is reduced for 4 s.", "bad"); addFx(g, "HEXED", "bad", "p"); }
+      else if (tile === 12) { I.slowT = Math.max(I.slowT, 1.2); hpHit(0.06, "⚒️ A slag pit scorches you for {d} and slows your step.", "hp"); wake(6); }
+      else if (tile === 13) { hpHit(0.05, "🕳️ The hungry dark drinks {d} HP.", "hp"); wake(6); }
+    }
     if (tile === 2 && d < 0.42) {
       if (g.combat) { combatNote(g, "⚔️ In combat — shake off or defeat your foes before taking the stairs."); continue; }
       descend(g); return true;
@@ -3901,7 +4203,7 @@ function candle(c: CanvasRenderingContext2D, x: number, y: number, h: number): v
 function bakeTile(c: CanvasRenderingContext2D, g: Game, x: number, y: number, bio: Biome, lights: [number, number, number][] | null): void {
   const X = x * TS, Y = y * TS, v = g.map[y][x];
   const r = (s: number): number => hrand(x, y, s + g.floor * 977);
-  const war = bio === "warren";
+  const war = (BIOME[bio]?.paint === "warren");
   const sol = (ox: number, oy: number): boolean => solidT(g, x + ox, y + oy);
   c.save(); c.beginPath(); c.rect(X, Y, TS, TS); c.clip();
   if (v === 0) {
@@ -4030,7 +4332,20 @@ function bakeTile(c: CanvasRenderingContext2D, g: Game, x: number, y: number, bi
     c.save(); c.translate(cx, cy); c.rotate(r(720) * 6.28);
     c.strokeStyle = "#c27bff"; c.lineWidth = 1.4; c.beginPath(); c.arc(0, 0, 10, 0, 7); c.moveTo(0, -10); c.lineTo(8.7, 5); c.lineTo(-8.7, 5); c.closePath(); c.moveTo(0, -4); c.lineTo(0, 4); c.moveTo(-3, 0); c.lineTo(3, 0); c.stroke();
     c.restore();
+  } else if (v >= 7 && v <= 13) {
+    const cx = X + 16, cy = Y + 16;
+    const cols: Record<number, [string, string]> = {
+      7: ["rgba(120,180,40,.45)", "#8cdb40"], 8: ["rgba(220,200,160,.4)", "#e8dcb0"],
+      9: ["rgba(255,90,20,.45)", "#ff6a20"], 10: ["rgba(40,140,200,.45)", "#4ad0ff"],
+      11: ["rgba(160,60,255,.45)", "#c04cff"], 12: ["rgba(255,160,40,.4)", "#ffb24a"],
+      13: ["rgba(160,0,40,.5)", "#ff3b5c"],
+    };
+    const [glow, line] = cols[v] ?? cols[7];
+    const gl = c.createRadialGradient(cx, cy, 2, cx, cy, 15); gl.addColorStop(0, glow); gl.addColorStop(1, "rgba(0,0,0,0)"); c.fillStyle = gl; c.fillRect(X, Y, TS, TS);
+    c.strokeStyle = line; c.lineWidth = 1.3; c.beginPath(); c.arc(cx, cy, 9, 0, 7); c.stroke();
   }
+  const tint = BIOME[bio]?.tint;
+  if (tint && v !== 0) { c.fillStyle = tint; c.fillRect(X, Y, TS, TS); }
   c.restore();
 }
 function crisp(c: CanvasRenderingContext2D): void {
@@ -4039,7 +4354,7 @@ function crisp(c: CanvasRenderingContext2D): void {
   x.webkitImageSmoothingEnabled = false; x.mozImageSmoothingEnabled = false;
 }
 function artFor(g: Game): Art | null {
-  const bio: Biome = g.biome ?? biomeOf(g.floor);
+  const bio: Biome = g.biome ?? biomeOf(g.floor, g);
   if (ART && ART.map === g.map && ART.bio === bio) return ART;
   if (typeof document === "undefined") return null;
   const cv = document.createElement("canvas"); cv.width = W * TS; cv.height = H * TS;
@@ -4065,7 +4380,7 @@ function drawView(cv: HTMLCanvasElement, g: Game, force: boolean): void {
   VIEW_K = key; VIEW_T = tn;
   const c = cv.getContext("2d"); if (!c) return;
   crisp(c);
-  const bio: Biome = g.biome ?? biomeOf(g.floor), war = bio === "warren";
+  const bio: Biome = g.biome ?? biomeOf(g.floor, g), war = (BIOME[bio]?.paint === "warren");
   const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5;
   // keep tiles square: never stretch even if the canvas is a pixel off the ideal aspect
   const s = Math.min(cw / VTX, ch / VTY), ox = (cw - s * VTX) / 2, oy = (ch - s * VTY) / 2;
@@ -4125,7 +4440,7 @@ function drawMini(cv: HTMLCanvasElement, g: Game, big: boolean): void {
   if (cv.width !== cw || cv.height !== cw) { cv.width = cw; cv.height = cw; }
   const c = cv.getContext("2d"); if (!c) return;
   crisp(c);
-  const bio: Biome = g.biome ?? biomeOf(g.floor), war = bio === "warren";
+  const bio: Biome = g.biome ?? biomeOf(g.floor, g), war = (BIOME[bio]?.paint === "warren");
   // the corner minimap follows the hero with a 16-tile window; the full map shows the whole floor
   const span = big ? W : 16, px0 = g.wx ?? g.px + 0.5, py0 = g.wy ?? g.py + 0.5;
   const ox = big ? 0 : clampN(px0 - span / 2, 0, W - span), oy = big ? 0 : clampN(py0 - span / 2, 0, H - span);
@@ -4717,7 +5032,7 @@ function petNav(i: number, p: Pet): PetNav {
   return st;
 }
 function petWalkable(g: Game, x: number, y: number): boolean { return !solidT(g, x, y); }
-function petCost(g: Game, x: number, y: number): number { const t = g.map[y][x]; return (t === 5 || t === 6) ? 8 : 1; }
+function petCost(g: Game, x: number, y: number): number { const t = g.map[y][x]; return isHazard(t) ? 8 : 1; }
 function petNearestOpen(g: Game, x: number, y: number): [number, number] {
   x = clampN(Math.floor(x), 0, W - 1); y = clampN(Math.floor(y), 0, H - 1);
   if (petWalkable(g, x, y)) return [x, y];
@@ -4731,7 +5046,7 @@ function petLineHazard(g: Game, ax: number, ay: number, bx: number, by: number):
   for (let i = 1; i < n; i++) {
     const t = i / n, x = Math.floor(ax + (bx - ax) * t), y = Math.floor(ay + (by - ay) * t);
     if (x < 0 || y < 0 || x >= W || y >= H) continue;
-    const tile = g.map[y][x]; if (tile === 5 || tile === 6) return true;
+    const tile = g.map[y][x]; if (isHazard(tile)) return true;
   }
   return false;
 }
@@ -5246,7 +5561,7 @@ const HELP: [string, string][] = [
   ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant (stock is limited: each piece of gear sells once, potions and scrolls 1–3 each, then the slot shows SOLD OUT; leaving or reloading doesn't restock — the next merchant floor has fresh wares; Epic/Legendary wares are rare early, more common deeper, at most 2 per shop), 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You do not regenerate health or mana over time; look for potions, abilities, and gear marked ♻ Mana regen."],
   ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Ranged foes keep their distance: 🏹 archers show a red aim line before loosing a fast arrow, 🐸 Acid Spitters mark a green ring where their acid glob will land, and 🧙 Hex Cultists send a slow purple bolt that hexes you (−25% damage for 4 s). Their aim locks when the wind-up starts, so step aside. ★ Elite monsters (gold glow) are tougher and drop better loot. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. The Rogue's Smoke Bomb ability or Shadowmeld breaks off a fight instantly (not against bosses)."],
   ["🔒 Combat lockout", "While any monster is fighting you, the bag, codex, help, skills tree, full map, Menu, save-code screen, title button, merchants and the stairs are locked (greyed out and unclickable; no hotkey opens them). You can still move, attack, use abilities, dodge, switch targets and drink a 🧪 Healing Potion from your dedicated potion slot (count on the button; potions never take bag space), or use a combat consumable you mark with ☆ Quick-slot in the bag. The minimap stays visible. About 1.5 s after the last foe falls or gives up you'll see “Combat over” and everything unlocks."],
-  ["☠️ Bosses", "The Broodmother (Floor 5) and the Echo Lord (Floor 10) wake when you step into their lair and fight you right there: acid pools, shadow flame and the Echo Lord's CATACLYSM ring land on the map, and spiderlings or Echo Shades crawl out around the boss. The stairs only appear once the boss is dead. Run too far and the boss returns to its lair and recovers fully — no chipping it down from range."],
+  ["☠️ Bosses", "A boss waits on every 5th floor, in its own halls, with a floor hazard and unique telegraphed attacks (colored rings on the map — step out before they close). They change phases as their health drops and can summon adds. The stairs only appear once the boss is dead. Run too far and the boss returns to its lair and recovers fully — no chipping it down from range. Story is unchanged: the Broodmother on Floor 5, the Echo Lord on Floor 10 (beating him wins). In Endless those two still wait on Depths 5 and 10; after that a new boss appears on every later boss floor (The Rotking, The Hollow Choir, The Ashen Behemoth, The Pale Fisher, The Veil Witch, The Iron Colossus, The Hunger Below) with no Broodmother or Echo Lord repeat until all seven have appeared. From Depth 50 the full roster of nine cycles with floor scaling, and a returning boss is tagged (Returning). Each boss has its own loot table — unique items and a 4-piece set that drop only from that boss (at most two set pieces per kill). About half of the guaranteed boss drops come from that table; the rest are ordinary gear."],
   ["🐾 Pets", "Rangers start with a Wolf (plus a Hawk with Pack Leader). Anyone can gain a charm pet from a Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil or Bone Hound Totem (one charm pet at a time). Pets path around walls and hazards, trail behind you and catch up if you pull ahead; if they get stuck they re-path, then poof to your side. In a fight they close along that path: melee pets flank, and the Imp keeps a ranged standoff with line of sight before throwing fire bolts. Enemies attack pets that get closer than you — Bone Hounds draw extra attention. A pet at 0 HP is knocked out 💫 for 12 s, then gets back up at 40%; every knocked-out pet recovers at 50% when the fight ends. Pets do not regenerate health on their own; a Pet Treat fully heals and revives them."],
   ["✨ Starting perk", "Every new run (Story and Endless) opens with a choice of 3 random Common perks. The roll is saved, so reloading won't change it."],
   ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
@@ -5259,7 +5574,7 @@ const HELP: [string, string][] = [
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
   ["💰 Merchant", "Buy potions, scrolls and gear, sell loot, identify items, and lift curses. Merchants also offer Stat Transfer (5,000 gold): move one stat or special ability from a source item onto any other piece of gear. The source is destroyed. Unlock and unequip the source first; the destination may be equipped and may already have stats or abilities (same stats add together; different legendary abilities all work). Merchants appear on even floors."],
   ["📖 Story", "10 floors. The Broodmother mini-boss waits on Floor 5 and the Echo Lord on Floor 10. Beat him to win."],
-  ["∞ Endless", "☠️ PERMADEATH: Endless autosaves constantly and your run save is deleted the moment you die (revives like Undying, Divine Resurrection or the Phoenix Amulet trigger first). Tokens, upgrades, best depth and codex are kept. Infinite scaling floors with a boss every 5 floors. After each boss pick an in-run perk (rarity-weighted; 10th-floor bosses guarantee an Epic or better). Your best depth is saved."],
+  ["∞ Endless", "☠️ PERMADEATH: Endless autosaves constantly and your run save is deleted the moment you die (revives like Undying, Divine Resurrection or the Phoenix Amulet trigger first). Tokens, upgrades, best depth and codex are kept. Infinite scaling floors with a boss every 5 floors — the Broodmother on 5, the Echo Lord on 10, then each new boss in turn before any of those two can repeat, then the full roster cycles. After each boss pick an in-run perk (rarity-weighted; 10th-floor bosses guarantee an Epic or better). Your best depth is saved."],
   ["💾 Saving", "Your run autosaves every couple of seconds — even mid-fight, with every enemy's position and HP — and on every floor change; tap Continue on the title screen to resume. Tokens, upgrades, best depth and the codex are saved separately and survive death. Use 💾 Save Code to copy a backup code or paste one in on another device."],
   ["🤝 Co-op", "Host or join a room from the title screen or ⚙ Menu (free WebRTC via the public PeerJS broker — no paid server). Share a 6-character room code; 2–4 players. The host simulates the dungeon; each player keeps their own class, skills, and a continuous save on their device. Leave any time — your progress stays, and you can rejoin with the same code. If the host leaves, the room tries to pass to another player; if that fails, everyone gets a Progress saved exit. Loot rolls separately for each nearby player, and enemies grow tougher with party size. Strict NATs may fail without a TURN server. Single-player is unchanged."],
   ["🪙 Tokens", "Every 10 Endless floors cleared earns 1 token, saved between runs. Spend them in Endless Upgrades: each class has a 36-node tree whose top tier holds game-changing capstones. Upgrades apply in Endless only."],
@@ -5579,7 +5894,84 @@ const SPR: Record<string, () => ReactNode> = {
     <path d="M24 44 L40 44" stroke="#6a4a78" strokeWidth="0.8" opacity={0.5} />
     <circle cx="32" cy="40" r="10" fill="#5a3a68" opacity={0.12} />
   </g>),
-  garcher: () => (<g>{SPR.goblin()}
+  rotking: () => (<g>
+    <ellipse cx="32" cy="54" rx="22" ry="7" fill="#0c1408" opacity={0.5} />
+    <path d="M14 50 Q10 28 18 18 Q24 10 32 12 Q42 8 48 20 Q54 30 50 50 Q32 60 14 50 Z" fill="#1a2410" />
+    <path d="M20 36 Q32 28 44 38 Q40 52 32 54 Q24 50 20 36 Z" fill="#2a3a14" />
+    <path d="M22 40 Q32 34 42 42" fill="none" stroke="#3d4a18" strokeWidth="2" />
+    {eye(24, 30, "#9cff4a", 0.7)}{eye(38, 29, "#9cff4a", 0.7)}
+    {eye(31, 26, "#7ad030", 0.45)}
+    <path d="M24 44 Q32 50 40 44 Q36 48 32 50 Q28 48 24 44 Z" fill="#14200c" />
+    <path d="M26 46 L28 52 M32 48 L32 56 M36 46 L38 52" stroke="#6a8a30" strokeWidth="1.4" />
+    <ellipse cx="18" cy="22" rx="4" ry="6" fill="#243018" opacity={0.8} />
+    <ellipse cx="46" cy="20" rx="5" ry="7" fill="#243018" opacity={0.8} />
+  </g>),
+  choir: () => (<g>
+    <ellipse cx="32" cy="56" rx="20" ry="6" fill="#0c0a10" opacity={0.45} />
+    <path d="M16 58 L20 24 Q32 10 44 24 L48 58 Q32 64 16 58 Z" fill="#1a1620" />
+    <path d="M22 28 Q32 16 42 28 L40 52 Q32 56 24 52 Z" fill="#2a2434" />
+    <ellipse cx="32" cy="22" rx="9" ry="10" fill="#0e0c12" />
+    {eye(28, 22, "#e8dcc0", 0.7)}{eye(36, 22, "#e8dcc0", 0.7)}
+    <path d="M26 28 Q32 34 38 28" fill="none" stroke="#cfc3a0" strokeWidth="1.2" />
+    <path d="M18 36 L8 20 L20 34 M46 36 L56 18 L44 34" stroke="#cfc3a0" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+    <path d="M24 40 L26 58 M32 42 L32 60 M40 40 L38 58" stroke="#8a8098" strokeWidth="1.2" />
+    <ellipse cx="32" cy="18" rx="7" ry="3" fill="#0a0810" />
+  </g>),
+  behemoth: () => (<g>
+    <ellipse cx="32" cy="56" rx="24" ry="8" fill="#1a0800" opacity={0.5} />
+    <path d="M8 52 L12 28 L24 18 L40 16 L54 28 L56 52 Q32 64 8 52 Z" fill="#2a1008" />
+    <path d="M16 40 Q32 22 50 40 L46 54 Q32 58 18 54 Z" fill="#4a1c0c" />
+    <path d="M20 36 Q32 28 44 36" fill="#6a2810" />
+    {eye(24, 32, "#ff6a20", 0.85)}{eye(42, 31, "#ff6a20", 0.85)}
+    <path d="M22 44 Q32 50 44 44" fill="#1a0800" />
+    <path d="M14 24 L10 8 L18 22 M50 24 L54 6 L46 22 M32 16 L32 4" stroke="#ff8a30" strokeWidth="2" strokeLinecap="round" />
+    <ellipse cx="16" cy="50" rx="7" ry="5" fill="#3a1408" />
+    <ellipse cx="48" cy="50" rx="7" ry="5" fill="#3a1408" />
+  </g>),
+  fisher: () => (<g>
+    <ellipse cx="32" cy="56" rx="22" ry="7" fill="#031018" opacity={0.5} />
+    <path d="M12 48 Q8 28 18 16 Q32 6 48 18 Q56 30 52 50 Q32 62 12 48 Z" fill="#0a1c28" />
+    <path d="M18 36 Q32 22 46 38 Q42 52 32 54 Q22 50 18 36 Z" fill="#123040" />
+    <path d="M16 40 Q10 44 6 56" fill="none" stroke="#1a4050" strokeWidth="3" strokeLinecap="round" />
+    <path d="M48 40 Q56 46 60 58" fill="none" stroke="#1a4050" strokeWidth="3" strokeLinecap="round" />
+    {eye(24, 30, "#4ad0ff", 0.75)}{eye(40, 29, "#4ad0ff", 0.75)}
+    <path d="M24 42 Q32 50 40 42" fill="#061018" />
+    <path d="M28 46 L22 60 M36 46 L42 60" stroke="#7ad0e0" strokeWidth="1.4" />
+    <path d="M32 12 L36 0 L30 12" fill="#4aa0b0" />
+  </g>),
+  witch: () => (<g>
+    <ellipse cx="32" cy="56" rx="18" ry="6" fill="#0a0614" opacity={0.45} />
+    <path d="M20 58 L22 30 Q32 22 42 30 L44 58 Q32 64 20 58 Z" fill="#160c24" />
+    <path d="M8 20 L32 4 L56 20 L44 24 L32 14 L20 24 Z" fill="#0a0610" />
+    <ellipse cx="32" cy="28" rx="8" ry="9" fill="#12081c" />
+    {eye(28.5, 28, "#c04cff", 0.8)}{eye(36, 28, "#c04cff", 0.8)}
+    <path d="M26 34 Q32 40 38 34" fill="#2a1440" />
+    <path d="M16 36 Q8 44 12 56 M48 36 Q56 44 52 56" fill="none" stroke="#3a2060" strokeWidth="2.4" />
+    <path d="M24 16 L18 2 M40 16 L46 0" stroke="#c04cff" strokeWidth="1.3" opacity={0.8} />
+  </g>),
+  colossus: () => (<g>
+    <ellipse cx="32" cy="56" rx="24" ry="7" fill="#120c08" opacity={0.5} />
+    <path d="M10 54 L14 24 L26 14 L38 14 L50 24 L54 54 Q32 64 10 54 Z" fill="#2a2218" />
+    <rect x="20" y="22" width="24" height="28" rx="2" fill="#3a3228" />
+    <path d="M20 30 H44 M20 38 H44 M20 46 H44" stroke="#1a1410" strokeWidth="1.6" />
+    <rect x="24" y="10" width="16" height="14" fill="#2a241c" />
+    {eye(28, 16, "#ffb24a", 0.6)}{eye(36, 16, "#ffb24a", 0.6)}
+    <path d="M16 26 L6 40 L16 36 M48 26 L58 40 L48 36" fill="#4a3a2a" />
+    <rect x="12" y="48" width="12" height="8" fill="#3a2e22" />
+    <rect x="40" y="48" width="12" height="8" fill="#3a2e22" />
+    <path d="M18 20 L12 6 M46 20 L52 4" stroke="#ff8a30" strokeWidth="2" strokeLinecap="round" />
+  </g>),
+  hunger: () => (<g>
+    <ellipse cx="32" cy="54" rx="24" ry="8" fill="#100408" opacity={0.55} />
+    <path d="M8 48 Q6 24 18 16 Q32 8 48 18 Q58 28 56 50 Q32 64 8 48 Z" fill="#1a060c" />
+    <path d="M16 36 Q32 20 48 38 Q44 56 32 58 Q20 54 16 36 Z" fill="#2a0a14" />
+    <path d="M20 40 Q32 58 44 40 Q40 48 32 52 Q24 48 20 40 Z" fill="#080204" />
+    <path d="M24 44 L26 54 M32 46 L32 58 M40 44 L38 54" stroke="#5a1020" strokeWidth="1.6" />
+    {eye(22, 28, "#ff3b5c", 0.9)}{eye(42, 27, "#ff3b5c", 0.9)}
+    {eye(32, 24, "#ff6a80", 0.5)}
+    <path d="M14 22 L8 8 M50 22 L56 6" stroke="#ff3b5c" strokeWidth="1.6" opacity={0.7} />
+  </g>),
+    garcher: () => (<g>{SPR.goblin()}
     <path d="M6 16 Q-4 32 6 50" stroke="#3a2a1a" strokeWidth="2.4" fill="none" strokeLinecap="round" />
     <path d="M6 16 L6 50" stroke={BONED} strokeWidth="0.8" />
     <path d="M6 32 L22 32" stroke="#cfc3a0" strokeWidth="1.1" />
@@ -5684,9 +6076,11 @@ function remSvg(k: string): ReactNode {
 }
 function sprOf(e: Enemy): string {
   if (e.spr) return e.spr;
-  if (e.bk === "lord" || e.bk === "brood") return e.bk;
+  if (e.bk && BOSSES[e.bk]) return e.bk;
   if (e.name === "Echo Shade") return "shade";
   if (e.name === "Spiderling") return "spiderling";
+  const minion = Object.values(BOSSES).find((B: BossDef) => B.minion.name === e.name);
+  if (minion) return minion.minion.spr;
   const m = MONS.find((x: MonT) => x.name === e.name || x.icon === e.icon);
   return m ? m.id : "gen";
 }
@@ -5825,7 +6219,7 @@ function validRun(x: unknown): Game | null {
   g.kills = num(g.kills) ? g.kills : 0; g.turns = num(g.turns) ? g.turns : 0; g.tokensEarned = num(g.tokensEarned) ? g.tokensEarned : 0;
   g.usedUndying = g.usedUndying === true; g.usedShadow = g.usedShadow === true; g.usedPhoenix = g.usedPhoenix === true; g.usedRes = g.usedRes === true;
   if (typeof g.hp !== "number" || !(g.hp > 0)) return null;
-  g.biome = g.biome === "warren" || g.biome === "crypt" ? g.biome : biomeOf(g.floor); g.bannerTs = 0;
+  g.biome = isBiome(g.biome) ? g.biome : biomeOf(g.floor, g); g.bannerTs = 0;
   g.fx = []; g.inAb = false; g.sel = num(g.sel) ? g.sel : -1; g.prev = (["map", "inventory", "shop"] as Screen[]).includes(g.prev) ? g.prev : "map"; g.hurtTs = 0;
   g.stains = Array.isArray(g.stains) ? g.stains.filter((v: unknown): v is number => typeof v === "number" && isFinite(v)) : [];
   g.rem = Array.isArray(g.rem) ? g.rem.filter((v: unknown): v is string => typeof v === "string" && /^\d+:[a-z]+$/.test(v)) : [];
@@ -6153,7 +6547,7 @@ export default function DungeonOfEchoes() {
       },
     };
     w.__R = {
-      takeSkill, setSlot, gainXp, descend, engage, resolveDeaths, rtAbility, rtDodge, canTakeSkill, skillNodesOf, migrateSkills, migratePots, migrateRemovedItems, parseRun, ITEMS, addItem, makeInst, addPots, drinkPotion, rollPotionDrop, maybeDropPotion, potCount, isHealPot, POTION_DROP_CHANCE, POTION_DROP_ELITE, POTION_HEAL_PCT,
+      takeSkill, setSlot, gainXp, descend, engage, resolveDeaths, rtAbility, rtDodge, canTakeSkill, skillNodesOf, migrateSkills, migratePots, migrateRemovedItems, parseRun, ITEMS, addItem, makeInst, addPots, drinkPotion, rollPotionDrop, maybeDropPotion, potCount, isHealPot, POTION_DROP_CHANCE, POTION_DROP_ELITE, POTION_HEAL_PCT, bossPlan, bossKind, bossName, BOSSES, BOSS_NEW, BOSS_ALL, makeBoss, lootRoll, rollItem, biomeOf, isBiome, genFloor, saveRun, hitEnemy,
       need, levelAbs, canLearnTree, learnTreeNode, respecSkills, skillNodes, setTreeCat, setTreeSel,
       learn: (id: string) => { const g = G.current; if (!g) return false; const ok = learnTreeNode(g, id); LAST_SAVE = saveRun(g); refresh(); return ok; },
       openSkills: () => { const g = G.current; if (!g) return; g.prev = g.screen; g.screen = "skills"; setTreeCat(null); setTreeSel(null); LAST_SAVE = saveRun(g); refresh(); },
@@ -6164,6 +6558,7 @@ export default function DungeonOfEchoes() {
       burst: (mode?: string) => { const g = G.current; if (!g) return 0; const m = mode === "crit" || mode === "death" || mode === "cast" ? mode : "hit"; const e = g.combat ? g.combat.enemies[g.combat.target] : undefined; const [x, y] = atXY(g, e && !e.dead ? e : null); spawnBurst(x, y, m, m === "death" ? "#3a3630" : m === "crit" ? "#f3efe6" : elemTint(g)); refresh(); return PARTS.length; },
       treeZoom: (s0: number, x: number, y: number) => { treeCam.current.s = s0; treeCam.current.x = x; treeCam.current.y = y; refresh(); },
 
+      jumpFloor: (f: number) => { const g = G.current; if (!g) return; g.combat = null; g.offers = []; g.startPick = false; g.floor = Math.max(1, f); g.biome = biomeOf(g.floor, g); genFloor(g); reveal(g); const f2 = full(g); g.hp = f2.maxHp; g.mp = f2.maxMp; g.screen = "map"; LAST_SAVE = saveRun(g); refresh(); },
       slot: (i: number, id: string | null) => { const g = G.current; if (!g) return; setSlot(g, i, id); LAST_SAVE = saveRun(g); refresh(); },
       xp: (n: number) => { const g = G.current; if (!g) return; gainXp(g, n); LAST_SAVE = saveRun(g); refresh(); },
       lvlTo: (n: number) => { const g = G.current; if (!g) return; let guard = 0; while (g.lvl < n && guard++ < 80) gainXp(g, Math.max(1, need(g.lvl) - g.xp)); LAST_SAVE = saveRun(g); refresh(); },
@@ -6762,7 +7157,7 @@ export default function DungeonOfEchoes() {
       <div style={{ display: "flex", flexDirection: land ? "row" : "column", gap: 14, alignItems: "center", maxWidth: "100%", maxHeight: "100%" }}>
         <canvas ref={bigCv} onClick={toggleMap} style={{ width: bigSide, height: bigSide, borderRadius: 12, border: `1px solid ${t.border.strong}`, display: "block", flex: "0 0 auto" }} />
         <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 170, maxWidth: 320 }}>
-          <div style={{ fontSize: 18, fontWeight: 800 }}>🗺️ {g.mode === "story" ? `Floor ${g.floor}` : `Depth ${g.floor}`} · {BIOME[g.biome ?? biomeOf(g.floor)].name}</div>
+          <div style={{ fontSize: 18, fontWeight: 800 }}>🗺️ {g.mode === "story" ? `Floor ${g.floor}` : `Depth ${g.floor}`} · {BIOME[g.biome ?? biomeOf(g.floor, g)].name}</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 12px", fontSize: 12, color: t.text.secondary }}>
             <span><b style={{ color: "#fff2c8" }}>●</b> You</span><span><b style={{ color: "#6dffa0" }}>■</b> Stairs</span><span><b style={{ color: "#ffcc4d" }}>●</b> Merchant</span><span><b style={{ color: "#c98a3a" }}>●</b> Chest</span><span><b style={{ color: "#ff6b6b" }}>●</b> Monster in sight</span>
           </div>
@@ -7892,7 +8287,7 @@ export default function DungeonOfEchoes() {
   // ---------- MAP ----------
   const remAt = new Map<number, string>();
   for (const r of g.rem ?? []) { const [a, b] = r.split(":"); remAt.set(Number(a), b); }
-  const bio: Biome = g.biome ?? biomeOf(g.floor);
+  const bio: Biome = g.biome ?? biomeOf(g.floor, g);
   const VHX = Math.ceil(VTX / 2) + 2, VHY = Math.ceil(VTY / 2) + 2;
   const tPos = (x: number, y: number): CSSProperties => ({ position: "absolute", left: `${(x / W) * 100}%`, top: `${(y / H) * 100}%`, width: `${100 / W}%`, height: `${100 / H}%` });
   const objs: ReactNode[] = [];
@@ -7936,8 +8331,8 @@ export default function DungeonOfEchoes() {
   if (c) {
     const inView = (x: number, y: number): boolean => Math.abs(x - pfx) < VTX / 2 + 2 && Math.abs(y - pfy) < VTY / 2 + 2;
     for (const tl of c.tele ?? []) objs.push(
-      <div key={`t${tl.id}`} data-tele={tl.kind} data-tid={tl.id} style={{ ...wBox(tl.x, tl.y, tl.r * 2), borderRadius: "50%", border: `2px solid ${tl.kind === "acid" ? "#7dff4a" : tl.kind === "cata" ? "#c07bff" : "#ff5a2a"}`, background: "rgba(0,0,0,.15)", boxSizing: "border-box", zIndex: 1 }}>
-        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: tl.kind === "acid" ? "rgba(110,220,60,.4)" : tl.kind === "cata" ? "rgba(150,60,255,.45)" : "rgba(255,80,20,.42)", transform: `scale(${Math.max(0, Math.min(1, 1 - tl.t / tl.max))})` }} />
+      <div key={`t${tl.id}`} data-tele={tl.kind} data-tid={tl.id} style={{ ...wBox(tl.x, tl.y, tl.r * 2), borderRadius: "50%", border: `2px solid ${teleStyle(tl.kind).border}`, background: "rgba(0,0,0,.15)", boxSizing: "border-box", zIndex: 1 }}>
+        <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: teleStyle(tl.kind).fill, transform: `scale(${Math.max(0, Math.min(1, 1 - tl.t / tl.max))})` }} />
       </div>
     );
     for (const z of c.zones ?? []) {
@@ -7959,7 +8354,7 @@ export default function DungeonOfEchoes() {
         return;
       }
       if (e.wk === "melee" && (e.wind ?? 0) > 0) {
-        const rr = (e.boss ? (e.bk === "lord" ? 17 : 16) : (RTB[e.b] ?? RTB.brute)[1]) / U + 5 / U;
+        const rr = (e.boss ? ((BOSSES[e.bk]?.rt[1]) ?? (e.bk === "lord" ? 17 : 16)) : (RTB[e.b] ?? RTB.brute)[1]) / U + 5 / U;
         objs.push(
           <div key={`w${e.uid}`} data-wind={e.uid} data-sz={rr * 2} style={{ ...wBox(ex, ey, rr * 2), borderRadius: "50%", border: "2px solid rgba(255,40,40,.9)", boxSizing: "border-box", zIndex: 1 }}>
             <div style={{ position: "absolute", inset: 0, borderRadius: "50%", background: "rgba(220,0,0,.35)", transform: `scale(${Math.max(0, Math.min(1, 1 - (e.wind ?? 0) / (e.wm || 1)))})` }} />
@@ -8036,7 +8431,7 @@ export default function DungeonOfEchoes() {
   const mapView = (): ReactNode => (
       <div style={{ position: "absolute", inset: 0, overflow: "hidden", width: "100%", height: "100%", background: "#07060a" }}>
         <canvas ref={mapCv} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", imageRendering: "pixelated" }} />
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(circle at 50% 50%, ${bio === "warren" ? "rgba(255,150,60,.10)" : "rgba(90,110,140,.10)"} 0, rgba(0,0,0,0) ${2.6 * tilePx}px), radial-gradient(circle at 50% 50%, rgba(0,0,0,0) ${1.15 * tilePx}px, rgba(0,0,0,.82) ${(R + 0.85) * tilePx}px)` }} />
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(circle at 50% 50%, ${(BIOME[bio]?.paint === "warren") ? "rgba(255,150,60,.10)" : "rgba(90,110,140,.10)"} 0, rgba(0,0,0,0) ${2.6 * tilePx}px), radial-gradient(circle at 50% 50%, rgba(0,0,0,0) ${1.15 * tilePx}px, rgba(0,0,0,.82) ${(R + 0.85) * tilePx}px)` }} />
         <div ref={worldEl} style={{ position: "absolute", left: 0, top: 0, width: `${(W / VTX) * 100}%`, height: `${(H / VTY) * 100}%`, transform: worldTf(g), pointerEvents: "none", willChange: "transform" }}>{objs}</div>
         <div data-hero="1" style={{ position: "absolute", left: "50%", top: "50%", width: tileW, height: tileH, transform: "translate(-50%,-50%)", pointerEvents: "none", filter: "drop-shadow(0 0 2px rgba(0,0,0,.9)) drop-shadow(0 6px 4px rgba(0,0,0,.75))", opacity: c && (c.iT ?? 0) > 0 ? 0.55 : 1, zIndex: 4, overflow: "visible" }}>
           <div data-hero-an="1" style={{ position: "absolute", inset: 0, transformOrigin: "50% 70%" }}>
@@ -8088,13 +8483,13 @@ export default function DungeonOfEchoes() {
             {g.buffs.iron > 0 && <span title="Scroll of Ironskin: +50% DEF" style={{ padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#e8f0ff", background: "rgba(20,30,70,.78)", border: "1px solid rgba(140,180,255,.7)", textShadow: "0 1px 2px #000" }}>📃 Ironskin {fmtBuff(g.buffs.iron)}</span>}
           </div>
         ) : null}
-        {c ? <div data-incombat="1" style={{ position: "absolute", left: "max(8px, env(safe-area-inset-left))", top: "max(64px, calc(env(safe-area-inset-top) + 56px))", padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#ffe0d0", background: "rgba(120,10,10,.72)", border: "1px solid rgba(255,90,70,.7)", textShadow: "0 1px 2px #000", pointerEvents: "none", zIndex: 7 }}>{alive(c).length === 0 ? "✅ Clear…" : cBoss ? `☠️ ${cBoss.name.replace(/^The /, "")} · Phase ${c.phase}/${cBoss.bk === "lord" ? 3 : 2}` : `⚔️ In combat · ${alive(c).length}`}{(g.buffs.hex ?? 0) > 0 ? " · 🌀 Hexed" : ""}</div> : null}
-        {c && c.charging ? <div style={{ position: "absolute", left: 0, right: 0, top: "30%", textAlign: "center", fontWeight: 800, fontSize: 12, color: "#ffb0ff", animation: REDUCE_FX ? undefined : "doePulse .8s infinite", textShadow: "0 1px 3px #000", pointerEvents: "none", zIndex: 7 }}>⚠️ CATACLYSM — leave the purple ring!</div> : null}
+        {c ? <div data-incombat="1" style={{ position: "absolute", left: "max(8px, env(safe-area-inset-left))", top: "max(64px, calc(env(safe-area-inset-top) + 56px))", padding: "3px 8px", borderRadius: 999, fontSize: 11, fontWeight: 800, color: "#ffe0d0", background: "rgba(120,10,10,.72)", border: "1px solid rgba(255,90,70,.7)", textShadow: "0 1px 2px #000", pointerEvents: "none", zIndex: 7 }}>{alive(c).length === 0 ? "✅ Clear…" : cBoss ? `☠️ ${cBoss.name.replace(/^The /, "")} · Phase ${c.phase}/${(BOSSES[cBoss.bk]?.phases) ?? (cBoss.bk === "lord" ? 3 : 2)}` : `⚔️ In combat · ${alive(c).length}`}{(g.buffs.hex ?? 0) > 0 ? " · 🌀 Hexed" : ""}</div> : null}
+        {c && c.charging ? <div style={{ position: "absolute", left: 0, right: 0, top: "30%", textAlign: "center", fontWeight: 800, fontSize: 12, color: "#ffb0ff", animation: REDUCE_FX ? undefined : "doePulse .8s infinite", textShadow: "0 1px 3px #000", pointerEvents: "none", zIndex: 7 }}>{chargeBanner(c)}</div> : null}
         <div style={{ position: "absolute", left: "50%", bottom: `${50 + 50 / VTY}%`, transform: "translateX(-50%)", display: "flex", flexDirection: "column-reverse", alignItems: "center", gap: 1, pointerEvents: "none", zIndex: 6 }}>
           {floats.map((x: Fx) => <span key={x.id} data-float="1" style={{ fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000, 0 0 2px #000", whiteSpace: "nowrap", animation: `doeRise 1.2s ease-out ${-(nowMs - x.ts)}ms forwards` }}>{x.text}</span>)}
         </div>
         {!REDUCE_FX ? <div style={{ position: "absolute", inset: 0, pointerEvents: "none", overflow: "hidden" }}>
-          {bio === "warren"
+          {(BIOME[bio]?.paint === "warren")
             ? [0, 1, 2, 3, 4, 5, 6, 7].map((i: number) => <span key={i} style={{ position: "absolute", left: `${(i * 37 + 8) % 92}%`, top: `${60 + (i * 23) % 35}%`, width: 3 + (i % 3), height: 3 + (i % 3), borderRadius: "50%", background: i % 3 === 0 ? "rgba(230,230,240,.7)" : "rgba(160,255,90,.7)", opacity: 0, animation: `doeDrift ${5 + (i % 4)}s linear ${i * 0.7}s infinite` }} />)
             : [0, 1, 2].map((i: number) => <span key={i} style={{ position: "absolute", left: "-20%", width: "140%", top: `${10 + i * 30}%`, height: "30%", background: "radial-gradient(ellipse at center, rgba(150,70,220,.22), transparent 70%)", animation: `doeMist ${9 + i * 3}s ease-in-out ${i}s infinite alternate` }} />)}
         </div> : null}
@@ -8104,7 +8499,7 @@ export default function DungeonOfEchoes() {
         </button>
         {g.bannerTs && Date.now() - g.bannerTs < 3500 ? (
           <div key={g.bannerTs} style={{ position: "absolute", left: 0, right: 0, top: "36%", display: "flex", justifyContent: "center", pointerEvents: "none", zIndex: 8 }}>
-            <div style={{ width: "min(88%, 520px)", textAlign: "center", padding: "10px 8px", borderRadius: 10, background: "rgba(8,6,12,.85)", border: `1px solid ${bio === "warren" ? "#6aa83a" : "#8a4ad0"}`, color: "#f0e8ff", animation: "doeBanner 3.2s ease-in-out forwards", boxSizing: "border-box" }}>
+            <div style={{ width: "min(88%, 520px)", textAlign: "center", padding: "10px 8px", borderRadius: 10, background: "rgba(8,6,12,.85)", border: `1px solid ${BIOME[bio]?.banner ?? ((BIOME[bio]?.paint === "warren") ? "#6aa83a" : "#8a4ad0")}`, color: "#f0e8ff", animation: "doeBanner 3.2s ease-in-out forwards", boxSizing: "border-box" }}>
               <div style={{ fontSize: 11, letterSpacing: 2, opacity: 0.8 }}>{g.mode === "story" ? `FLOOR ${g.floor}` : `DEPTH ${g.floor}`}</div>
               <div style={{ fontSize: 18, fontWeight: 800 }}>{BIOME[bio].name}</div>
               <div style={{ fontSize: 11, opacity: 0.8 }}>{BIOME[bio].sub}</div>

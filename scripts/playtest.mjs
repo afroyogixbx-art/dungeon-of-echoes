@@ -899,6 +899,100 @@ async function runTransfer(browser) {
   await page.close();
 }
 
+
+async function runBosses(browser) {
+  await withPage(browser, async (page, errors) => {
+    const order = await page.evaluate(() => {
+      window.__T.boot("warrior", "endless");
+      const floors = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 90];
+      const g = window.__G();
+      const rows = floors.map((f) => {
+        const p = window.__R.bossPlan(g, f);
+        const B = window.__R.BOSSES[p.id];
+        const e = window.__R.makeBoss({ ...g, floor: f, mode: "endless" }, f);
+        return { f, id: p.id, encore: p.encore, name: window.__R.bossName(g, f), biome: window.__R.biomeOf(f, g), spr: e.spr, hp: e.hp, atk: e.atk, phases: B.phases, haz: B.hazTile };
+      });
+      const story = [5, 10].map((f) => window.__R.bossPlan({ mode: "story", floor: f }, f).id);
+      const storyDeep = window.__R.bossPlan({ mode: "story", floor: 15 }, 15).id;
+      const noLeak = Array.from({ length: 80 }, (_, i) => window.__R.rollItem(i % 20 + 1, i % 5, "warrior", "any")).every((id) => !window.__R.ITEMS.find((it) => it.id === id && it.dropBoss));
+      return { rows, story, storyDeep, noLeak, newIds: [...window.__R.BOSS_NEW], allIds: [...window.__R.BOSS_ALL] };
+    });
+    const expect = ["brood", "lord", "rotking", "choir", "behemoth", "fisher", "witch", "colossus", "hunger", "brood", "lord", "rotking", "hunger"];
+    const got = order.rows.map((r) => r.id);
+    check(JSON.stringify(got) === JSON.stringify(expect), "endless boss order is brood, lord, then 7 new, then full cycle", JSON.stringify(got));
+    check(order.rows[0].encore === false && order.rows[2].encore === false && order.rows[9].encore === true && order.rows[10].encore === true, "encore only after the new roster has all appeared", JSON.stringify(order.rows.map((r) => [r.f, r.encore])));
+    check(got[2] !== "brood" && got[2] === "rotking", "floor 15 is Rotking, not a Broodmother repeat", got[2]);
+    check(order.story[0] === "brood" && order.story[1] === "lord", "story floors 5 and 10 stay Broodmother and Echo Lord", JSON.stringify(order.story));
+    check(order.rows[0].name === "The Broodmother" && order.rows[1].name === "The Echo Lord", "floors 5 and 10 use the original titles", `${order.rows[0].name} / ${order.rows[1].name}`);
+    check(/Returning/.test(order.rows[9].name), "depth 50 returning Broodmother is tagged", order.rows[9].name);
+    check(order.noLeak === true, "regular rollItem never returns boss-only drops");
+    const scaled = order.rows[9].hp > order.rows[0].hp && order.rows[10].hp > order.rows[1].hp;
+    check(scaled, "cycled bosses scale with depth", JSON.stringify({ f5: order.rows[0].hp, f50: order.rows[9].hp, f10: order.rows[1].hp, f55: order.rows[10].hp }));
+
+    const fights = await page.evaluate(() => {
+      const out = [];
+      const floors = [
+        [5, "brood"], [10, "lord"], [15, "rotking"], [20, "choir"], [25, "behemoth"],
+        [30, "fisher"], [35, "witch"], [40, "colossus"], [45, "hunger"], [50, "brood"],
+      ];
+      for (const [f, id] of floors) {
+        window.__T.boot("warrior", "endless");
+        window.__R.jumpFloor(f);
+        const g = window.__G();
+        const mon = (g.mons || []).find((m) => m.boss);
+        if (!mon) { out.push({ f, id, ok: false, reason: "no boss mon" }); continue; }
+        window.__R.engage(g, mon);
+        const c = g.combat;
+        const e = c && (c.enemies || []).find((x) => x.boss);
+        if (!e) { out.push({ f, id, ok: false, reason: "no engage", t: mon.t, biome: g.biome }); continue; }
+        const hp0 = e.hp;
+        window.__R.hitEnemy(g, e, 1, false, "test");
+        const hurt = e.hp < hp0;
+        const beforeInv = (g.inv || []).length;
+        e.hp = 0;
+        window.__R.resolveDeaths(g);
+        const after = window.__G();
+        const gained = (after.inv || []).length - beforeInv;
+        const drops = (after.inv || []).slice(beforeInv);
+        const ident = drops.some((i) => i.id === "c_ident");
+        const themeOk = drops.every((i) => {
+          const it = window.__R.ITEMS.find((x) => x.id === i.id);
+          return !it || !it.dropBoss || it.dropBoss === id;
+        });
+        const log = (after.log || []).some((l) => new RegExp(window.__R.BOSSES[id].short, "i").test(l.t) || new RegExp(window.__R.BOSSES[id].name, "i").test(l.t));
+        out.push({
+          f, id, ok: mon.t === id && e.bk === id && e.spr === id && hurt && gained >= 3 && ident && themeOk,
+          t: mon.t, bk: e.bk, spr: e.spr, name: e.name, biome: g.biome, haz: (g.map || []).flat().includes(window.__R.BOSSES[id].hazTile),
+          hurt, gained, ident, themeOk, log, hp0,
+        });
+      }
+      return out;
+    });
+    for (const r of fights) {
+      check(r.ok === true, `${r.id} on depth ${r.f} spawns, fights, dies, and drops loot`, JSON.stringify(r));
+    }
+
+    const saveOk = await page.evaluate(() => {
+      window.__T.boot("warrior", "endless");
+      window.__R.jumpFloor(15);
+      const raw = window.__R.saveRun(window.__G());
+      const g2 = window.__R.parseRun(typeof raw === "string" ? raw : (window.localStorage.getItem("dungeon-of-echoes-run-v1")));
+      // saveRun may return boolean (LAST_SAVE). Fall back to storage via parse of current:
+      const stored = window.localStorage.getItem("dungeon-of-echoes-run-v1");
+      const loaded = window.__R.parseRun(stored);
+      return {
+        biome: loaded && loaded.biome,
+        boss: loaded && (loaded.mons || []).find((m) => m.boss) && (loaded.mons || []).find((m) => m.boss).t,
+        floor: loaded && loaded.floor,
+      };
+    });
+    check(saveOk.biome === "mire" && saveOk.boss === "rotking" && saveOk.floor === 15, "saves keep new biome and Rotking spawn", JSON.stringify(saveOk));
+
+    const pageErrs = errors.filter((e) => !/favicon|ResizeObserver/i.test(e));
+    check(pageErrs.length === 0, "boss roster page errors", pageErrs.slice(0, 5).join(" | "));
+  });
+}
+
 async function main() {
 
 
@@ -934,6 +1028,8 @@ async function main() {
     await runPots(browser);
     process.stdout.write("\n== stat transfer ==\n");
     await runTransfer(browser);
+    process.stdout.write("\n== bosses ==\n");
+    await runBosses(browser);
     process.stdout.write("\n== shots ==\n");
     await runShots(browser);
   } finally {

@@ -137,6 +137,11 @@ async function main() {
 
     await A.evaluate(() => window.__COOP.start());
     const playA = await waitSnap(A, (s) => s.phase === "play" && s.playing, 10000, "host play");
+    const orderA = await A.evaluate(() => [5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((f) => window.__R.bossKind(f)));
+    const orderB = await B.evaluate(() => [5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((f) => window.__R.bossKind(f)));
+    const want = ["brood", "lord", "rotking", "choir", "behemoth", "fisher", "witch", "colossus", "hunger", "brood"];
+    check(JSON.stringify(orderA) === JSON.stringify(want) && JSON.stringify(orderB) === JSON.stringify(want), "coop host and guest share endless boss order", JSON.stringify({ orderA, orderB }));
+
     const playB = await waitSnap(B, (s) => s.phase === "play" && s.playing, 10000, "guest play");
     check(playA.phase === "play" && playB.phase === "play", "both entered play");
     await new Promise((r) => setTimeout(r, 400));
