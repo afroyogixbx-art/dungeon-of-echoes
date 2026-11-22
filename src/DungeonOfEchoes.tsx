@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useGrokTheme } from "./grok";
 import type { ReactNode, CSSProperties, ChangeEvent, FocusEvent } from "./grok";
+import { coop, hpMult, atkMult, devicePid, normCode, type CoopPawn, type CoopInput } from "./coop";
 import { CLASS_TREE, CAT_ORDER, CAT_GATES, catsOf, catOf, allNodes, nodeById, skillNodes, treeAbilities, RENAME_ABS, pointsSpent, catUnlocked, rankOf, hasEnh, forkOf, modsFor, passiveStats, SKILL_VER as TREE_VER, type CatId, type TreeNode, type SkillState } from "./skillTree";
 
 type ClassId = "warrior" | "mage" | "rogue" | "cleric" | "ranger";
@@ -22,7 +23,7 @@ interface Perk { id: string; name: string; icon: string; desc: string; tier: num
 interface MonT { id: string; name: string; icon: string; hp: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; undead?: boolean; lo: number; hi: number; bio?: Biome; ff?: number; w?: number; }
 interface Room { x: number; y: number; w: number; h: number; }
 interface MapMon { id: number; x: number; y: number; t: string; boss: boolean; awake: boolean; stun: number; fx?: number; fy?: number; hp?: number; max?: number; hx?: number; hy?: number; el?: boolean; }
-interface Enemy { uid: number; spr?: string; name: string; icon: string; hp: number; max: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; bk: string; undead: boolean; boss: boolean; stun: number; burnT: number; burnD: number; poisT: number; poisD: number; dead: boolean; x?: number; y?: number; atkT?: number; wind?: number; wm?: number; wk?: string; rt?: boolean; mid?: number; hx?: number; hy?: number; lost?: number; minion?: boolean; mt?: string; away?: boolean; dt0?: number; elite?: boolean; tpk?: string; ax?: number; ay?: number; rootT?: number; slowT?: number; polyT?: number; tauntT?: number; marked?: number; missT?: number; hmark?: number; }
+interface Enemy { uid: number; spr?: string; name: string; icon: string; hp: number; max: number; atk: number; def: number; dodge: number; xp: number; gold: number; b: Behav; bk: string; undead: boolean; boss: boolean; stun: number; burnT: number; burnD: number; poisT: number; poisD: number; dead: boolean; x?: number; y?: number; atkT?: number; wind?: number; wm?: number; wk?: string; rt?: boolean; mid?: number; hx?: number; hy?: number; lost?: number; minion?: boolean; mt?: string; away?: boolean; dt0?: number; elite?: boolean; tpk?: string; ax?: number; ay?: number; rootT?: number; slowT?: number; polyT?: number; tauntT?: number; marked?: number; missT?: number; hmark?: number; psN?: number; }
 interface Zone { id: number; x: number; y: number; r: number; t: number; max: number; k: string; dmg?: number; heal?: number; acc?: number; }
 interface WallSeg { id: number; x: number; y: number; dx: number; dy: number; len: number; t: number; }
 interface XTrap { id: number; x: number; y: number; r: number; fuse?: number; uid?: number; }
@@ -2456,15 +2457,15 @@ function mkEnemy(o: Partial<Enemy> & { name: string; icon: string; hp: number; a
 }
 function makeEnemy(m: MonT, f: number): Enemy {
   const s = mscale(m, f);
-  return mkEnemy({ spr: m.id, name: m.name, icon: m.icon, hp: Math.round(m.hp * s), atk: Math.round(m.atk * s), def: Math.round(m.def * (1 + (s - 1) * 0.6)), dodge: m.dodge, xp: Math.round(m.xp * s), gold: Math.round(m.gold * s), b: m.b, undead: !!m.undead });
+  return applyPartyScale(mkEnemy({ spr: m.id, name: m.name, icon: m.icon, hp: Math.round(m.hp * s), atk: Math.round(m.atk * s), def: Math.round(m.def * (1 + (s - 1) * 0.6)), dodge: m.dodge, xp: Math.round(m.xp * s), gold: Math.round(m.gold * s), b: m.b, undead: !!m.undead }));
 }
 function makeBoss(f: number): Enemy {
   if (bossKind(f) === "lord") {
     const s = 1 + 0.15 * Math.max(0, f - 10);
-    return mkEnemy({ name: f === 10 ? "The Echo Lord" : `Echo Lord, Depth ${f}`, spr: "lord", icon: "👑", hp: Math.round(700 * s), atk: Math.round(28 * s), def: Math.round(15 * s), xp: Math.round(400 * s), gold: Math.round(350 * s), b: "boss", bk: "lord", undead: true, boss: true });
+    return applyPartyScale(mkEnemy({ name: f === 10 ? "The Echo Lord" : `Echo Lord, Depth ${f}`, spr: "lord", icon: "👑", hp: Math.round(700 * s), atk: Math.round(28 * s), def: Math.round(15 * s), xp: Math.round(400 * s), gold: Math.round(350 * s), b: "boss", bk: "lord", undead: true, boss: true }));
   }
   const s = 1 + 0.15 * Math.max(0, f - 5);
-  return mkEnemy({ name: f === 5 ? "The Broodmother" : `Broodmother, Depth ${f}`, spr: "brood", icon: "🕸️", hp: Math.round(300 * s), atk: Math.round(16 * s), def: Math.round(7 * s), xp: Math.round(150 * s), gold: Math.round(150 * s), b: "boss", bk: "brood", boss: true });
+  return applyPartyScale(mkEnemy({ name: f === 5 ? "The Broodmother" : `Broodmother, Depth ${f}`, spr: "brood", icon: "🕸️", hp: Math.round(300 * s), atk: Math.round(16 * s), def: Math.round(7 * s), xp: Math.round(150 * s), gold: Math.round(150 * s), b: "boss", bk: "brood", boss: true }));
 }
 
 function genFloor(g: Game): void {
@@ -2680,6 +2681,14 @@ function lethal(g: Game): void {
   if (g.perks.includes("resurrect") && !g.usedRes) { g.hp = Math.round(f.maxHp * 0.5); g.usedRes = true; log(g, "🕯️ Divine Resurrection! Holy light drags you back from death.", "good"); addFx(g, "REVIVE", "good", "p"); }
 }
 function die(g: Game): void {
+  if (coop.active() && coop.partyN() >= 2) {
+    const f = full(g);
+    g.hp = Math.max(1, Math.round(f.maxHp * 0.5));
+    g.wx = g.sx + 0.5; g.wy = g.sy + 0.5; g.px = g.sx; g.py = g.sy;
+    log(g, playerName(g) + " fell and is revived at the stairs (50% HP).", "bad");
+    if (coop.isHost()) coop.event(playerName(g) + " fell and is revived at the stairs.", "sys");
+    return;
+  }
   g.screen = "dead"; g.combat = null; g.hp = 0; log(g, "You have fallen...", "bad");
   if (g.mode === "endless") { const m = meta(); if (g.floor > m.best) m.best = g.floor; saveMeta(); log(g, "☠️ Permadeath: this Endless run is gone. Tokens, upgrades, best depth and codex are kept.", "bad"); }
   clearRun();
@@ -2776,15 +2785,28 @@ function resolveDeaths(g: Game): void {
     e.dead = true; e.hp = 0; e.wind = 0; e.wk = ""; e.dt0 = Date.now(); g.kills++;
     if (full(g).sp.includes("bloodlust")) { const h = healPlayer(g, Math.max(1, Math.round(full(g).maxHp * 0.08)), false); if (h > 0) { log(g, `🩸 Bloodlust heals ${h}.`, "heal"); addFx(g, `+${h}`, "heal", "p"); } }
     if (full(g).sp.includes("reapSoul")) { const F = full(g); const h = healPlayer(g, Math.max(1, Math.round(F.maxHp * 0.08)), false); const m = Math.max(1, Math.round(F.maxMp * 0.10)); g.mp = Math.min(F.maxMp, g.mp + m); if (h > 0) { log(g, `💀 Reaper's Kiss restores ${h} HP and ${m} MP.`, "heal"); addFx(g, `+${h}`, "heal", "p"); } }
-    const gold = goldGain(g, e.gold * (0.8 + Math.random() * 0.4));
-    gain(g, `+${e.xp} XP`, XPC); gain(g, `+${gold} gold`, GOLDC);
-    gainXp(g, e.xp);
     const ex = clampN(Math.floor(e.x ?? g.px + 0.5), 0, W - 1), ey = clampN(Math.floor(e.y ?? g.py + 0.5), 0, H - 1);
     (g.rem = g.rem ?? []).push(`${ey * W + ex}:${sprOf(e)}`);
     if ((g.rem ?? []).length > 120) g.rem.shift();
-    const drops: Inv[] = e.minion ? (Math.random() < 0.1 ? lootRoll(g, "mob") : []) : lootRoll(g, e.boss ? "boss" : e.elite ? "elite" : "mob");
-    for (const d of drops) { gain(g, `+ ${instName(d)}`, rarCol(d)); addItem(g, d); }
-    maybeDropPotion(g, e.boss ? "boss" : e.elite ? "elite" : "mob");
+    const kind = e.boss ? "boss" : e.elite ? "elite" : "mob";
+    const recips = lootRecipients(g, e);
+    for (const hero of recips) {
+      const gold = goldGain(hero, e.gold * (0.8 + Math.random() * 0.4));
+      gain(hero, `+${e.xp} XP`, XPC); gain(hero, `+${gold} gold`, GOLDC);
+      gainXp(hero, e.xp);
+      const drops: Inv[] = e.minion ? (Math.random() < 0.1 ? lootRoll(hero, "mob") : []) : lootRoll(hero, kind);
+      const found: string[] = [];
+      for (const d of drops) { gain(hero, `+ ${instName(d)}`, rarCol(d)); addItem(hero, d); found.push(instName(d)); }
+      const pot = maybeDropPotion(hero, kind);
+      const who = playerName(hero);
+      const bits = [`+${gold} gold`, `+${e.xp} XP`, ...found, ...(pot ? ["Potion"] : [])];
+      const line = `${who} found ${bits.join(", ")}`;
+      log(g, line, "loot");
+      if (coop.isHost()) {
+        coop.event(line, "loot");
+        if (hero !== g) coop.sendLoot( [...COOP_GUESTS.values()].find((r) => r.g === hero)?.pid ?? "", { drops, pots: pot ? 1 : 0, gold, xp: e.xp, text: line });
+      }
+    }
     if (e.boss) bossDown(g, e);
   }
   const t = c.enemies[c.target];
@@ -3005,13 +3027,13 @@ function shot(g: Game, col: string, delay = 0): void {
   if (s.length > 8) s.shift();
 }
 function rtAttack(g: Game): void {
-  const c = g.combat; if (!c || g.screen !== "map" || (c.atkCd ?? 0) > 0) return;
+  const c = g.combat; if (!c || g.screen !== "map" || getAtkCd(g, c) > 0) return;
   syncPos(g);
   const r = ARNG[g.cls] / U;
-  if (!aimTarget(g, c, r)) { c.atkCd = 0.3; addFx(g, "too far", "sys", "p"); return; }
+  if (!aimTarget(g, c, r)) { setAtkCd(g, c, 0.3); addFx(g, "too far", "sys", "p"); return; }
   { const e = c.enemies[c.target]; if (e) setFace((e.x ?? 0) - (c.px ?? 0), (e.y ?? 0) - (c.py ?? 0)); }
   beginHeroAtk(g);
-  c.atkCd = ARATE[g.cls];
+  setAtkCd(g, c, ARATE[g.cls]);
   if (r > 30 / U) shot(g, g.cls === "mage" ? "#b18cff" : "#e8d9a8", weapAnim(g) === "bow" ? 90 : 0);
   doAction(g, "attack", "");
   resolveDeaths(g);
@@ -3119,7 +3141,7 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
   if (!c.shots) c.shots = [];
   syncPos(g);
   const px = c.px ?? 0, py = c.py ?? 0;
-  c.dashCd = Math.max(0, (c.dashCd ?? 0) - dt); c.iT = Math.max(0, (c.iT ?? 0) - dt); c.atkCd = Math.max(0, (c.atkCd ?? 0) - dt);
+  c.dashCd = Math.max(0, (c.dashCd ?? 0) - dt); c.iT = Math.max(0, (c.iT ?? 0) - dt); tickAtkCds(g, c, dt);
   g.buffs.hex = Math.max(0, (g.buffs.hex ?? 0) - dt);
   const now = Date.now();
   if (c.enemies.some((e: Enemy) => e.dead && (e.away || now - (e.dt0 ?? 0) > 900))) {
@@ -3150,10 +3172,12 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
   let fld: Int16Array | null = null;
   for (const e of c.enemies) {
     if (e.dead || e.hp <= 0) continue;
-    const ex = e.x ?? px, ey = e.y ?? py; const dx = px - ex, dy = py - ey; const d = Math.hypot(dx, dy) || 0.001;
-    const see = los(g, ex, ey, px, py);
+    const focus = closestHero(g, e.x ?? px, e.y ?? py);
+    const fpx = focus.wx ?? focus.px + 0.5, fpy = focus.wy ?? focus.py + 0.5;
+    const ex = e.x ?? fpx, ey = e.y ?? fpy; const dx = fpx - ex, dy = fpy - ey; const d = Math.hypot(dx, dy) || 0.001;
+    const see = los(g, ex, ey, fpx, fpy);
     const hx = e.hx ?? ex, hy = e.hy ?? ey, leash = e.boss ? BOSS_LEASH : LEASH;
-    const leashed = Math.hypot(ex - hx, ey - hy) >= leash - 0.5 && Math.hypot(px - hx, py - hy) > leash + 2;
+    const leashed = Math.hypot(ex - hx, ey - hy) >= leash - 0.5 && Math.hypot(fpx - hx, fpy - hy) > leash + 2;
     const runAway = !see || d > 9 || leashed;
     e.lost = runAway ? (e.lost ?? 0) + dt : 0;
     if ((e.lost ?? 0) >= LOSE_T || (e.minion && !boss)) {
@@ -3177,18 +3201,18 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
       const w = (e.wind ?? 0) - dt; e.wind = w;
       // quick types close a short, telegraphed lunge in the last moments of the wind-up (aim is already locked)
       if (w > 0 && w <= 0.14 && !e.boss && FAST_B.has(e.b)) {
-        const lx = (e.ax ?? px) - ex, ly = (e.ay ?? py) - ey, ll = Math.hypot(lx, ly) || 1;
+        const lx = (e.ax ?? fpx) - ex, ly = (e.ay ?? fpy) - ey, ll = Math.hypot(lx, ly) || 1;
         const q = { x: ex, y: ey };
         slideMove(g, q, (lx / ll) * spd * 1.25, (ly / ll) * spd * 1.25, dt, MR);
         e.x = q.x; e.y = q.y;
       }
-      if (w <= 0) { e.wind = 0; rtResolve(g, e, see ? d : 99, reach); if (g.hp <= 0) { die(g); return; } if (g.combat !== c) return; }
+      if (w <= 0) { e.wind = 0; asHero(g, focus, () => { rtResolve(g, e, see ? d : 99, reach); if (g.hp <= 0) die(g); }); if (g.combat !== c || g.screen !== "map") return; }
       continue;
     }
     const at = (e.atkT ?? 0) - dt; e.atkT = at;
     const RG = e.boss ? undefined : RANGED[e.b];
     // pets draw aggro: a foe goes for a nearby pet it can see when the pet is closer than you (Bone Hounds are extra tempting)
-    let ax = px, ay = py, ad = d, asee = see, pti = -1;
+    let ax = fpx, ay = fpy, ad = d, asee = see, pti = -1;
     if (!e.boss) { let best = d; (g.pets ?? []).forEach((p: Pet, i: number) => { if (p.ko > 0) return; const pd = Math.hypot(p.x - ex, p.y - ey); const eff = pd + (p.k === "hound" ? -1.2 : 0.4); if (pd < 4 && eff < best && los(g, ex, ey, p.x, p.y)) { best = eff; ax = p.x; ay = p.y; ad = pd; asee = true; pti = i; } }); }
     let tx = ax, ty = ay, mv = true;
     if (Math.hypot(ex - hx, ey - hy) > leash) { tx = hx; ty = hy; }
@@ -3204,8 +3228,8 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
     }
     const q = { x: ex, y: ey };
     if (mvx !== 0 || mvy !== 0) { const ml = Math.max(1, Math.hypot(mvx, mvy)); slideMove(g, q, mvx / ml * spd, mvy / ml * spd, dt, MR); }
-    const bx = q.x - px, by = q.y - py, bd = Math.hypot(bx, by), mn = PR + MR + (e.boss ? 0.3 : 0);
-    if (bd < mn && bd > 1e-4) { q.x = px + bx / bd * mn; q.y = py + by / bd * mn; pushOut(g, q, MR); }
+    const bx = q.x - fpx, by = q.y - fpy, bd = Math.hypot(bx, by), mn = PR + MR + (e.boss ? 0.3 : 0);
+    if (bd < mn && bd > 1e-4) { q.x = fpx + bx / bd * mn; q.y = fpy + by / bd * mn; pushOut(g, q, MR); }
     e.x = q.x; e.y = q.y;
     if (at <= 0 && asee && ad <= (RG ? RG.fire : reach + 3 / U)) {
       e.wk = e.b === "caster" ? "cast" : e.b === "archer" ? "arrow" : e.b === "spitter" ? "spit" : e.b === "hexer" ? "hex" : "melee";
@@ -3217,19 +3241,27 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
   for (const p of pr) {
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
     if (solidT(g, Math.floor(p.x), Math.floor(p.y)) || wallAt(g, p.x, p.y, 0.15)) { p.life = 0; continue; }
-    if (p.life > 0 && p.from >= 0 && Math.hypot(p.x - px, p.y - py) < 4.5 / U) {
-      if ((g.buffs.reflect ?? 0) > 0) {
-        p.vx *= -1; p.vy *= -1; p.from = -1; p.life = Math.max(p.life, 0.8); p.c = "#cfe8ff";
-        addFx(g, "REFLECT", "good", "p");
-        continue;
-      }
-      p.life = 0;
-      const e = c.enemies.find((x: Enemy) => x.uid === p.from);
-      if (e) {
-        const dd = damagePlayer(g, e, p.dmg, p.k !== "arrow", p.k === "arrow" ? "shoots" : p.k === "hex" ? "hexes" : "blasts");
-        if (dd > 0 && p.k === "hex") { g.buffs.hex = 4; log(g, "🌀 Hexed! Your damage is reduced by 25% for 4 s.", "bad"); addFx(g, "HEXED", "bad", "p"); }
-      }
-      if (g.hp <= 0) { die(g); return; }
+    const focusP = closestHero(g, p.x, p.y);
+    const tpx = focusP.wx ?? focusP.px + 0.5, tpy = focusP.wy ?? focusP.py + 0.5;
+    if (p.life > 0 && p.from >= 0 && Math.hypot(p.x - tpx, p.y - tpy) < 4.5 / U) {
+      let stop = false;
+      asHero(g, focusP, () => {
+        if ((g.buffs.reflect ?? 0) > 0) {
+          p.vx *= -1; p.vy *= -1; p.from = -1; p.life = Math.max(p.life, 0.8); p.c = "#cfe8ff";
+          addFx(g, "REFLECT", "good", "p");
+          stop = true;
+          return;
+        }
+        p.life = 0;
+        const e = c.enemies.find((x: Enemy) => x.uid === p.from);
+        if (e) {
+          const dd = damagePlayer(g, e, p.dmg, p.k !== "arrow", p.k === "arrow" ? "shoots" : p.k === "hex" ? "hexes" : "blasts");
+          if (dd > 0 && p.k === "hex") { g.buffs.hex = 4; log(g, "🌀 Hexed! Your damage is reduced by 25% for 4 s.", "bad"); addFx(g, "HEXED", "bad", "p"); }
+        }
+        if (g.hp <= 0) die(g);
+      });
+      if (stop) continue;
+      if (g.combat !== c || g.screen !== "map") return;
     } else if (p.life > 0 && p.from < 0) {
       for (const e of alive(c)) if (Math.hypot(p.x - (e.x ?? 0), p.y - (e.y ?? 0)) < 0.45) { p.life = 0; hitEnemy(g, e, 1, false, "🪞 Reflected"); break; }
     } else if (p.life > 0) {
@@ -3247,12 +3279,17 @@ function combatStep(g: Game, dt: number, atk: boolean): void {
     if (tz.t > 0) continue;
     if (tz.kind === "cata") c.charging = false;
     for (const pt of g.pets ?? []) if (pt.ko <= 0 && Math.hypot(pt.x - tz.x, pt.y - tz.y) <= tz.r) hurtPet(g, pt, tz.dmg * (tz.kind === "spit" ? 1 : 0.5));
-    if (Math.hypot(px - tz.x, py - tz.y) <= tz.r + 2 / U) {
-      const verb = tz.kind === "spit" ? "spatters acid on" : tz.kind === "acid" ? "splashes acid on" : tz.kind === "cata" ? "💥 OBLITERATES" : "engulfs in shadow flame";
-      const dd = damagePlayer(g, e, tz.dmg, true, verb);
-      if (dd > 0 && tz.kind === "flame") applyDot(g, Math.round(e.atk * 0.25), "burn");
-      if (dd > 0 && (tz.kind === "acid" || tz.kind === "spit")) applyDot(g, Math.round(e.atk * 0.2), "poison");
-      if (g.hp <= 0) { die(g); return; }
+    const focusZ = closestHero(g, tz.x, tz.y);
+    const zpx = focusZ.wx ?? focusZ.px + 0.5, zpy = focusZ.wy ?? focusZ.py + 0.5;
+    if (Math.hypot(zpx - tz.x, zpy - tz.y) <= tz.r + 2 / U) {
+      asHero(g, focusZ, () => {
+        const verb = tz.kind === "spit" ? "spatters acid on" : tz.kind === "acid" ? "splashes acid on" : tz.kind === "cata" ? "💥 OBLITERATES" : "engulfs in shadow flame";
+        const dd = damagePlayer(g, e, tz.dmg, true, verb);
+        if (dd > 0 && tz.kind === "flame") applyDot(g, Math.round(e.atk * 0.25), "burn");
+        if (dd > 0 && (tz.kind === "acid" || tz.kind === "spit")) applyDot(g, Math.round(e.atk * 0.2), "poison");
+        if (g.hp <= 0) die(g);
+      });
+      if (g.combat !== c || g.screen !== "map") return;
     } else addFx(g, "dodged!", "good", "p");
   }
   c.tele = tl.filter((tz: Tele) => tz.t > 0);
@@ -3351,7 +3388,7 @@ function touchTiles(g: Game, p: { x: number; y: number }, I: Inp): boolean {
     if (tile === 4) {
       if (d < 0.8) nearShop = true;
       if (g.combat) { if (d < 0.5 && !I.shopL) { I.shopL = true; combatNote(g, "⚔️ In combat — the merchant won't trade until the fight is over."); } continue; }
-      if (d < 0.5 && !I.shopL) { I.shopL = true; g.screen = "shop"; g.sel = -1; log(g, "💰 The merchant steps aside and grins: \"Take a look!\""); return true; }
+      if (d < 0.5 && !I.shopL) { if (COOP_SKIP_SHOP) { I.shopL = true; continue; } I.shopL = true; g.screen = "shop"; g.sel = -1; log(g, "💰 The merchant steps aside and grins: \"Take a look!\""); return true; }
       continue;
     }
     if (tile === 3 && d < 0.65) {
@@ -3383,9 +3420,11 @@ function touchTiles(g: Game, p: { x: number; y: number }, I: Inp): boolean {
 }
 function mapMonsters(g: Game, dt: number, p: { x: number; y: number }): boolean {
   let ch = false, fld: Int16Array | null = null;
+  const pts = coop.active() ? partyAnchors(g) : [p];
   for (const m of [...g.mons]) {
     if (m.fx === undefined || m.fy === undefined || Math.floor(m.fx) !== m.x || Math.floor(m.fy) !== m.y) { m.fx = m.x + 0.5; m.fy = m.y + 0.5; }
     if (m.stun > 0) { m.stun = Math.max(0, m.stun - dt); continue; }
+    const p = closestPt(pts, m.fx, m.fy);
     const d = Math.hypot(p.x - m.fx, p.y - m.fy);
     if (m.hx === undefined || m.hy === undefined) { m.hx = m.fx; m.hy = m.fy; }
     if (d < PR + MR + 0.05) { engage(g, m); ch = true; continue; }
@@ -3864,7 +3903,7 @@ function placePets(we: HTMLElement, g: Game): void {
 function petSz(k: string): number { return k === "hound" ? 0.74 : k === "wolf" ? 0.66 : 0.58; }
 function petSpr(k: string): string { return k === "imp" ? "pimp" : k === "owl" ? "powl" : k === "hound" ? "phound" : k; }
 function worldTf(g: Game): string { const px = g.wx ?? g.px + 0.5, py = g.wy ?? g.py + 0.5; return `translate(${(-(px - VTX / 2) / W) * 100}%, ${(-(py - VTY / 2) / H) * 100}%)`; }
-function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
+function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp, opts?: { mons?: boolean; shop?: boolean; tiles?: boolean }): boolean {
   if (g.screen !== "map") return false;
   tickScrollBuffs(g, dt);
   let ch = false;
@@ -3902,14 +3941,305 @@ function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   g.wx = p.x; g.wy = p.y;
   const tx = Math.floor(p.x), ty = Math.floor(p.y);
   if (tx !== g.px || ty !== g.py) { g.px = tx; g.py = ty; g.turns++; reveal(g); }
-  if (touchTiles(g, p, I)) return true;
-  if (mapMonsters(g, dt, p)) ch = true;
+  if (opts?.tiles !== false) {
+    if (opts?.shop === false) { COOP_SKIP_SHOP = true; }
+    if (touchTiles(g, p, I)) { if (opts?.shop === false) COOP_SKIP_SHOP = false; return true; }
+    if (opts?.shop === false) COOP_SKIP_SHOP = false;
+  }
+  if (opts?.mons !== false && mapMonsters(g, dt, p)) ch = true;
   if (g.screen !== "map") return true;
   tickManaItems(g, dt);
   if (g.combat) { I.regT = 0; return true; }
   if ((g.pets ?? []).length) { petsFollow(g, dt); ch = true; }
   return ch;
 }
+// ---------- co-op (host-authoritative PeerJS) ----------
+const HERO_KEYS = [
+  "name", "cls", "lvl", "xp", "hp", "mp", "gold", "inv", "eq", "px", "py", "wx", "wy",
+  "cds", "buffs", "perks", "bonus", "goldMult", "inAb",
+  "usedUndying", "usedShadow", "usedPhoenix", "usedRes",
+  "kills", "sel", "qs", "pots", "pets", "cpet",
+  "skills", "skillPts", "slots", "skillVer", "skillRanks", "skillEnh", "skillPick", "skillPass", "skillKey",
+  "sbuff", "sval", "tokensEarned", "turns",
+] as const;
+type HeroKey = typeof HERO_KEYS[number];
+interface GuestRec { g: Game; I: Inp; pid: string; }
+const COOP_GUESTS = new Map<string, GuestRec>();
+const ATKCD = new WeakMap<Game, number>();
+let COOP_STATE_T = 0;
+let COOP_SEQ = 0;
+let COOP_Q: { dodge: boolean; drink: boolean; abil: number } = { dodge: false, drink: false, abil: -1 };
+let COOP_SCALE_N = 1;
+let COOP_SKIP_SHOP = false;
+
+function freshInp(): Inp {
+  return { jx: 0, jy: 0, kx: 0, ky: 0, gx: 0, gy: 0, atk: false, katk: false, gatk: false, stepT: 0, monT: 0.5, regT: 0, alt: false, saveT: 0, rT: 0, slowT: 0, shopL: false, vx: 0, vy: 0, idleT: 0 };
+}
+function copyHero(from: Game, to: Game): void {
+  for (const k of HERO_KEYS) (to as unknown as Record<HeroKey, unknown>)[k] = (from as unknown as Record<HeroKey, unknown>)[k];
+}
+function withGuest<T>(world: Game, guest: Game, fn: () => T): T {
+  const bak = {} as Game;
+  copyHero(world, bak);
+  copyHero(guest, world);
+  const scr = world.screen;
+  if (scr !== "shop" && scr !== "upgrade" && scr !== "vault" && scr !== "dead" && scr !== "victory") world.screen = "map";
+  try { return fn(); }
+  finally { copyHero(world, guest); copyHero(bak, world); }
+}
+function asHero<T>(world: Game, hero: Game, fn: () => T): T {
+  if (hero === world) return fn();
+  return withGuest(world, hero, fn);
+}
+function packHero(g: Game): Record<string, unknown> {
+  const o: Record<string, unknown> = {};
+  for (const k of HERO_KEYS) o[k] = (g as unknown as Record<HeroKey, unknown>)[k];
+  return o;
+}
+function hydrateHero(world: Game, packed: unknown): Game {
+  const g: Game = {
+    ...world,
+    inv: [], eq: {}, cds: {}, buffs: freshBuffs(), perks: [], bonus: {}, pets: [],
+    skills: [], skillPts: 0, slots: [null, null, null, null, null], skillVer: 3,
+    skillRanks: {}, skillEnh: [], skillPick: {}, skillPass: {}, skillKey: null, sbuff: {}, sval: {},
+    combat: world.combat, map: world.map, seen: world.seen, mons: world.mons,
+    shop: world.shop, stock: world.stock, log: [], fx: [],
+    screen: "map", prev: "map",
+  };
+  if (packed && typeof packed === "object") copyHero(packed as Game, g);
+  g.map = world.map; g.seen = world.seen; g.mons = world.mons; g.combat = world.combat;
+  g.shop = world.shop; g.stock = world.stock; g.floor = world.floor; g.mode = world.mode; g.biome = world.biome;
+  g.sx = world.sx; g.sy = world.sy; g.screen = "map";
+  if (!g.cls || !(CLASS_IDS as string[]).includes(g.cls)) g.cls = "warrior";
+  if (!g.buffs) g.buffs = freshBuffs();
+  if (!Array.isArray(g.inv)) g.inv = [];
+  if (!g.eq) g.eq = {};
+  g.wx = world.sx + 0.5; g.wy = world.sy + 0.5; g.px = world.sx; g.py = world.sy;
+  return g;
+}
+function ensureCoopRun(hold: { current: Game | null }, cls: ClassId): Game {
+  const cur = hold.current;
+  if (cur && cur.screen !== "dead" && cur.screen !== "victory") {
+    if (cur.startPick) { cur.startPick = false; cur.offers = []; if (cur.screen === "upgrade") cur.screen = "map"; }
+    if (cur.screen === "inventory" || cur.screen === "skills" || cur.screen === "codex" || cur.screen === "help") cur.screen = "map";
+    return cur;
+  }
+  const saved = parseRun(rawRun());
+  if (saved && saved.screen !== "dead" && saved.screen !== "victory") {
+    if (saved.startPick) { saved.startPick = false; saved.offers = []; if (saved.screen === "upgrade") saved.screen = "map"; }
+    hold.current = saved;
+    return saved;
+  }
+  const ng = newGame(cls, "story");
+  ng.offers = []; ng.startPick = false; ng.vaultOffer = false; ng.screen = "map";
+  hold.current = ng;
+  LAST_SAVE = saveRun(ng);
+  return ng;
+}
+function partyHeroes(world: Game): Game[] {
+  const out = [world];
+  if (coop.isHost()) for (const rec of COOP_GUESTS.values()) out.push(rec.g);
+  return out;
+}
+function partyAnchors(g: Game): { x: number; y: number }[] {
+  return partyHeroes(g).map((h: Game) => ({ x: h.wx ?? h.px + 0.5, y: h.wy ?? h.py + 0.5 }));
+}
+function closestPt(pts: { x: number; y: number }[], x: number, y: number): { x: number; y: number } {
+  let b = pts[0], d = Infinity;
+  for (const p of pts) { const n = Math.hypot(p.x - x, p.y - y); if (n < d) { d = n; b = p; } }
+  return b ?? { x, y };
+}
+function closestHero(world: Game, x: number, y: number): Game {
+  let b = world, d = Infinity;
+  for (const h of partyHeroes(world)) {
+    const n = Math.hypot((h.wx ?? h.px + 0.5) - x, (h.wy ?? h.py + 0.5) - y);
+    if (n < d) { d = n; b = h; }
+  }
+  return b;
+}
+function lootRecipients(g: Game, e: Enemy): Game[] {
+  if (!coop.active() || !coop.isHost()) return [g];
+  const ex = e.x ?? g.wx ?? g.px, ey = e.y ?? g.wy ?? g.py;
+  const near = partyHeroes(g).filter((h: Game) => Math.hypot((h.wx ?? h.px) - ex, (h.wy ?? h.py) - ey) < 10);
+  return near.length ? near : [g];
+}
+function applyPartyScale(e: Enemy, n = coop.partyN()): Enemy {
+  const prev = e.psN ?? 1;
+  if (prev === n) return e;
+  const hpR = hpMult(n) / hpMult(prev);
+  const atkR = atkMult(n) / atkMult(prev);
+  const ratio = e.max > 0 ? e.hp / e.max : 1;
+  e.max = Math.max(1, Math.round(e.max * hpR));
+  e.hp = e.dead ? 0 : Math.max(1, Math.round(e.max * ratio));
+  e.atk = Math.max(1, Math.round(e.atk * atkR));
+  e.psN = n;
+  return e;
+}
+function rescaleParty(g: Game): void {
+  const n = coop.partyN();
+  if (n === COOP_SCALE_N) return;
+  for (const m of g.mons) {
+    // map monsters scale when engaged via makeEnemy; bump a tag on live combat
+    void m;
+  }
+  if (g.combat) for (const e of g.combat.enemies) applyPartyScale(e, n);
+  COOP_SCALE_N = n;
+}
+function getAtkCd(g: Game, c: Combat): number { return coop.active() ? (ATKCD.get(g) ?? 0) : (c.atkCd ?? 0); }
+function setAtkCd(g: Game, c: Combat, v: number): void { if (coop.active()) ATKCD.set(g, v); else c.atkCd = v; }
+function tickAtkCds(g: Game, c: Combat, dt: number): void {
+  if (!coop.active()) { c.atkCd = Math.max(0, (c.atkCd ?? 0) - dt); return; }
+  ATKCD.set(g, Math.max(0, (ATKCD.get(g) ?? 0) - dt));
+  for (const rec of COOP_GUESTS.values()) ATKCD.set(rec.g, Math.max(0, (ATKCD.get(rec.g) ?? 0) - dt));
+}
+function acceptGuest(world: Game, pid: string, msg: { name: string; cls: string; lvl: number; hero?: unknown; rejoin?: boolean }): void {
+  const prev = COOP_GUESTS.get(pid);
+  const hero = hydrateHero(world, msg.hero);
+  if (msg.name) hero.name = msg.name;
+  if (msg.rejoin && prev) {
+    hero.wx = prev.g.wx; hero.wy = prev.g.wy; hero.px = prev.g.px; hero.py = prev.g.py;
+  } else {
+    hero.wx = (world.wx ?? world.sx + 0.5) + 0.8;
+    hero.wy = world.wy ?? world.sy + 0.5;
+    hero.px = Math.floor(hero.wx); hero.py = Math.floor(hero.wy);
+  }
+  COOP_GUESTS.set(pid, { g: hero, I: prev?.I ?? freshInp(), pid });
+}
+function dropGuest(pid: string): void { COOP_GUESTS.delete(pid); }
+function compactCombat(c: Combat): unknown {
+  return {
+    target: c.target, boss: c.boss, phase: c.phase, monId: c.monId,
+    px: c.px, py: c.py, tick: c.tick, elapsed: c.elapsed,
+    enemies: c.enemies.map((e: Enemy) => ({
+      uid: e.uid, name: e.name, icon: e.icon, spr: e.spr, hp: e.hp, max: e.max,
+      x: e.x, y: e.y, dead: e.dead, boss: e.boss, elite: e.elite, away: e.away, b: e.b,
+    })),
+  };
+}
+function buildCoopState(world: Game): unknown {
+  const heroOf = (pid: string, h: Game, host: boolean): Record<string, unknown> => {
+    const f = full(h);
+    return {
+      pid, name: playerName(h), cls: h.cls, lvl: h.lvl, xp: h.xp,
+      wx: h.wx ?? h.px + 0.5, wy: h.wy ?? h.py + 0.5,
+      hp: h.hp, maxHp: f.maxHp, mp: h.mp, maxMp: f.maxMp,
+      gold: h.gold, pots: potCount(h), host, hero: packHero(h),
+    };
+  };
+  const heroes = [heroOf(coop.pid(), world, true)];
+  for (const rec of COOP_GUESTS.values()) heroes.push(heroOf(rec.pid, rec.g, false));
+  return {
+    floor: world.floor, sx: world.sx, sy: world.sy, biome: world.biome,
+    map: world.map, seen: world.seen, mons: world.mons,
+    shop: world.shop, stock: world.stock, screen: world.screen,
+    combat: world.combat ? compactCombat(world.combat) : null,
+    heroes,
+  };
+}
+function applyGuestState(g: Game, st: unknown): void {
+  if (!st || typeof st !== "object") return;
+  const s = st as {
+    floor?: number; sx?: number; sy?: number; biome?: Game["biome"];
+    map?: number[][]; seen?: boolean[][]; mons?: MapMon[]; shop?: Inv[]; stock?: number[];
+    screen?: Screen; combat?: Combat | null;
+    heroes?: Array<{ pid: string; wx: number; wy: number; hp: number; mp: number; gold: number; pots: number; lvl: number; xp: number; name?: string; cls?: ClassId; hero?: unknown }>;
+  };
+  if (typeof s.floor === "number") g.floor = s.floor;
+  if (s.map) g.map = s.map;
+  if (s.seen) g.seen = s.seen;
+  if (s.mons) g.mons = s.mons;
+  if (typeof s.sx === "number") g.sx = s.sx;
+  if (typeof s.sy === "number") g.sy = s.sy;
+  if (s.biome) g.biome = s.biome;
+  if (s.shop) g.shop = s.shop;
+  if (s.stock) g.stock = s.stock;
+  const me = (s.heroes ?? []).find((h) => h.pid === coop.pid());
+  if (me) {
+    const nx = me.wx, ny = me.wy;
+    const cx = g.wx ?? g.px + 0.5, cy = g.wy ?? g.py + 0.5;
+    if (Math.hypot(cx - nx, cy - ny) > 1.6) { g.wx = nx; g.wy = ny; }
+    else { g.wx = cx * 0.65 + nx * 0.35; g.wy = cy * 0.65 + ny * 0.35; }
+    g.px = Math.floor(g.wx); g.py = Math.floor(g.wy);
+    g.hp = me.hp; g.mp = me.mp; g.gold = me.gold; g.pots = me.pots; g.lvl = me.lvl; g.xp = me.xp;
+    if (me.name) g.name = me.name;
+    if (me.hero && typeof me.hero === "object") {
+      const keepX = g.wx, keepY = g.wy, keepHp = g.hp, keepMp = g.mp, keepGold = g.gold, keepPots = g.pots;
+      copyHero(me.hero as Game, g);
+      g.wx = keepX; g.wy = keepY; g.px = Math.floor(keepX); g.py = Math.floor(keepY);
+      g.hp = keepHp; g.mp = keepMp; g.gold = keepGold; g.pots = keepPots;
+    }
+  }
+  const others = (s.heroes ?? []).filter((h) => h.pid !== coop.pid());
+  coop.setPawns(others.map((h) => {
+    const packed = (h.hero ?? {}) as Game;
+    const fhp = (h as { maxHp?: number }).maxHp ?? Math.max(1, h.hp);
+    const fmp = (h as { maxMp?: number }).maxMp ?? Math.max(1, h.mp);
+    return { pid: h.pid, name: h.name || playerName(packed), cls: (h.cls || packed.cls || "warrior") as string, lvl: h.lvl, wx: h.wx, wy: h.wy, hp: h.hp, maxHp: fhp, mp: h.mp, maxMp: fmp };
+  }));
+  if (s.combat) {
+    const stub = s.combat;
+    if (!g.combat) g.combat = newCombat();
+    const c = g.combat;
+    c.target = stub.target; c.boss = stub.boss; c.phase = stub.phase; c.monId = stub.monId;
+    c.px = stub.px; c.py = stub.py;
+    c.enemies = (stub.enemies ?? []).map((e: Enemy) => ({ ...(g.combat?.enemies.find((x: Enemy) => x.uid === e.uid) ?? mkEnemy({ name: e.name, icon: e.icon || "?", hp: e.hp, atk: 1, def: 0, b: e.b || "brute" })), ...e }));
+  } else if (g.combat) g.combat = null;
+  const ws = s.screen;
+  if (ws === "upgrade" || ws === "vault" || ws === "victory") {
+    if (g.screen === "map") g.screen = ws;
+  } else if (ws === "map" && (g.screen === "upgrade" || g.screen === "vault")) g.screen = "map";
+}
+function renderPawns(g: Game): CoopPawn[] {
+  if (!coop.active()) return [];
+  if (coop.isHost()) {
+    return [...COOP_GUESTS.values()].map((rec) => {
+      const h = rec.g, f = full(h);
+      return { pid: rec.pid, name: playerName(h), cls: h.cls, lvl: h.lvl, wx: h.wx ?? h.px + 0.5, wy: h.wy ?? h.py + 0.5, hp: h.hp, maxHp: f.maxHp, mp: h.mp, maxMp: f.maxMp };
+    });
+  }
+  return coop.pawns();
+}
+function stepGuests(world: Game, dt: number): void {
+  if (!coop.isHost()) return;
+  for (const rec of COOP_GUESTS.values()) {
+    const inp = coop.takeInput(rec.pid);
+    const I = rec.I;
+    if (inp) {
+      I.kx = inp.mx; I.ky = inp.my; I.atk = inp.atk;
+    }
+    const c = world.combat;
+    const bak = c ? { dashT: c.dashT, dvx: c.dvx, dvy: c.dvy, dashCd: c.dashCd, iT: c.iT } : null;
+    if (c) c.dashT = 0;
+    COOP_SKIP_SHOP = true;
+    withGuest(world, rec.g, () => {
+      if (inp?.dodge) rtDodge(world, I.kx, I.ky, I);
+      rtMap(world, dt, I.kx, I.ky, I, { mons: false, shop: false });
+      if (inp?.drink) drinkPotion(world);
+      if (inp && inp.abil >= 0) {
+        const a = barAbs(world)[inp.abil];
+        if (a) rtAbility(world, a.id);
+      }
+      if (world.combat && inp?.atk) rtAttack(world);
+    });
+    COOP_SKIP_SHOP = false;
+    if (c && bak) { c.dashT = bak.dashT; c.dvx = bak.dvx; c.dvy = bak.dvy; c.dashCd = bak.dashCd; c.iT = bak.iT; }
+  }
+  rescaleParty(world);
+}
+function makeHello(g: Game | null, cls: ClassId): Extract<import("./coop").CoopMsg, { typ: "hello" }> {
+  const hero = g ?? null;
+  return {
+    typ: "hello",
+    pid: devicePid(),
+    name: playerName(hero),
+    cls: hero?.cls ?? cls,
+    lvl: hero?.lvl ?? 1,
+    hero: hero ? packHero(hero) : undefined,
+    rejoin: false,
+  };
+}
+
+
 function navLayer(): HTMLElement {
   const ds = document.querySelectorAll<HTMLElement>('[role="dialog"]');
   return ds.length > 0 ? ds[ds.length - 1] : document.body;
@@ -4508,6 +4838,7 @@ const HELP: [string, string][] = [
   ["📖 Story", "10 floors. The Broodmother mini-boss waits on Floor 5 and the Echo Lord on Floor 10. Beat him to win."],
   ["∞ Endless", "☠️ PERMADEATH: Endless autosaves constantly and your run save is deleted the moment you die (revives like Undying, Divine Resurrection or the Phoenix Amulet trigger first). Tokens, upgrades, best depth and codex are kept. Infinite scaling floors with a boss every 5 floors. After each boss pick an in-run perk (rarity-weighted; 10th-floor bosses guarantee an Epic or better). Your best depth is saved."],
   ["💾 Saving", "Your run autosaves every couple of seconds — even mid-fight, with every enemy's position and HP — and on every floor change; tap Continue on the title screen to resume. Tokens, upgrades, best depth and the codex are saved separately and survive death. Use 💾 Save Code to copy a backup code or paste one in on another device."],
+  ["🤝 Co-op", "Host or join a room from the title screen or ⚙ Menu (free WebRTC via the public PeerJS broker — no paid server). Share a 6-character room code; 2–4 players. The host simulates the dungeon; each player keeps their own class, skills, and a continuous save on their device. Leave any time — your progress stays, and you can rejoin with the same code. If the host leaves, the room tries to pass to another player; if that fails, everyone gets a Progress saved exit. Loot rolls separately for each nearby player, and enemies grow tougher with party size. Strict NATs may fail without a TURN server. Single-player is unchanged."],
   ["🪙 Tokens", "Every 10 Endless floors cleared earns 1 token, saved between runs. Spend them in Endless Upgrades: each class has a 36-node tree whose top tier holds game-changing capstones. Upgrades apply in Endless only."],
 ];
 
@@ -5164,6 +5495,10 @@ export default function DungeonOfEchoes() {
   const [treeCls, setTreeCls] = useState<ClassId>("warrior");
   const [confirm, setConfirm] = useState<Mode | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [coopJoin, setCoopJoin] = useState(false);
+  const [coopEnded, setCoopEnded] = useState("");
+  const [coopBusy, setCoopBusy] = useState(false);
   const [homeAsk, setHomeAsk] = useState(false);
   const [nameAsk, setNameAsk] = useState<"new" | "load" | "edit" | null>(null);
   const [nameDraft, setNameDraft] = useState("");
@@ -5218,7 +5553,7 @@ export default function DungeonOfEchoes() {
   const [vp, setVp] = useState<{ w: number; h: number }>(() => ({ w: typeof window !== "undefined" ? window.innerWidth : 400, h: typeof window !== "undefined" ? window.innerHeight : 800 }));
   const refresh = useCallback((): void => setTick((n: number) => n + 1), []);
   const run = useCallback((fn: (g: Game) => void): void => { const g = G.current; if (!g) return; fn(g); LAST_SAVE = saveRun(g); refresh(); }, [refresh]);
-  const toTitle = (): void => { if (G.current) LAST_SAVE = saveRun(G.current); G.current = null; setConfirm(null); setUi("title"); refresh(); };
+  const toTitle = (): void => { if (G.current) LAST_SAVE = saveRun(G.current); if (coop.active()) void coop.leave(); G.current = null; setConfirm(null); setUi("title"); refresh(); };
   const openNameAsk = (kind: "new" | "load" | "edit", mode?: Mode): void => {
     setPendingMode(mode ?? null);
     setNameDraft(kind === "edit" && G.current ? playerName(G.current) : lastOrDefaultName());
@@ -5260,6 +5595,78 @@ export default function DungeonOfEchoes() {
   useEffect(() => { const gg = G.current; if (gg && !sanitizeName(gg.name)) openNameAsk("load"); }, []);
 
 
+  const hostCoop = async (already = false): Promise<string> => {
+    const g = ensureCoopRun(G, pickCls);
+    setMenuOpen(false); setCoopJoin(false); setCoopEnded(""); setCoopBusy(true);
+    try {
+      const code = await coop.hostRoom({ name: playerName(g), cls: g.cls, lvl: g.lvl }, already);
+      setToast("Room " + code + " — waiting for players.");
+      refresh();
+      return code;
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Could not host.");
+      refresh();
+      throw e;
+    } finally { setCoopBusy(false); }
+  };
+  const joinCoop = async (code: string): Promise<void> => {
+    const g = ensureCoopRun(G, pickCls);
+    setMenuOpen(false); setCoopEnded(""); setCoopBusy(true);
+    try {
+      const hello = makeHello(g, pickCls);
+      await coop.joinRoom(code, hello);
+      setCoopJoin(false);
+      setToast("Joined room " + normCode(code) + ".");
+      refresh();
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Could not join.");
+      refresh();
+      throw e;
+    } finally { setCoopBusy(false); }
+  };
+  const startCoop = (): void => {
+    if (!coop.isHost()) return;
+    coop.startPlay();
+    const g = G.current; if (g) coop.sendState(buildCoopState(g));
+    setToast("The party descends!");
+    refresh();
+  };
+  const leaveCoop = async (): Promise<void> => {
+    const g = G.current; if (g) LAST_SAVE = saveRun(g);
+    setMenuOpen(false);
+    await coop.leave("You left the party. Progress saved.");
+    setToast("You left the party. Progress saved.");
+    refresh();
+  };
+
+  useEffect(() => {
+    coop.setHandlers({
+      onChange: () => refresh(),
+      onEvent: (text: string, kind: string) => {
+        const g = G.current;
+        if (g) log(g, text, kind === "loot" ? "loot" : (kind === "leave" ? "bad" : "good"));
+        setToast(text);
+        refresh();
+      },
+      onState: (st: unknown) => { const g = G.current; if (g) applyGuestState(g, st); },
+      onHello: (pid: string, msg: { name: string; cls: string; lvl: number; hero?: unknown; rejoin?: boolean }) => {
+        const g = G.current; if (!g) return "No run is active.";
+        acceptGuest(g, pid, msg);
+        return null;
+      },
+      onLeave: (pid: string) => { dropGuest(pid); refresh(); },
+      onEnded: (reason: string) => {
+        const g = G.current; if (g) LAST_SAVE = saveRun(g);
+        setCoopEnded(reason);
+        setToast(reason);
+        refresh();
+      },
+      onBecomeHost: () => { setToast("You are now the host. Progress saved."); refresh(); },
+      onLoot: () => { refresh(); },
+      hello: () => makeHello(G.current, pickCls),
+    });
+  }, [refresh, pickCls]);
+
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     type DoeWin = Window & {
@@ -5267,6 +5674,7 @@ export default function DungeonOfEchoes() {
       __I?: typeof inp;
       __T?: Record<string, unknown>;
       __R?: Record<string, unknown>;
+      __COOP?: Record<string, unknown>;
     };
     const w = window as DoeWin;
     const snap = (g: Game | null) => {
@@ -5289,8 +5697,27 @@ export default function DungeonOfEchoes() {
     w.__G = () => G.current;
     w.__I = inp;
     w.__T = { run, refresh, boot, toTitle, snap: () => snap(G.current), openNameAsk, sanitizeName, playerName, defaultName, confirmName };
+    w.__COOP = {
+      host: async () => hostCoop(false),
+      join: (code: string) => joinCoop(code),
+      start: () => startCoop(),
+      leave: () => leaveCoop(),
+      snap: () => {
+        const g = G.current;
+        return {
+          phase: coop.phase(), role: coop.get().role, code: coop.code(),
+          players: coop.players(), playing: coop.playing(), pawns: renderPawns(g ?? ({} as Game)),
+          n: coop.partyN(), pid: coop.pid(), err: coop.err(), ended: coop.ended() || coopEnded,
+          isHost: coop.isHost(), isGuest: coop.isGuest(),
+          wx: g?.wx ?? g?.px, wy: g?.wy ?? g?.py, hp: g?.hp, gold: g?.gold,
+          pots: g ? potCount(g) : 0, combat: !!g?.combat, cls: g?.cls, name: g ? playerName(g) : "",
+          log: (g?.log ?? []).slice(0, 8).map((l: LogL) => l.t),
+          guests: [...COOP_GUESTS.values()].map((r) => ({ pid: r.pid, name: playerName(r.g), wx: r.g.wx, wy: r.g.wy, hp: r.g.hp, gold: r.g.gold })),
+        };
+      },
+    };
     w.__R = {
-      takeSkill, setSlot, gainXp, descend, engage, rtAbility, rtDodge, canTakeSkill, skillNodesOf, migrateSkills, migratePots, addItem, makeInst, addPots, drinkPotion, rollPotionDrop, maybeDropPotion, potCount, isHealPot, POTION_DROP_CHANCE, POTION_DROP_ELITE, POTION_HEAL_PCT,
+      takeSkill, setSlot, gainXp, descend, engage, resolveDeaths, rtAbility, rtDodge, canTakeSkill, skillNodesOf, migrateSkills, migratePots, addItem, makeInst, addPots, drinkPotion, rollPotionDrop, maybeDropPotion, potCount, isHealPot, POTION_DROP_CHANCE, POTION_DROP_ELITE, POTION_HEAL_PCT,
       need, levelAbs, canLearnTree, learnTreeNode, respecSkills, skillNodes, setTreeCat, setTreeSel,
       learn: (id: string) => { const g = G.current; if (!g) return false; const ok = learnTreeNode(g, id); LAST_SAVE = saveRun(g); refresh(); return ok; },
       openSkills: () => { const g = G.current; if (!g) return; g.prev = g.screen; g.screen = "skills"; setTreeCat(null); setTreeSel(null); LAST_SAVE = saveRun(g); refresh(); },
@@ -5327,7 +5754,7 @@ export default function DungeonOfEchoes() {
         return { skills: g.skills.slice(), skillPts: g.skillPts, slots: normSlots(g), skillVer: g.skillVer, haste: g.buffs.haste ?? 0, learned: learnedAbs(g).map((a: Ab) => a.id) };
       },
     };
-    return () => { delete w.__G; delete w.__I; delete w.__T; delete w.__R; };
+    return () => { delete w.__G; delete w.__I; delete w.__T; delete w.__R; delete w.__COOP; };
   }, [run, refresh]);
 
   useEffect(() => {
@@ -5683,8 +6110,58 @@ export default function DungeonOfEchoes() {
         <div style={{ fontSize: 13, color: t.text.secondary }}>Save code and title are only available from this button, and are locked during combat.</div>
         {btn("💾 Save code", openSave, { tall: true })}
         {btn("✎ Change name", () => { setMenuOpen(false); openNameAsk("edit"); }, { tall: true })}
+        {coop.active()
+          ? btn("Leave co-op", () => { void leaveCoop(); }, { tall: true })
+          : <>
+              {btn("Host co-op", () => { void hostCoop(false); }, { tall: true })}
+              {btn("Join co-op", () => { setMenuOpen(false); setCoopJoin(true); }, { tall: true })}
+            </>}
         {btn("🏠 Title screen", askHome, { tall: true })}
         {btn("Close", () => setMenuOpen(false), { tone: "primary", tall: true })}
+      </div>
+    </div>
+  ) : null;
+  const coopPhase = coop.phase();
+  const showCoop = !!(coopEnded || coopJoin || coopPhase === "connecting" || coopPhase === "lobby" || coopPhase === "migrate");
+  const coopModal = showCoop ? (
+    <div role="dialog" aria-modal="true" data-noj="1" data-coop-lobby={coopPhase === "lobby" || coopPhase === "connecting" || coopPhase === "migrate" ? "1" : undefined} style={{ position: "fixed", inset: 0, zIndex: 54, background: "rgba(0,0,0,.6)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }}>
+      <div style={{ width: "100%", maxWidth: 360, background: t.bg.elevated, color: t.text.primary, border: `1px solid ${t.border.default}`, borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", gap: 10, fontFamily: t.font.family }}>
+        {coopEnded ? (
+          <>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>Co-op ended</div>
+            <div style={{ fontSize: 14 }}>{coopEnded}</div>
+            {btn("OK", () => setCoopEnded(""), { tone: "primary", tall: true })}
+          </>
+        ) : coopJoin && coopPhase === "idle" ? (
+          <>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>Join co-op</div>
+            <div style={{ fontSize: 13, color: t.text.secondary }}>Enter the 6-character room code. Free peer-to-peer — no server to pay for.</div>
+            <input data-coop-code-input="1" value={joinCode} onChange={(e: ChangeEvent<HTMLInputElement>) => setJoinCode(normCode(e.target.value))} placeholder="ROOM CODE" maxLength={8} autoCapitalize="characters" style={{ fontSize: 22, fontWeight: 800, letterSpacing: 3, textAlign: "center", padding: 10, borderRadius: 10, border: `1px solid ${t.border.default}`, background: t.bg.base, color: t.text.primary, fontFamily: "inherit" }} />
+            <div style={row}>
+              {btn(coopBusy ? "Connecting…" : "Connect", () => { void joinCoop(joinCode); }, { tone: "primary", tall: true, grow: true, disabled: coopBusy || joinCode.length < 4 })}
+              {btn("Cancel", () => setCoopJoin(false), { tall: true, grow: true })}
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 18, fontWeight: 800 }}>{coopPhase === "migrate" ? "Passing the host…" : coopPhase === "connecting" ? "Connecting…" : "Co-op lobby"}</div>
+            <div data-coop-code={coop.code()} style={{ fontSize: 28, fontWeight: 900, letterSpacing: 4, textAlign: "center", color: "#ffe08a" }}>{coop.code() || "……"}</div>
+            <div style={{ fontSize: 13, color: t.text.secondary }}>Share this code. 2–4 players. Host runs the world; everyone keeps their own save on this device.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {coop.players().map((pl) => (
+                <div key={pl.pid} data-coop-player={pl.pid} style={{ ...card, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px" }}>
+                  <span style={{ fontWeight: 800 }}>{pl.name}</span>
+                  <span style={{ fontSize: 12, color: t.text.secondary }}>{pl.isHost ? "Host" : "Guest"} · {String(pl.cls)} · Lv {pl.lvl}</span>
+                </div>
+              ))}
+            </div>
+            {coop.err() ? <div style={{ color: t.text.warning, fontSize: 13 }}>{coop.err()}</div> : null}
+            <div style={row}>
+              {coop.isHost() && coopPhase === "lobby" ? btn("Start", startCoop, { tone: "primary", tall: true, grow: true, disabled: coop.players().length < 2 }) : null}
+              {btn("Leave", () => { void leaveCoop(); }, { tall: true, grow: true })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   ) : null;
@@ -5804,10 +6281,10 @@ export default function DungeonOfEchoes() {
       </div>
     </div>
   ) : null;
-  const style = <div style={{ display: "contents" }}>{exitModal}{menuModal}{homeModal}{nameModal}{salvModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5%)}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}@keyframes doeBreath{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-3%) scaleY(1.05)}}@keyframes doeTwitch{0%,82%,100%{transform:rotate(0)}86%{transform:rotate(-4deg)}90%{transform:rotate(3deg)}}@keyframes doeFlicker{0%,100%{opacity:1}35%{opacity:.68}55%{opacity:.92}78%{opacity:.75}}@keyframes doeLean{0%,100%{transform:rotate(-5deg) translateY(0)}50%{transform:rotate(-8deg) translateY(-2%)}}@keyframes doeAura{0%,100%{opacity:.4}50%{opacity:.85}}"}</style></div>;
+  const style = <div style={{ display: "contents" }}>{exitModal}{menuModal}{coopModal}{homeModal}{nameModal}{salvModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5%)}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}@keyframes doeBreath{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-3%) scaleY(1.05)}}@keyframes doeTwitch{0%,82%,100%{transform:rotate(0)}86%{transform:rotate(-4deg)}90%{transform:rotate(3deg)}}@keyframes doeFlicker{0%,100%{opacity:1}35%{opacity:.68}55%{opacity:.92}78%{opacity:.75}}@keyframes doeLean{0%,100%{transform:rotate(-5deg) translateY(0)}50%{transform:rotate(-8deg) translateY(-2%)}}@keyframes doeAura{0%,100%{opacity:.4}50%{opacity:.85}}"}</style></div>;
   const back = (): void => { if (g) run((gg: Game) => { gg.screen = gg.prev; }); else setUi("title"); };
   // ---------- INPUT: keyboard, gamepad, real-time loop ----------
-  const isPlay = (): boolean => { const gg = G.current; return !!gg && !exitAsk && !sheet && !bigMap && !menuOpen && !homeAsk && !salvAsk && gg.screen === "map"; };
+  const isPlay = (): boolean => { const gg = G.current; const ph = coop.phase(); return !!gg && !exitAsk && !sheet && !bigMap && !menuOpen && !homeAsk && !salvAsk && !coopJoin && !coopEnded && ph !== "lobby" && ph !== "connecting" && ph !== "migrate" && gg.screen === "map"; };
   const openExit = (): void => { const gg = G.current; if (gg) LAST_SAVE = saveRun(gg); HELD.clear(); const I = inp.current; I.kx = 0; I.ky = 0; I.katk = false; I.atk = false; setExitAsk(true); };
   const cycleTarget = (d: number): void => run((x: Game) => { const c = x.combat; if (!c) return; const n = c.enemies.length; for (let k = 1; k <= n; k++) { const i = (((c.target + d * k) % n) + n) % n; const e = c.enemies[i]; if (e && !e.dead && e.hp > 0) { c.target = i; return; } } });
   const cycleTab = (d: number): void => {
@@ -5844,13 +6321,14 @@ export default function DungeonOfEchoes() {
   };
   const abil = (i: number): void => {
     const gg = G.current; if (!gg || gg.screen !== "map") return;
+    if (coop.isGuest()) { COOP_Q.abil = i; return; }
     const a = barAbs(gg)[i]; if (!a) { addFx(gg, "empty slot", "sys", "p"); refresh(); return; }
     if (!abReady(gg, i)) { addFx(gg, "not learned", "sys", "p"); refresh(); return; }
     if ((gg.cds[a.id] ?? 0) > 0 || gg.mp < abCost(gg, a)) { addFx(gg, (gg.cds[a.id] ?? 0) > 0 ? "cooldown" : "no MP", "sys", "p"); refresh(); return; }
     run((x: Game) => rtAbility(x, a.id));
   };
   const mvVec = (): [number, number] => { const I = inp.current; let x = I.jx + I.kx + I.gx, y = I.jy + I.ky + I.gy; const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; } return [x, y]; };
-  const dodge = (): void => { const [x, y] = mvVec(); run((gg: Game) => rtDodge(gg, x, y, inp.current)); };
+  const dodge = (): void => { const [x, y] = mvVec(); if (coop.isGuest()) { COOP_Q.dodge = true; } run((gg: Game) => rtDodge(gg, x, y, inp.current)); };
   const inFight = (): boolean => { const gg = G.current; if (gg && gg.combat && gg.screen === "map") { lockNote(); return true; } return false; };
   const interact = (): void => { if (inFight()) return; run((gg: Game) => { if (gg.screen === "map" && nearMerchant(gg)) { gg.screen = "shop"; gg.sel = -1; inp.current.shopL = true; } }); };
   const openBag = (): void => {
@@ -5860,7 +6338,7 @@ export default function DungeonOfEchoes() {
       else if (gg.screen === "inventory") { gg.screen = "map"; gg.sel = -1; }
     });
   };
-  const quick = (): void => run((gg: Game) => quickUse(gg));
+  const quick = (): void => { if (coop.isGuest()) { COOP_Q.drink = true; return; } run((gg: Game) => quickUse(gg)); };
   drawRef.current = (force: boolean): void => {
     const gg = G.current; if (!gg || gg.screen !== "map") return;
     const cv = mapCv.current; if (cv) drawView(cv, gg, force);
@@ -5987,11 +6465,32 @@ export default function DungeonOfEchoes() {
     }
     const gg = G.current; const I = inp.current;
     if (!gg || exitAsk || sheet || bigMap || document.hidden) return;
+    const ph = coop.phase();
+    if (coop.active() && (ph === "lobby" || ph === "connecting" || ph === "migrate")) {
+      I.saveT += dt;
+      if (I.saveT >= 1.5) { I.saveT = 0; LAST_SAVE = saveRun(gg); }
+      return;
+    }
     const [mx, my] = mvVec();
+    if (coop.isGuest() && coop.playing() && gg.screen === "map") {
+      coop.sendInput({ mx, my, atk: !!(I.atk || I.katk || I.gatk), dodge: COOP_Q.dodge, drink: COOP_Q.drink, abil: COOP_Q.abil, seq: ++COOP_SEQ });
+      COOP_Q = { dodge: false, drink: false, abil: -1 };
+      rtMap(gg, dt, mx, my, I, { mons: false, tiles: false, shop: false });
+      drawRef.current(false);
+      I.rT += dt; if (I.rT >= 0.05) { I.rT = 0; refresh(); }
+      I.saveT += dt;
+      if (I.saveT >= 1.5) { I.saveT = 0; LAST_SAVE = saveRun(gg); }
+      return;
+    }
     if (gg.screen === "map") {
       const was = !!gg.combat;
       let chg = rtMap(gg, dt, mx, my, I);
+      if (coop.isHost() && coop.playing()) stepGuests(gg, dt);
       if (gg.combat && (gg.screen as Screen) === "map") { combatStep(gg, dt, I.atk || I.katk || I.gatk); chg = true; }
+      if (coop.isHost() && coop.playing()) {
+        COOP_STATE_T += dt;
+        if (COOP_STATE_T >= 0.08) { COOP_STATE_T = 0; coop.sendState(buildCoopState(gg)); }
+      }
       if (!gg.combat) I.atk = false;
       drawRef.current(false);
       if (currentAbPop() && (AB_POPS[0]?.ts ?? 0) !== (I as Inp & { abTs?: number }).abTs) { (I as Inp & { abTs?: number }).abTs = AB_POPS[0]?.ts; setToast(`✨ New ability unlocked: ${currentAbPop()!.name}`); }
@@ -6202,6 +6701,10 @@ export default function DungeonOfEchoes() {
           {btn(<span>📖 Story<br /><span style={{ fontSize: 11, fontWeight: 400 }}>10 floors + 2 bosses</span></span>, () => start("story"), { tone: "primary", tall: true, grow: true })}
           {btn(<span>∞ Endless<br /><span style={{ fontSize: 11, fontWeight: 400 }}>☠️ Permadeath · Best depth {m.best || "—"}</span></span>, () => start("endless"), { tone: "accent", tall: true, grow: true })}
         </div>
+        <div style={row}>
+          {btn(<span>🤝 Host co-op<br /><span style={{ fontSize: 11, fontWeight: 400 }}>Room code · 2–4 players</span></span>, () => { void hostCoop(false); }, { tone: "accent", tall: true, grow: true })}
+          {btn(<span>🔗 Join co-op<br /><span style={{ fontSize: 11, fontWeight: 400 }}>Enter a room code</span></span>, () => setCoopJoin(true), { tall: true, grow: true })}
+        </div>
         {confirm && saved && (
           <div style={{ ...card, background: t.fill.warningSubtle, display: "flex", flexDirection: "column", gap: 8 }}>
             <div style={{ fontSize: 13, fontWeight: 600 }}>Start a new {confirm === "story" ? "Story" : "Endless"} run as {CLS[pickCls].name}? This overwrites your saved run ({CLS[saved.cls].name}, floor {saved.floor}). Tokens, upgrades and codex are kept.</div>
@@ -6229,6 +6732,7 @@ export default function DungeonOfEchoes() {
         <span style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 42, height: 42, flex: "0 0 auto", borderRadius: 8, background: "radial-gradient(circle at 50% 40%, #3a2a1a, #0d0a10 80%)", border: "1px solid #5a3a2a", overflow: "hidden" }}>{spr(g.cls, 42)}</span><span data-player-name="1">{playerName(g)}</span> · {CLS[g.cls].name} · Lv {g.lvl}</span>
         <span>{g.mode === "story" ? `🏰 Floor ${g.floor}/${STORY_END}` : `∞ Depth ${g.floor}`}</span>
         <span style={{ color: t.text.warning, fontWeight: 700 }}>💰 {g.gold}</span>
+        {coop.active() && coop.code() ? <span data-coop-code={coop.code()} style={{ fontSize: 11, fontWeight: 800, color: "#d6e8ff", background: "rgba(30,50,90,.7)", border: "1px solid #6a90c8", borderRadius: 6, padding: "1px 6px" }}>Co-op {coop.code()}</span> : null}
         <span style={{ fontSize: 11, color: LAST_SAVE ? t.text.success : t.text.warning }}>{LAST_SAVE ? "💾 Saved" : "⚠️ Session only"}</span>
         <button type="button" onClick={homeBtn} disabled={!!g.combat} aria-disabled={!!g.combat} aria-label={g.combat ? "Menu locked in combat" : "Menu"} title={g.combat ? "Locked in combat" : "Menu (save code & title)"} style={{ opacity: g.combat ? 0.4 : 1, minWidth: 40, minHeight: 36, marginLeft: 8, borderRadius: 10, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 16, cursor: g.combat ? "not-allowed" : "pointer", pointerEvents: g.combat ? "none" : "auto" }}>⚙</button>
       </div>
@@ -6247,6 +6751,7 @@ export default function DungeonOfEchoes() {
     <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto", flex: "0 0 auto" }}>
       <span style={{ fontSize: 12, whiteSpace: "nowrap" }}>{g.mode === "story" ? `🏰 ${g.floor}/${STORY_END}` : `∞ ${g.floor}`}</span>
       <span style={{ fontSize: 12, color: t.text.warning, fontWeight: 700, whiteSpace: "nowrap" }}>💰 {g.gold}</span>
+      {coop.active() && coop.code() ? <span data-coop-code={coop.code()} style={{ fontSize: 10, fontWeight: 800, color: "#d6e8ff", background: "rgba(30,50,90,.7)", border: "1px solid #6a90c8", borderRadius: 6, padding: "1px 5px" }}>{coop.code()}</span> : null}
       <span style={{ fontSize: 11, color: LAST_SAVE ? t.text.success : t.text.warning, whiteSpace: "nowrap" }}>{LAST_SAVE ? "💾" : "⚠️"}</span>
       <button type="button" onClick={homeBtn} disabled={!!g.combat} aria-disabled={!!g.combat} aria-label={g.combat ? "Menu locked in combat" : "Menu"} title={g.combat ? "Locked in combat" : "Menu (save code & title)"} style={{ opacity: g.combat ? 0.4 : 1, minWidth: 36, minHeight: 32, marginLeft: 8, borderRadius: 8, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 15, cursor: g.combat ? "not-allowed" : "pointer", pointerEvents: g.combat ? "none" : "auto" }}>⚙</button>
     </div>
@@ -6866,6 +7371,16 @@ export default function DungeonOfEchoes() {
       </div>
     );
   });
+  for (const al of renderPawns(g)) {
+    if (!inViewP(al.wx, al.wy)) continue;
+    objs.push(
+      <div key={`ally-${al.pid}`} data-ally={al.pid} style={{ ...wBox(al.wx, al.wy, 1), zIndex: 4, overflow: "visible", pointerEvents: "none" }}>
+        <div style={{ position: "absolute", inset: 0 }}>{spr((al.cls as ClassId) || "warrior", "100%")}</div>
+        <div data-nameplate={al.name} style={{ position: "absolute", left: "50%", bottom: "100%", transform: "translateX(-50%)", fontSize: 10, fontWeight: 800, color: "#fff8e0", textShadow: "0 1px 3px #000", background: "rgba(0,0,0,.5)", borderRadius: 5, padding: "1px 5px", whiteSpace: "nowrap" }}>{al.name}</div>
+        <div style={{ position: "absolute", left: "8%", right: "8%", top: "-22%", height: 3, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden" }}><div style={{ width: `${Math.max(0, Math.min(100, al.maxHp ? al.hp / al.maxHp * 100 : 0))}%`, height: "100%", background: "#e5484d" }} /></div>
+      </div>
+    );
+  }
   const tileW = `${100 / VTX}%`, tileH = `${100 / VTY}%`;
   const tilePx = Math.min(vp.w, vp.h) / VT_MIN;
   const mini = Math.max(88, Math.min(132, Math.round(Math.min(vp.w, vp.h) * 0.2)));
@@ -6916,6 +7431,7 @@ export default function DungeonOfEchoes() {
             return <div key={p.ts + p.k} data-pulse={p.k} style={{ position: "absolute", left: "50%", top: "50%", width: d, height: d, marginLeft: -d / 2, marginTop: -d / 2, borderRadius: "50%", border: `3px solid ${col}`, boxShadow: `0 0 14px ${col}`, opacity: 1 - u, pointerEvents: "none", boxSizing: "border-box" }} />;
           })}
           <div style={{ position: "absolute", left: "50%", bottom: "100%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", pointerEvents: "none", whiteSpace: "nowrap", zIndex: 8 }}>
+            <div data-nameplate={playerName(g)} style={{ fontSize: 11, fontWeight: 800, color: "#fff8e0", textShadow: "0 1px 3px #000", background: "rgba(0,0,0,.45)", borderRadius: 6, padding: "1px 6px", marginBottom: 2 }}>{playerName(g)}</div>
             {g.fx.filter((x: Fx) => x.at === "p" && nowMs - x.ts < 1000).map((x: Fx) => <span key={x.id} style={{ animation: "doeFloat 1s ease-out forwards", fontWeight: 800, fontSize: 13, color: col(x.c), textShadow: "0 1px 3px #000" }}>{x.text}</span>)}
           </div>
         </div>
@@ -7002,7 +7518,7 @@ export default function DungeonOfEchoes() {
         {padBtn({ aria: nPots ? `Healing Potion ×${nPots} (R)` : "No healing potions", title: nPots ? `Healing Potion · restores ${POTION_HEAL_PCT}% HP (R)` : "No healing potions", icon: "🧪", vis: AB_VIS, hit: AB_HIT, face: { borderColor: nPots ? "#e5484d" : t.border.default }, disabled: nPots <= 0, onDown: () => { if (nPots > 0) quick(); }, badge: <span data-potion-count={nPots} style={{ position: "absolute", right: 0, bottom: 0, fontSize: 9, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>{nPots}</span> })}
         {qi && !isHealPot(qi.id) ? padBtn({ aria: `Quick-slot: ${IT[qi.id].name} ×${qn}`, title: `${IT[qi.id].name}`, icon: IT[qi.id].icon, vis: AB_VIS, hit: AB_HIT, face: { borderColor: "#e5484d" }, disabled: !qn, onDown: () => run((gg: Game) => qsUse(gg)), badge: qn > 0 ? <span style={{ position: "absolute", right: 0, bottom: 0, fontSize: 9, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>{qn}</span> : null }) : null}
         {padBtn({ aria: "Dodge roll", icon: "💨", vis: AB_VIS, hit: AB_HIT, face: { borderColor: dcd > 0 ? t.border.default : "#7ab8ff" }, fr: Math.min(1, dcd / dashSec(g)), onDown: () => dodge() })}
-        {padBtn({ aria: "Attack (hold)", icon: g.cls === "mage" ? "🪄" : g.cls === "ranger" ? "🏹" : g.cls === "cleric" ? "🔨" : g.cls === "rogue" ? "🗡️" : "⚔️", vis: ATK_VIS, hit: ATK_HIT, face: { border: "2px solid #e0b25a", background: "radial-gradient(circle at 40% 35%, #8a2a1a, #2a0a08)", fontSize: Math.round(ATK_VIS * 0.5) }, fr: c ? Math.min(1, (c.atkCd ?? 0) / ARATE[g.cls]) : 0, hold: true, onDown: () => { inp.current.atk = true; run((gg: Game) => rtAttack(gg)); } })}
+        {padBtn({ aria: "Attack (hold)", icon: g.cls === "mage" ? "🪄" : g.cls === "ranger" ? "🏹" : g.cls === "cleric" ? "🔨" : g.cls === "rogue" ? "🗡️" : "⚔️", vis: ATK_VIS, hit: ATK_HIT, face: { border: "2px solid #e0b25a", background: "radial-gradient(circle at 40% 35%, #8a2a1a, #2a0a08)", fontSize: Math.round(ATK_VIS * 0.5) }, fr: c ? Math.min(1, (c.atkCd ?? 0) / ARATE[g.cls]) : 0, hold: true, onDown: () => { inp.current.atk = true; if (!coop.isGuest()) run((gg: Game) => rtAttack(gg)); } })}
       </div>
       {g.perks.includes("shadowmeld") && !g.usedShadow && !cBoss ? padBtn({ aria: "Shadowmeld", icon: "🌫️", vis: AB_VIS, hit: AB_HIT, onDown: () => run((gg: Game) => combatAct(gg, "vanish", "")) }) : null}
     </div>
