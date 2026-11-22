@@ -7476,8 +7476,8 @@ export default function DungeonOfEchoes() {
       </div>
   );
   const HIT = 40, VIS = 32; // bag / codex / help
-  const AB_HIT = 56, AB_VIS = 46; // ability slots, dodge, potion, target
-  const ATK_HIT = 76, ATK_VIS = 66;
+  const AB_HIT = 68, AB_VIS = 58; // ability slots, dodge, potion, target
+  const ATK_HIT = 92, ATK_VIS = 80;
   const iconHit = (hit: number): CSSProperties => ({ position: "relative", width: hit, height: hit, minWidth: hit, minHeight: hit, padding: 0, border: "none", background: "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto", cursor: "pointer", touchAction: "manipulation", color: "#fff", fontFamily: "inherit", overflow: "visible" });
   const iconFace = (vis: number, extra?: CSSProperties): CSSProperties => ({ position: "relative", width: vis, height: vis, borderRadius: "50%", border: "1.5px solid #c9a24a", background: "radial-gradient(circle at 40% 35%, #3a2a44, #140e1a)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", fontSize: Math.round(vis * 0.52), pointerEvents: "none", ...extra });
   const ring = (fr: number): ReactNode => fr > 0 ? <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `conic-gradient(rgba(0,0,0,.62) ${Math.round(fr * 360)}deg, transparent 0deg)`, pointerEvents: "none" }} /> : null;

@@ -1,6 +1,6 @@
 /**
  * Capture map + combat HUD screenshots and button metrics.
- * Usage: node scripts/ui-shots.mjs before|after|bigger
+ * Usage: node scripts/ui-shots.mjs before|after|bigger|biggest
  */
 import { spawn } from "node:child_process";
 import { createConnection } from "node:net";
@@ -14,7 +14,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = Number(process.env.PLAYTEST_PORT || 4181);
 const CHROME = process.env.CHROME || "/usr/bin/google-chrome";
 const arg = process.argv[2] || "before";
-const tag = arg === "after" || arg === "bigger" ? arg : "before";
+const tag = arg === "after" || arg === "bigger" || arg === "biggest" ? arg : "before";
 const out = path.join(ROOT, "playtest-shots");
 
 function waitPort(port, timeoutMs) {
@@ -120,9 +120,37 @@ async function main() {
     const landM = await measure(page);
     await page.screenshot({ path: path.join(out, `ui-${tag}-combat-landscape.png`) });
 
-    const metrics = { tag, map: mapM, combat: combatM, landscape: landM };
+    // smaller-phone layout check (combat + map), requested for "biggest"
+    let smallCombatM = null, smallMapM = null, smallLandM = null;
+    if (tag === "biggest") {
+      await page.setViewport({ width: 360, height: 740, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      await page.evaluate(() => { window.dispatchEvent(new Event("resize")); if (window.__T) window.__T.refresh(); });
+      await new Promise((r) => setTimeout(r, 300));
+      smallCombatM = await measure(page);
+      await page.evaluate(() => { const g = window.__G(); if (g) { g.combat = null; window.__T.refresh(); } });
+      await new Promise((r) => setTimeout(r, 200));
+      smallMapM = await measure(page);
+      await page.setViewport({ width: 740, height: 360, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+      await page.evaluate(() => { window.dispatchEvent(new Event("resize")); if (window.__T) window.__T.refresh(); });
+      await new Promise((r) => setTimeout(r, 250));
+      smallLandM = await measure(page);
+      // restore combat for consistency of later close
+      await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+    }
+
+    const metrics = { tag, map: mapM, combat: combatM, landscape: landM, small360: smallMapM, small360combat: smallCombatM, small360land: smallLandM };
     const problems = [];
-    const expectHit = {
+    const expectHit = tag === "biggest" ? {
+      "Bag": [40, 40],
+      "Codex": [40, 40],
+      "Help": [40, 40],
+      "Shield Bash (key 1)": [68, 68],
+      "Empty ability slot 2": [68, 68],
+      "Healing Potion": [68, 68],
+      "Dodge roll": [68, 68],
+      "Attack (hold)": [92, 92],
+      "Switch target": [68, 68],
+    } : {
       "Bag": [40, 40],
       "Codex": [40, 40],
       "Help": [40, 40],
@@ -159,10 +187,15 @@ async function main() {
         }
       }
     }
-    if (tag === "bigger") {
+    if (tag === "bigger" || tag === "biggest") {
       checkBlock("map", mapM);
       checkBlock("combat", combatM);
       checkBlock("landscape", landM);
+      if (tag === "biggest") {
+        if (smallMapM) checkBlock("map-360", smallMapM);
+        if (smallCombatM) checkBlock("combat-360", smallCombatM);
+        if (smallLandM) checkBlock("landscape-360", smallLandM);
+      }
     }
     fs.writeFileSync(path.join(out, `ui-${tag}-sizes.json`), JSON.stringify(metrics, null, 2));
     console.log(JSON.stringify(metrics, null, 2));
@@ -170,14 +203,13 @@ async function main() {
     if (problems.length) {
       console.error("LAYOUT FAIL");
       for (const p of problems) console.error("  ✗", p);
-      await browser.close();
-      process.exitCode = 1;
-    } else {
-      await browser.close();
     }
+    try { await browser.close(); } catch {}
+    if (problems.length) process.exit(1);
   } finally {
     try { vite.kill("SIGKILL"); } catch {}
   }
+  process.exit(0);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
