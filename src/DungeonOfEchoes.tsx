@@ -3978,7 +3978,10 @@ function drawView(cv: HTMLCanvasElement, g: Game, force: boolean): void {
   torch.addColorStop(1, "rgba(0,0,0,0)");
   c.fillStyle = torch; c.fillRect(0, 0, cw, ch);
   c.globalCompositeOperation = "multiply";
-  const veil = c.createRadialGradient(txp, typ, s * 1.05, txp, typ, Math.max(cw, ch) * 0.62);
+  // Lit-disk radius of the darkness veil, in tiles (pixels = VEIL_LIGHT_R * s). Was 1.05; +20% = 1.26.
+  // Falloff stays proportional: color stops 0 / 0.4 / 1 of the span from this inner radius to the unchanged screen-edge outer radius.
+  const VEIL_LIGHT_R = 1.26;
+  const veil = c.createRadialGradient(txp, typ, s * VEIL_LIGHT_R, txp, typ, Math.max(cw, ch) * 0.62);
   veil.addColorStop(0, "rgb(255,236,214)");
   veil.addColorStop(0.4, "rgb(170,150,130)");
   veil.addColorStop(1, "rgb(18,14,12)");
@@ -4173,7 +4176,7 @@ function placePets(we: HTMLElement, g: Game): void {
     }
     inner.style.transform = `translate(${ox}%, ${oy}%) scale(${sx}, ${sy}) rotate(${rot}deg)`;
     inner.style.opacity = String(op);
-    inner.style.filter = ko ? "grayscale(1) brightness(.6)" : g.buffs.frenzy > 0 ? "drop-shadow(0 0 3px rgba(220,30,30,.9))" : "drop-shadow(0 2px 2px rgba(0,0,0,.7))";
+    inner.style.filter = ko ? "grayscale(1) brightness(.6)" : g.buffs.frenzy > 0 ? "drop-shadow(0 0 3px rgba(220,30,30,.9))" : "";
     if (fx) {
       const flash = !ko && ((p.k === "imp" && ag < 200) || (p.k !== "imp" && ag < 220));
       fx.style.opacity = flash ? String(1 - ag / 240) : "0";
@@ -5144,7 +5147,8 @@ function eye(x: number, y: number, c: string, r?: number): ReactNode {
 function blot(x: number, y: number, r: number, c?: string): ReactNode {
   return <g fill={c ?? BLOODB} opacity={0.9}><circle cx={x} cy={y} r={r} /><circle cx={x + r * 0.9} cy={y + r * 0.5} r={r * 0.55} /><circle cx={x - r * 0.7} cy={y + r * 0.7} r={r * 0.4} /><rect x={x - r * 0.18} y={y} width={r * 0.36} height={r * 2.2} rx={r * 0.18} /></g>;
 }
-function shd(rx: number): ReactNode { return <ellipse cx={32} cy={61} rx={rx * 1.15} ry={5.5} fill="#000" opacity={0.62} />; }
+let SHD_DRAW = true;
+function shd(rx: number): ReactNode { return SHD_DRAW ? <ellipse cx={32} cy={61} rx={rx * 1.15} ry={5.5} fill="#000" opacity={0.62} /> : null; }
 function pud(cx: number, cy: number, rx: number, ry: number, c: string, op?: number): ReactNode {
   return <g fill={c} opacity={op ?? 0.9}><ellipse cx={cx} cy={cy} rx={rx} ry={ry} /><circle cx={cx + rx * 0.8} cy={cy - ry * 0.6} r={ry * 0.5} /><circle cx={cx - rx * 0.9} cy={cy + ry * 0.5} r={ry * 0.35} /><circle cx={cx + rx * 1.1} cy={cy + ry * 0.9} r={ry * 0.25} /></g>;
 }
@@ -5538,10 +5542,15 @@ const REM: Record<string, () => ReactNode> = {
   lord: () => (<g><ellipse cx="32" cy="40" rx="28" ry="15" fill="#2a1038" opacity={0.65} /><ellipse cx="32" cy="40" rx="16" ry="8" fill="#4a2366" opacity={0.5} /><path d="M40 26 Q48 24 52 30 L48 36 L42 34 Z" fill="#3a3d48" /><path d="M10 46 L28 44" stroke="#5a5e6a" strokeWidth="2.4" /><path d="M18 38 L19 30 L22 34 L24 29 L27 38 Z" fill="#8a7a2a" /><path d="M34 46 L36 39 L38 43 L40 38 L42 46 Z" fill="#8a7a2a" /><circle cx="30" cy="40" r="1.4" fill="#6a4a78" /><circle cx="22" cy="26" r="1.6" fill="#6a4a78" opacity={0.5} /></g>),
 };
 function remKey(k: string): string { return k === "spiderling" ? "spider" : k; }
-function spr(k: string, size: number | string, st?: CSSProperties): ReactNode {
+function spr(k: string, size: number | string, st?: CSSProperties, groundShadow = true): ReactNode {
+  const prev = SHD_DRAW;
+  SHD_DRAW = groundShadow;
   const body = k === "spiderling" ? <g transform="translate(10 14) scale(0.7)">{SPR.spider()}</g> : (SPR[k] ?? SPR.gen)();
+  SHD_DRAW = prev;
   const { filter: extraFilter, ...rest } = st ?? {};
-  return <svg viewBox="0 0 64 64" width={size} height={size} shapeRendering="geometricPrecision" style={{ display: "block", overflow: "visible", filter: ["drop-shadow(0 1px 0 #000) drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 -1px 0 #000) drop-shadow(0 2px 2px rgba(0,0,0,.75))", extraFilter].filter(Boolean).join(" "), ...rest }} aria-hidden="true">{body}</svg>;
+  const outline = "drop-shadow(0 1px 0 #000) drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 -1px 0 #000)";
+  const ground = groundShadow ? "drop-shadow(0 2px 2px rgba(0,0,0,.75))" : "";
+  return <svg viewBox="0 0 64 64" width={size} height={size} shapeRendering="geometricPrecision" style={{ display: "block", overflow: "visible", filter: [outline, ground, extraFilter].filter(Boolean).join(" "), ...rest }} aria-hidden="true">{body}</svg>;
 }
 function remSvg(k: string): ReactNode {
   return <svg viewBox="0 0 64 64" width="100%" height="100%" shapeRendering="geometricPrecision" style={{ display: "block", filter: "drop-shadow(0 1px 0 #000) drop-shadow(1px 0 0 #000) drop-shadow(-1px 0 0 #000) drop-shadow(0 2px 2px rgba(0,0,0,.75))" }} aria-hidden="true">{(REM[remKey(k)] ?? REM.gen)()}</svg>;
@@ -7056,7 +7065,7 @@ export default function DungeonOfEchoes() {
             <div style={{ width: 104, height: 104, flex: "0 0 auto", borderRadius: 12, background: "radial-gradient(circle at 50% 45%, #3a2a1c, #0d0a10 75%)", border: "1px solid #4a2a1a" }}>{spr(pickCls, 104)}</div>
             <div style={{ flex: "1 1 140px", minWidth: 0 }}>
               <div style={{ fontSize: 18, fontWeight: 700 }}>{c.name} <span style={{ fontSize: 13, color: t.text.secondary, fontWeight: 400 }}>— {c.tag}</span></div>
-              {pickCls === "ranger" && <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: 12, color: t.text.secondary }}><span style={{ width: 40, height: 40, display: "inline-block", borderRadius: 8, background: "#16121c" }}>{spr("wolf", 40)}</span>Wolf companion<span style={{ width: 40, height: 40, display: "inline-block", borderRadius: 8, background: "#16121c" }}>{spr("hawk", 40)}</span>Hawk (Pack Leader)</div>}
+              {pickCls === "ranger" && <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, fontSize: 12, color: t.text.secondary }}><span style={{ width: 40, height: 40, display: "inline-block", borderRadius: 8, background: "#16121c" }}>{spr("wolf", 40, undefined, false)}</span>Wolf companion<span style={{ width: 40, height: 40, display: "inline-block", borderRadius: 8, background: "#16121c" }}>{spr("hawk", 40, undefined, false)}</span>Hawk (Pack Leader)</div>}
             </div>
           </div>
           <div style={{ ...row, gap: 10, fontSize: 13 }}>
@@ -7367,7 +7376,7 @@ export default function DungeonOfEchoes() {
         {(g.pets ?? []).length > 0 && (
           <div data-petpanel="1" style={{ ...card, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ fontWeight: 700, fontSize: 13 }}>🐾 COMPANIONS</div>
-            {(g.pets ?? []).map((p: Pet, i: number) => <div key={i} style={{ fontSize: 13, display: "flex", gap: 8, alignItems: "center" }}><span style={{ width: 24, height: 24, display: "inline-block" }}>{spr(petSpr(p.k), "100%")}</span><b>{PETS[p.k].name}</b><span style={{ color: p.ko > 0 ? t.text.danger : t.text.success }}>{p.ko > 0 ? "💫 knocked out" : `${Math.max(0, Math.round(p.hp))}/${p.max} HP`}</span><span style={{ color: t.text.secondary }}>· {PETS[p.k].desc}</span></div>)}
+            {(g.pets ?? []).map((p: Pet, i: number) => <div key={i} style={{ fontSize: 13, display: "flex", gap: 8, alignItems: "center" }}><span style={{ width: 24, height: 24, display: "inline-block" }}>{spr(petSpr(p.k), "100%", undefined, false)}</span><b>{PETS[p.k].name}</b><span style={{ color: p.ko > 0 ? t.text.danger : t.text.success }}>{p.ko > 0 ? "💫 knocked out" : `${Math.max(0, Math.round(p.hp))}/${p.max} HP`}</span><span style={{ color: t.text.secondary }}>· {PETS[p.k].desc}</span></div>)}
           </div>
         )}
         {Object.keys(sc).filter((s: string) => sc[s] >= 1 && SETS[s]).map((s: string) => <div key={s}>{setLines(s, sc[s])}</div>)}
@@ -7766,7 +7775,7 @@ export default function DungeonOfEchoes() {
     const sz = petSz(p.k);
     objs.push(
       <div key={`pet${i}`} data-pet={i} data-petk={p.k} data-ko={ko ? "1" : "0"} data-sz={sz} style={{ ...wBox(p.x, p.y, sz), zIndex: 3, pointerEvents: "none", overflow: "visible" }}>
-        <div data-pet-an="1" style={{ position: "absolute", inset: 0, transformOrigin: "50% 70%" }}>{spr(petSpr(p.k), "100%")}</div>
+        <div data-pet-an="1" style={{ position: "absolute", inset: 0, transformOrigin: "50% 70%" }}>{spr(petSpr(p.k), "100%", undefined, false)}</div>
         <svg data-pet-fx="1" viewBox="0 0 20 20" style={{ position: "absolute", inset: "-20%", width: "140%", height: "140%", overflow: "visible", opacity: 0, pointerEvents: "none" }}><path d="M4 3 L14 15 M8 2 L17 12 M2 7 L11 18" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" fill="#ffb24a" /></svg>
         {ko ? <div style={{ position: "absolute", left: 0, right: 0, top: "-45%", textAlign: "center", fontSize: 8, fontWeight: 800, color: "#9a9286", textShadow: "0 1px 2px #000" }}>KO</div>
           : c && <div style={{ position: "absolute", left: "8%", right: "8%", top: "-16%", height: 3, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden" }}><div style={{ width: `${(Math.max(0, p.hp) / p.max) * 100}%`, height: "100%", background: "#3fcf6a" }} /></div>}
