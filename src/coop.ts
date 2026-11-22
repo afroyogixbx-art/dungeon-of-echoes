@@ -63,6 +63,13 @@ export interface CoopPlayer {
   lvl: number;
   isHost: boolean;
 }
+export const COOP_PROTO = 2;
+export const POS_HZ = 18;
+export const INTERP_MS = 100;
+export const TELEPORT_TILES = 2.5;
+export const EXTRAP_MS = 70;
+export const STOP_SPEED = 0.2;
+
 export interface CoopInput {
   mx: number; my: number; atk: boolean; dodge: boolean; drink: boolean; abil: number; seq: number;
 }
@@ -71,15 +78,29 @@ export interface CoopPawn {
   hp: number; maxHp: number; mp: number; maxMp: number; host?: boolean;
 }
 export type CoopEventKind = "join" | "leave" | "loot" | "sys";
+export type CoopAnim = "idle" | "walk" | "atk" | "dodge";
+export interface CoopPos {
+  typ: "pos"; v: number; t: number; pid: string;
+  x: number; y: number; vx: number; vy: number;
+  face: number; mv: boolean; an: CoopAnim; fl?: number; wk?: string;
+}
+export interface CoopPosUnit {
+  k: "p" | "e" | "m"; pid?: string; id?: number;
+  x: number; y: number; vx: number; vy: number;
+  face?: number; mv?: boolean; an?: CoopAnim; fl?: number; wk?: string;
+}
+export interface CoopPosBatch { typ: "posb"; v: number; t: number; p: CoopPosUnit[] }
 export type CoopMsg =
-  | { typ: "hello"; pid: string; name: string; cls: string; lvl: number; hero?: unknown; rejoin?: boolean }
-  | { typ: "welcome"; pid: string; code: string; hostPid: string; players: CoopPlayer[]; playing: boolean }
+  | { typ: "hello"; pid: string; name: string; cls: string; lvl: number; hero?: unknown; rejoin?: boolean; proto?: number }
+  | { typ: "welcome"; pid: string; code: string; hostPid: string; players: CoopPlayer[]; playing: boolean; proto?: number }
   | { typ: "full" }
   | { typ: "reject"; reason: string }
   | { typ: "players"; players: CoopPlayer[] }
   | { typ: "event"; text: string; kind: CoopEventKind }
   | { typ: "input"; inp: CoopInput }
   | { typ: "state"; st: unknown }
+  | CoopPos
+  | CoopPosBatch
   | { typ: "enter" }
   | { typ: "leave"; pid: string; name: string }
   | { typ: "migrate"; newHostPid: string }
@@ -111,8 +132,67 @@ export interface CoopHandlers {
   onEnded?: (reason: string) => void;
   onBecomeHost?: () => void;
   onLoot?: (payload: Extract<CoopMsg, { typ: "loot-you" }>) => void;
+  onPos?: (msg: CoopPos | CoopPosBatch) => void;
   hello?: () => Extract<CoopMsg, { typ: "hello" }>;
 }
+
+export interface PosSnap {
+  t: number; recv: number;
+  x: number; y: number; vx: number; vy: number;
+  face: number; mv: boolean; an: CoopAnim; fl?: number; wk?: string;
+  warp?: boolean;
+}
+export interface SampledPos {
+  x: number; y: number; face: number; mv: boolean; an: CoopAnim; fl?: number; wk?: string;
+  snapped: boolean; stopped: boolean;
+}
+
+export function pushSnap(buf: PosSnap[], s: PosSnap, cap = 16): void {
+  const prev = buf[buf.length - 1];
+  if (prev && ((s.fl != null && prev.fl != null && s.fl !== prev.fl) || Math.hypot(s.x - prev.x, s.y - prev.y) > TELEPORT_TILES)) {
+    buf.length = 0;
+    s = { ...s, warp: true };
+  }
+  buf.push(s);
+  if (buf.length > cap) buf.splice(0, buf.length - cap);
+}
+
+export function sampleTrack(buf: PosSnap[], now: number, delay = INTERP_MS): SampledPos | null {
+  if (!buf.length) return null;
+  const rt = now - delay;
+  let i = 0;
+  while (i < buf.length && buf[i].recv < rt) i++;
+  const right = buf[i];
+  const left = buf[i - 1];
+  const pack = (s: PosSnap, extra: Partial<SampledPos>): SampledPos => ({
+    x: s.x, y: s.y, face: s.face, mv: s.mv, an: s.an, fl: s.fl, wk: s.wk, snapped: !!s.warp, stopped: !s.mv, ...extra,
+  });
+  if (!left && right) return pack(right, { stopped: !right.mv });
+  if (left && !right) {
+    const spd = Math.hypot(left.vx, left.vy);
+    if (!left.mv || spd < STOP_SPEED) return pack(left, { mv: false, an: left.an === "atk" || left.an === "dodge" ? left.an : "idle", stopped: true });
+    const ahead = Math.min(EXTRAP_MS, Math.max(0, rt - left.recv)) / 1000;
+    return { x: left.x + left.vx * ahead, y: left.y + left.vy * ahead, face: left.face, mv: true, an: left.an === "idle" ? "walk" : left.an, fl: left.fl, wk: left.wk, snapped: false, stopped: false };
+  }
+  const dist = Math.hypot(right.x - left.x, right.y - left.y);
+  if ((right.fl != null && left.fl != null && right.fl !== left.fl) || dist > TELEPORT_TILES) {
+    return pack(right, { snapped: true, stopped: !right.mv });
+  }
+  const span = Math.max(1, right.recv - left.recv);
+  const u = Math.max(0, Math.min(1, (rt - left.recv) / span));
+  const x = left.x + (right.x - left.x) * u;
+  const y = left.y + (right.y - left.y) * u;
+  const arrived = u >= 1 - 1e-6;
+  const stopped = !right.mv && arrived;
+  const moving = stopped ? false : !!(left.mv || right.mv) && !( !right.mv && u > 0.92 );
+  let an: CoopAnim = u < 0.5 ? left.an : right.an;
+  if (stopped) an = right.an === "atk" || right.an === "dodge" ? right.an : "idle";
+  else if (moving && an === "idle") an = "walk";
+  const face = right.face || left.face || 1;
+  return { x, y, face, mv: moving, an, fl: right.fl ?? left.fl, wk: right.wk || left.wk, snapped: false, stopped };
+}
+
+export const REFRESH_MSG = "Your friend needs to refresh the page to get the movement update — both of you should reload.";
 
 class Session {
   role: "host" | "guest" | null = null;
@@ -131,6 +211,13 @@ class Session {
   pawns: CoopPawn[] = [];
   handlers: CoopHandlers = {};
   lastHostAt = 0;
+  posConns = new Map<string, DataConnection>();
+  posHost: DataConnection | null = null;
+  theirProto = 0;
+  protoWarn = false;
+  bytesPos = 0;
+  bytesState = 0;
+  statT0 = 0;
   watch: number | null = null;
   relay: WebSocket | null = null;
   relayHostId = "";
@@ -139,6 +226,48 @@ class Session {
   bump(): void { this.handlers.onChange?.(); }
 
   setHandlers(h: CoopHandlers): void { this.handlers = h; }
+
+  noteBytes(kind: "pos" | "state", raw: unknown): void {
+    if (!this.statT0) this.statT0 = performance.now();
+    let n = 0;
+    try { n = typeof raw === "string" ? raw.length : JSON.stringify(raw).length; } catch { n = 64; }
+    if (kind === "pos") this.bytesPos += n; else this.bytesState += n;
+  }
+  stats(): { posBps: number; stateBps: number; dt: number; proto: number; theirProto: number; protoWarn: boolean; fast: boolean } {
+    const dt = Math.max(0.001, (performance.now() - (this.statT0 || performance.now())) / 1000);
+    return {
+      posBps: this.bytesPos / dt, stateBps: this.bytesState / dt, dt,
+      proto: COOP_PROTO, theirProto: this.theirProto, protoWarn: this.protoWarn,
+      fast: !!(this.posHost?.open || [...this.posConns.values()].some((c) => c.open)),
+    };
+  }
+  resetStats(): void { this.bytesPos = 0; this.bytesState = 0; this.statT0 = performance.now(); }
+
+  private markProto(v?: number): void {
+    const n = typeof v === "number" ? v : 1;
+    this.theirProto = n;
+    if (n < COOP_PROTO && !this.protoWarn) {
+      this.protoWarn = true;
+      this.handlers.onEvent?.(REFRESH_MSG, "sys");
+    }
+  }
+
+  sendFast(msg: CoopPos | CoopPosBatch): void {
+    this.noteBytes("pos", msg);
+    if (this.relay && this.relay.readyState === WebSocket.OPEN) {
+      try { this.relay.send(JSON.stringify({ typ: "data", to: this.isHost() ? "*" : (this.relayHostId || "host"), data: msg })); } catch { /* ignore */ }
+      return;
+    }
+    const trySend = (c: DataConnection | null | undefined, fallback?: DataConnection | null): void => {
+      const dest = c?.open ? c : (fallback?.open ? fallback : null);
+      if (!dest) return;
+      try { dest.send(msg); } catch { /* ignore */ }
+    };
+    if (this.isGuest()) { trySend(this.posHost, this.hostConn); return; }
+    if (this.isHost()) {
+      for (const [pid, rel] of this.conns) trySend(this.posConns.get(pid), rel);
+    }
+  }
 
   active(): boolean { return this.phase !== "idle" && this.phase !== "ended"; }
   isHost(): boolean { return this.role === "host" && this.active(); }
@@ -192,6 +321,7 @@ class Session {
     if (pid) {
       this.conns.delete(pid);
       this.pending.delete(pid);
+      this.posConns.delete(pid);
       const pl = this.players.find((p) => p.pid === pid);
       const name = pl?.name || "A player";
       this.players = this.players.filter((p) => p.pid !== pid);
@@ -219,6 +349,7 @@ class Session {
 
   private hostHandle(conn: DataConnection, msg: CoopMsg): void {
     if (msg.typ === "hello") {
+      this.markProto(msg.proto);
       if (this.players.length >= COOP_MAX && !this.players.some((p) => p.pid === msg.pid)) {
         try { conn.send({ typ: "full" }); } catch { /* ignore */ }
         conn.close();
@@ -241,10 +372,14 @@ class Session {
         this.event(`${msg.name} rejoined`, "join");
       }
       try {
-        conn.send({ typ: "welcome", pid: msg.pid, code: this.code, hostPid: this.pid, players: this.players, playing: this.playing });
+        conn.send({ typ: "welcome", pid: msg.pid, code: this.code, hostPid: this.pid, players: this.players, playing: this.playing, proto: COOP_PROTO });
       } catch { /* ignore */ }
       this.broadcast({ typ: "players", players: this.players }, msg.pid);
       this.bump();
+      return;
+    }
+    if (msg.typ === "pos" || msg.typ === "posb") {
+      this.handlers.onPos?.(msg);
       return;
     }
     const pid = this.pidOf(conn);
@@ -259,12 +394,18 @@ class Session {
 
   private guestHandle(msg: CoopMsg): void {
     if (msg.typ === "welcome") {
+      this.markProto(msg.proto);
       this.phase = msg.playing ? "play" : "lobby";
       this.playing = msg.playing;
       this.players = msg.players;
       this.err = "";
       this.lastHostAt = Date.now();
       this.bump();
+      return;
+    }
+    if (msg.typ === "pos" || msg.typ === "posb") {
+      this.lastHostAt = Date.now();
+      this.handlers.onPos?.(msg);
       return;
     }
     if (msg.typ === "full") { this.failSafe("The room is full (max 4)."); return; }
@@ -331,6 +472,15 @@ class Session {
         if (!settled) { window.clearTimeout(t); done(false); }
       });
       peer.on("connection", (conn) => {
+        const meta = (conn.metadata || {}) as { ch?: string; pid?: string; proto?: number };
+        if (meta.ch === "pos") {
+          const bind = (): void => { if (meta.pid) this.posConns.set(meta.pid, conn); };
+          if (conn.open) bind(); else conn.on("open", bind);
+          conn.on("data", (raw: unknown) => this.onData(conn, raw, meta.pid));
+          conn.on("close", () => { if (meta.pid) this.posConns.delete(meta.pid); });
+          conn.on("error", () => { if (meta.pid) this.posConns.delete(meta.pid); });
+          return;
+        }
         this.wireConn(conn);
         this.pending.set(conn.peer, conn);
       });
@@ -367,14 +517,15 @@ class Session {
         fail(e?.type === "peer-unavailable" ? "No host found for that code." : (e?.message || "Join failed."));
       });
       peer.on("open", () => {
-        const conn = peer.connect(roomPeerId(c), { reliable: true });
+        const conn = peer.connect(roomPeerId(c), { reliable: true, metadata: { ch: "ctrl", pid: this.pid, proto: COOP_PROTO } });
         this.hostConn = conn;
         this.wireConn(conn, this.pid);
         conn.on("open", () => {
           window.clearTimeout(t);
           if (settled) return;
           settled = true;
-          try { conn.send({ ...hello, typ: "hello", pid: this.pid }); } catch { /* ignore */ }
+          try { conn.send({ ...hello, typ: "hello", pid: this.pid, proto: COOP_PROTO }); } catch { /* ignore */ }
+          this.openPosChannel(peer, roomPeerId(c));
           this.phase = "lobby";
           this.bump();
           resolve();
@@ -387,7 +538,7 @@ class Session {
   startPlay(): void {
     this.playing = true;
     this.phase = "play";
-    this.broadcast({ typ: "welcome", pid: "", code: this.code, hostPid: this.pid, players: this.players, playing: true });
+    this.broadcast({ typ: "welcome", pid: "", code: this.code, hostPid: this.pid, players: this.players, playing: true, proto: COOP_PROTO });
     this.bump();
   }
 
@@ -398,8 +549,12 @@ class Session {
 
   sendState(st: unknown): void {
     if (!this.isHost()) return;
-    this.broadcast({ typ: "state", st });
+    const msg: CoopMsg = { typ: "state", st };
+    this.noteBytes("state", msg);
+    this.broadcast(msg);
   }
+  sendPos(pos: CoopPos): void { if (this.active()) this.sendFast(pos); }
+  sendPosBatch(batch: CoopPosBatch): void { if (this.isHost()) this.sendFast(batch); }
 
   sendLoot(pid: string, payload: Omit<Extract<CoopMsg, { typ: "loot-you" }>, "typ">): void {
     this.sendTo(pid, { typ: "loot-you", ...payload });
@@ -567,6 +722,16 @@ class Session {
     });
   }
 
+  private openPosChannel(peer: Peer, hostId: string): void {
+    try {
+      const u = peer.connect(hostId, { reliable: false, metadata: { ch: "pos", pid: this.pid, proto: COOP_PROTO } });
+      u.on("open", () => { this.posHost = u; });
+      u.on("data", (raw: unknown) => this.guestHandle(raw as CoopMsg));
+      u.on("close", () => { if (this.posHost === u) this.posHost = null; });
+      u.on("error", () => { if (this.posHost === u) this.posHost = null; });
+    } catch { this.posHost = null; }
+  }
+
   private async destroyPeer(): Promise<void> {
     const r = this.relay;
     this.relay = null;
@@ -575,8 +740,12 @@ class Session {
     const p = this.peer;
     this.peer = null;
     this.hostConn = null;
+    this.posHost = null;
+    this.posConns.clear();
     this.conns.clear();
     this.pending.clear();
+    this.theirProto = 0;
+    this.protoWarn = false;
     if (this.watch) { window.clearInterval(this.watch); this.watch = null; }
     if (!p) return;
     try { p.destroy(); } catch { /* ignore */ }
@@ -606,6 +775,12 @@ export const coop = {
   startPlay: (): void => S.startPlay(),
   sendInput: (inp: CoopInput): void => S.sendInput(inp),
   sendState: (st: unknown): void => S.sendState(st),
+  sendPos: (pos: CoopPos): void => S.sendPos(pos),
+  sendPosBatch: (batch: CoopPosBatch): void => S.sendPosBatch(batch),
+  stats: (): ReturnType<Session["stats"]> => S.stats(),
+  resetStats: (): void => S.resetStats(),
+  proto: (): number => COOP_PROTO,
+  theirProto: (): number => S.theirProto,
   sendLoot: (pid: string, payload: Omit<Extract<CoopMsg, { typ: "loot-you" }>, "typ">): void => S.sendLoot(pid, payload),
   event: (text: string, kind: CoopEventKind): void => S.event(text, kind),
   takeInput: (pid: string): CoopInput | undefined => S.takeInput(pid),

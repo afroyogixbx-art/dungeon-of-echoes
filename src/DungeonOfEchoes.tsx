@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useGrokTheme } from "./grok";
 import type { ReactNode, CSSProperties, ChangeEvent, FocusEvent } from "./grok";
-import { coop, hpMult, atkMult, devicePid, normCode, type CoopPawn, type CoopInput } from "./coop";
+import { coop, hpMult, atkMult, devicePid, normCode, type CoopPawn, type CoopInput, type CoopPos, type CoopPosBatch, type CoopPosUnit, type CoopAnim, type PosSnap, COOP_PROTO, POS_HZ, TELEPORT_TILES, STOP_SPEED, pushSnap, sampleTrack } from "./coop";
 import { CLASS_TREE, CAT_ORDER, CAT_GATES, catsOf, catOf, allNodes, nodeById, skillNodes, treeAbilities, RENAME_ABS, pointsSpent, catUnlocked, rankOf, hasEnh, forkOf, modsFor, passiveStats, SKILL_VER as TREE_VER, type CatId, type TreeNode, type SkillState } from "./skillTree";
 
 type ClassId = "warrior" | "mage" | "rogue" | "cleric" | "ranger";
@@ -4510,6 +4510,14 @@ function setFx(fx: SVGElement, name: string, on: boolean, rot = 0, extra?: (g: S
   g.style.transform = `rotate(${rot}deg)`;
   if (on && extra) extra(g);
 }
+function walkPose(moving: boolean, walkT: number, now: number, face: number, vx: number): { ox: number; oy: number; rot: number; sx: number; sy: number } {
+  const horiz = moving && Math.abs(vx) > 0.15;
+  const bob = moving ? Math.sin(walkT * 11) * 6 : Math.sin(now / 520) * 1.6;
+  // lean is in unflipped local space; scale(face) then makes it lean into the walk
+  const lean = horiz ? 7 : 0;
+  const squash = moving ? 1 + Math.sin(walkT * 22) * 0.05 : 1 + Math.sin(now / 520) * 0.02;
+  return { ox: 0, oy: bob, rot: lean, sx: face, sy: squash };
+}
 function placeHero(g: Game, I: Inp): void {
   const el = document.querySelector("[data-hero-an]") as HTMLElement | null;
   const fx = document.querySelector("[data-hero-fx]") as SVGElement | null;
@@ -4522,11 +4530,8 @@ function placeHero(g: Game, I: Inp): void {
   const horiz = HERO_AN.moving && Math.abs(I.vx) > 0.15;
   if (HERO_AN.moving) HERO_AN.walkT += dt;
   if (horiz) HERO_AN.face = I.vx > 0 ? 1 : -1;
-  const bob = HERO_AN.moving ? Math.sin(HERO_AN.walkT * 11) * 6 : Math.sin(now / 520) * 1.6;
-  // lean is in unflipped local space; scale(face) then makes it lean into the walk
-  const lean = horiz ? 7 : 0;
-  const squash = HERO_AN.moving ? 1 + Math.sin(HERO_AN.walkT * 22) * 0.05 : 1 + Math.sin(now / 520) * 0.02;
-  let rot = lean, ox = 0, oy = bob;
+  const pose = walkPose(HERO_AN.moving, HERO_AN.walkT, now, HERO_AN.face, I.vx);
+  let rot = pose.rot, ox = pose.ox, oy = pose.oy;
   const kind = HERO_AN.kind, age = now - HERO_AN.atkTs, dur = atkDur(kind);
   const t = HERO_AN.atkTs > 0 && age < dur ? age / dur : -1;
   if (t >= 0) {
@@ -4535,7 +4540,7 @@ function placeHero(g: Game, I: Inp): void {
     else if (kind === "staff" || kind === "thrust") { ox += Math.cos(HERO_AN.ang) * swing * 12; oy += Math.sin(HERO_AN.ang) * swing * 10; }
     else if (kind === "bow") { const pull = t < 0.4 ? t / 0.4 : Math.max(0, 1 - (t - 0.4) / 0.6); ox -= Math.cos(HERO_AN.ang) * pull * 8; }
   }
-  el.style.transform = `translate(${ox}%, ${oy}%) scale(${HERO_AN.face}, ${squash}) rotate(${rot}deg)`;
+  el.style.transform = `translate(${ox}%, ${oy}%) scale(${pose.sx}, ${pose.sy}) rotate(${rot}deg)`;
   el.style.transformOrigin = "50% 70%";
   if (!fx) return;
   const deg = HERO_AN.ang * 180 / Math.PI;
@@ -4567,7 +4572,16 @@ function placeHero(g: Game, I: Inp): void {
 function placeCombat(we: HTMLElement, c: Combat): void {
   const put = (el: HTMLElement, x: number, y: number, sz: number): void => { el.style.left = `${((x - sz / 2) / W) * 100}%`; el.style.top = `${((y - sz / 2) / H) * 100}%`; };
   const byUid = (v: string | undefined): Enemy | undefined => c.enemies.find((e: Enemy) => e.uid === Number(v));
-  we.querySelectorAll<HTMLElement>("[data-enemy]").forEach((el: HTMLElement) => { const e = byUid(el.dataset.enemy); if (e && !e.dead) put(el, e.x ?? 0, e.y ?? 0, e.boss ? 1.8 : 1.05); });
+  const now = performance.now();
+  we.querySelectorAll<HTMLElement>("[data-enemy]").forEach((el: HTMLElement) => {
+    const e = byUid(el.dataset.enemy); if (!e || e.dead) return;
+    let x = e.x ?? 0, y = e.y ?? 0;
+    if (coop.isGuest()) {
+      const s = sampleTrack(REMOTE_TRACKS.get(trackKey("e", e.uid)) ?? [], now);
+      if (s) { x = s.x; y = s.y; }
+    }
+    put(el, x, y, e.boss ? 1.8 : 1.05);
+  });
   we.querySelectorAll<HTMLElement>("[data-wind]").forEach((el: HTMLElement) => {
     const e = byUid(el.dataset.wind); if (!e || e.dead) return;
     const sz = parseFloat(el.dataset.sz ?? "1"); put(el, e.x ?? 0, e.y ?? 0, sz);
@@ -4712,6 +4726,155 @@ let COOP_SEQ = 0;
 let COOP_Q: { dodge: boolean; drink: boolean; abil: number } = { dodge: false, drink: false, abil: -1 };
 let COOP_SCALE_N = 1;
 let COOP_SKIP_SHOP = false;
+const REMOTE_TRACKS = new Map<string, PosSnap[]>();
+const LAST_ENT = new Map<string, { x: number; y: number; t: number }>();
+let COOP_POS_T = 0;
+let COOP_SENT_FL = -1;
+interface AllyAn { walkT: number; face: number; moving: boolean; atkTs: number; kind: WeapAnim | ""; ang: number; prev: number; lastAn: CoopAnim }
+const ALLY_AN = new Map<string, AllyAn>();
+function trackKey(kind: "p" | "e" | "m", id: string | number): string { return `${kind}:${id}`; }
+function clearMobTracks(): void {
+  for (const k of [...REMOTE_TRACKS.keys()]) if (k.startsWith("e:") || k.startsWith("m:")) REMOTE_TRACKS.delete(k);
+  for (const k of [...LAST_ENT.keys()]) if (k.startsWith("e:") || k.startsWith("m:")) LAST_ENT.delete(k);
+}
+function ingestPos(msg: CoopPos | CoopPosBatch, selfPid: string): void {
+  const now = performance.now();
+  const units: Array<CoopPosUnit & { t: number }> = msg.typ === "pos"
+    ? [{ k: "p", pid: msg.pid, x: msg.x, y: msg.y, vx: msg.vx, vy: msg.vy, face: msg.face, mv: msg.mv, an: msg.an, fl: msg.fl, wk: msg.wk, t: msg.t }]
+    : msg.p.map((u) => ({ ...u, t: msg.t }));
+  for (const u of units) {
+    const id = u.k === "p" ? u.pid : u.id;
+    if (id == null || (u.k === "p" && String(id) === selfPid)) continue;
+    const key = trackKey(u.k, id);
+    let buf = REMOTE_TRACKS.get(key);
+    if (!buf) { buf = []; REMOTE_TRACKS.set(key, buf); }
+    const mv = !!u.mv;
+    pushSnap(buf, { t: u.t, recv: now, x: u.x, y: u.y, vx: u.vx, vy: u.vy, face: u.face ?? 1, mv, an: u.an ?? (mv ? "walk" : "idle"), fl: u.fl, wk: u.wk });
+  }
+}
+function velOf(key: string, x: number, y: number, now: number): [number, number] {
+  const prev = LAST_ENT.get(key);
+  LAST_ENT.set(key, { x, y, t: now });
+  if (!prev) return [0, 0];
+  const dt = Math.max(1 / POS_HZ, (now - prev.t) / 1000);
+  let vx = (x - prev.x) / dt, vy = (y - prev.y) / dt;
+  const sp = Math.hypot(vx, vy);
+  if (sp > 8) { vx = (vx / sp) * 8; vy = (vy / sp) * 8; }
+  return [vx, vy];
+}
+function localAnim(g: Game, I: Inp): { face: number; mv: boolean; an: CoopAnim; wk?: string } {
+  const moving = Math.hypot(I.vx, I.vy) > 0.35;
+  const now = performance.now();
+  const atk = HERO_AN.atkTs > 0 && now - HERO_AN.atkTs < atkDur(HERO_AN.kind);
+  const dodge = !!((g.combat && (g.combat.dashT ?? 0) > 0) || (I.dashT ?? 0) > 0);
+  const an: CoopAnim = atk ? "atk" : dodge ? "dodge" : moving ? "walk" : "idle";
+  return { face: HERO_AN.face, mv: moving, an, wk: atk ? (HERO_AN.kind || weapAnim(g)) : undefined };
+}
+function buildLocalPos(g: Game, I: Inp): CoopPos {
+  const a = localAnim(g, I);
+  return { typ: "pos", v: COOP_PROTO, t: performance.now(), pid: coop.pid(), x: g.wx ?? g.px + 0.5, y: g.wy ?? g.py + 0.5, vx: I.vx, vy: I.vy, face: a.face, mv: a.mv, an: a.an, fl: g.floor, wk: a.wk };
+}
+function buildPosBatch(world: Game): CoopPosBatch {
+  const t = performance.now();
+  const p: CoopPosUnit[] = [];
+  if (world.combat) {
+    for (const e of world.combat.enemies) {
+      if (e.dead) continue;
+      const x = e.x ?? 0, y = e.y ?? 0;
+      const [vx, vy] = velOf(trackKey("e", e.uid), x, y, t);
+      p.push({ k: "e", id: e.uid, x, y, vx, vy, mv: Math.hypot(vx, vy) > STOP_SPEED, an: "walk" });
+    }
+  } else {
+    for (const mm of world.mons) {
+      const x = mm.fx ?? mm.x + 0.5, y = mm.fy ?? mm.y + 0.5;
+      const [vx, vy] = velOf(trackKey("m", mm.id), x, y, t);
+      p.push({ k: "m", id: mm.id, x, y, vx, vy, mv: Math.hypot(vx, vy) > STOP_SPEED });
+    }
+  }
+  return { typ: "posb", v: COOP_PROTO, t, p };
+}
+function tickCoopPos(g: Game, I: Inp, dt: number): void {
+  if (!coop.active() || !coop.playing() || g.screen !== "map") return;
+  COOP_POS_T += dt;
+  const step = 1 / POS_HZ;
+  if (COOP_POS_T >= step) {
+    COOP_POS_T %= step;
+    coop.sendPos(buildLocalPos(g, I));
+    if (coop.isHost()) coop.sendPosBatch(buildPosBatch(g));
+  }
+}
+function visPawn(pid: string, fx: number, fy: number): { x: number; y: number } {
+  const buf = REMOTE_TRACKS.get(trackKey("p", pid));
+  const last = buf?.[buf.length - 1];
+  const now = performance.now();
+  if (last && now - last.recv < 400) {
+    const s = sampleTrack(buf!, now);
+    if (s) return { x: s.x, y: s.y };
+  }
+  return { x: fx, y: fy };
+}
+function placeAllies(): void {
+  const now = performance.now();
+  document.querySelectorAll<HTMLElement>("[data-ally]").forEach((root) => {
+    const pid = root.dataset.ally; if (!pid) return;
+    const buf = REMOTE_TRACKS.get(trackKey("p", pid));
+    const s = buf ? sampleTrack(buf, now) : null;
+    if (s) {
+      root.style.left = `${((s.x - 0.5) / W) * 100}%`;
+      root.style.top = `${((s.y - 0.5) / H) * 100}%`;
+    }
+    let an = ALLY_AN.get(pid);
+    if (!an) { an = { walkT: 0, face: s?.face ?? 1, moving: false, atkTs: 0, kind: "", ang: 0, prev: now, lastAn: "idle" }; ALLY_AN.set(pid, an); }
+    const dt = Math.min(0.05, (now - (an.prev || now)) / 1000);
+    an.prev = now;
+    const moving = !!(s && s.mv && !s.stopped);
+    an.moving = moving;
+    if (moving) an.walkT += dt;
+    if (s) an.face = s.face || an.face;
+    const kind = ((s?.wk as WeapAnim) || "slash");
+    if (s && s.an === "atk" && an.lastAn !== "atk") {
+      an.atkTs = now; an.kind = kind; an.ang = an.face >= 0 ? 0 : Math.PI;
+    }
+    if (s) an.lastAn = s.an;
+    const el = root.querySelector("[data-ally-an]") as HTMLElement | null;
+    if (!el) return;
+    const vx = moving ? an.face : 0;
+    const pose = walkPose(moving, an.walkT, now, an.face, vx);
+    let rot = pose.rot, ox = pose.ox, oy = pose.oy;
+    const age = now - an.atkTs, dur = atkDur(an.kind);
+    const t = an.atkTs > 0 && age < dur ? age / dur : -1;
+    if (t >= 0) {
+      const swing = Math.sin(t * Math.PI);
+      if (an.kind === "slash" || an.kind === "mace") rot += swing * (an.kind === "mace" ? 18 : 14);
+      else if (an.kind === "staff" || an.kind === "thrust") { ox += Math.cos(an.ang) * swing * 12; oy += Math.sin(an.ang) * swing * 10; }
+      else if (an.kind === "bow") { const pull = t < 0.4 ? t / 0.4 : Math.max(0, 1 - (t - 0.4) / 0.6); ox -= Math.cos(an.ang) * pull * 8; }
+    }
+    el.style.transform = `translate(${ox}%, ${oy}%) scale(${pose.sx}, ${pose.sy}) rotate(${rot}deg)`;
+    el.style.transformOrigin = "50% 70%";
+    root.dataset.allyMv = moving ? "1" : "0";
+    root.dataset.allyAn = s?.an ?? (moving ? "walk" : "idle");
+    root.dataset.allyFace = String(an.face);
+    root.style.opacity = s?.an === "dodge" ? "0.55" : "1";
+  });
+}
+function placeRemoteMobs(we: HTMLElement): void {
+  if (!coop.isGuest()) return;
+  const now = performance.now();
+  we.querySelectorAll<HTMLElement>("[data-mid]").forEach((el) => {
+    const id = el.dataset.mid; if (!id) return;
+    const s = sampleTrack(REMOTE_TRACKS.get(trackKey("m", Number(id))) ?? [], now);
+    if (!s) return;
+    el.style.left = `${((s.x - 0.5) / W) * 100}%`;
+    el.style.top = `${((s.y - 0.5) / H) * 100}%`;
+  });
+}
+function allyView(): Array<{ pid: string; x: number; y: number; an: string; mv: string; face: string; tf: string }> {
+  return [...document.querySelectorAll<HTMLElement>("[data-ally]")].map((el) => {
+    const spr = el.querySelector("[data-ally-an]") as HTMLElement | null;
+    const left = parseFloat(el.style.left) || 0, top = parseFloat(el.style.top) || 0;
+    return { pid: el.dataset.ally || "", x: (left / 100) * W + 0.5, y: (top / 100) * H + 0.5, an: el.dataset.allyAn || "", mv: el.dataset.allyMv || "", face: el.dataset.allyFace || "", tf: spr?.style.transform || "" };
+  });
+}
 
 function freshInp(): Inp {
   return { jx: 0, jy: 0, kx: 0, ky: 0, gx: 0, gy: 0, atk: false, katk: false, gatk: false, stepT: 0, monT: 0.5, regT: 0, alt: false, saveT: 0, rT: 0, slowT: 0, shopL: false, vx: 0, vy: 0, idleT: 0 };
@@ -4848,7 +5011,11 @@ function acceptGuest(world: Game, pid: string, msg: { name: string; cls: string;
   }
   COOP_GUESTS.set(pid, { g: hero, I: prev?.I ?? freshInp(), pid });
 }
-function dropGuest(pid: string): void { COOP_GUESTS.delete(pid); }
+function dropGuest(pid: string): void {
+  COOP_GUESTS.delete(pid);
+  REMOTE_TRACKS.delete(trackKey("p", pid));
+  ALLY_AN.delete(pid);
+}
 function compactCombat(c: Combat): unknown {
   return {
     target: c.target, boss: c.boss, phase: c.phase, monId: c.monId,
@@ -4887,7 +5054,8 @@ function applyGuestState(g: Game, st: unknown): void {
     screen?: Screen; combat?: Combat | null;
     heroes?: Array<{ pid: string; wx: number; wy: number; hp: number; mp: number; gold: number; pots: number; lvl: number; xp: number; name?: string; cls?: ClassId; hero?: unknown }>;
   };
-  if (typeof s.floor === "number") g.floor = s.floor;
+  const prevFl = g.floor;
+  if (typeof s.floor === "number" && s.floor !== g.floor) { g.floor = s.floor; clearMobTracks(); }
   if (s.map) g.map = s.map;
   if (s.seen) g.seen = s.seen;
   if (s.mons) g.mons = s.mons;
@@ -4900,13 +5068,12 @@ function applyGuestState(g: Game, st: unknown): void {
   if (me) {
     const nx = me.wx, ny = me.wy;
     const cx = g.wx ?? g.px + 0.5, cy = g.wy ?? g.py + 0.5;
-    if (Math.hypot(cx - nx, cy - ny) > 1.6) { g.wx = nx; g.wy = ny; }
-    else { g.wx = cx * 0.65 + nx * 0.35; g.wy = cy * 0.65 + ny * 0.35; }
-    g.px = Math.floor(g.wx); g.py = Math.floor(g.wy);
+    if (prevFl !== g.floor || Math.hypot(cx - nx, cy - ny) > TELEPORT_TILES) { g.wx = nx; g.wy = ny; }
+    g.px = Math.floor(g.wx ?? nx); g.py = Math.floor(g.wy ?? ny);
     g.hp = me.hp; g.mp = me.mp; g.gold = me.gold; g.pots = me.pots; g.lvl = me.lvl; g.xp = me.xp;
     if (me.name) g.name = me.name;
     if (me.hero && typeof me.hero === "object") {
-      const keepX = g.wx, keepY = g.wy, keepHp = g.hp, keepMp = g.mp, keepGold = g.gold, keepPots = g.pots;
+      const keepX = g.wx ?? nx, keepY = g.wy ?? ny, keepHp = g.hp, keepMp = g.mp, keepGold = g.gold, keepPots = g.pots;
       copyHero(me.hero as Game, g);
       g.wx = keepX; g.wy = keepY; g.px = Math.floor(keepX); g.py = Math.floor(keepY);
       g.hp = keepHp; g.mp = keepMp; g.gold = keepGold; g.pots = keepPots;
@@ -4937,10 +5104,12 @@ function renderPawns(g: Game): CoopPawn[] {
   if (coop.isHost()) {
     return [...COOP_GUESTS.values()].map((rec) => {
       const h = rec.g, f = full(h);
-      return { pid: rec.pid, name: playerName(h), cls: h.cls, lvl: h.lvl, wx: h.wx ?? h.px + 0.5, wy: h.wy ?? h.py + 0.5, hp: h.hp, maxHp: f.maxHp, mp: h.mp, maxMp: f.maxMp };
+      const fx = h.wx ?? h.px + 0.5, fy = h.wy ?? h.py + 0.5;
+      const v = visPawn(rec.pid, fx, fy);
+      return { pid: rec.pid, name: playerName(h), cls: h.cls, lvl: h.lvl, wx: v.x, wy: v.y, hp: h.hp, maxHp: f.maxHp, mp: h.mp, maxMp: f.maxMp };
     });
   }
-  return coop.pawns();
+  return coop.pawns().map((p) => { const v = visPawn(p.pid, p.wx, p.wy); return { ...p, wx: v.x, wy: v.y }; });
 }
 function stepGuests(world: Game, dt: number): void {
   if (!coop.isHost()) return;
@@ -4979,6 +5148,7 @@ function makeHello(g: Game | null, cls: ClassId): Extract<import("./coop").CoopM
     lvl: hero?.lvl ?? 1,
     hero: hero ? packHero(hero) : undefined,
     rejoin: false,
+    proto: COOP_PROTO,
   };
 }
 
@@ -6493,6 +6663,7 @@ export default function DungeonOfEchoes() {
         refresh();
       },
       onState: (st: unknown) => { const g = G.current; if (g) applyGuestState(g, st); },
+      onPos: (msg: CoopPos | CoopPosBatch) => { ingestPos(msg, coop.pid()); },
       onHello: (pid: string, msg: { name: string; cls: string; lvl: number; hero?: unknown; rejoin?: boolean }) => {
         const g = G.current; if (!g) return "No run is active.";
         acceptGuest(g, pid, msg);
@@ -6546,6 +6717,12 @@ export default function DungeonOfEchoes() {
       join: (code: string) => joinCoop(code),
       start: () => startCoop(),
       leave: () => leaveCoop(),
+      pushSnap, sampleTrack,
+      stats: () => coop.stats(),
+      resetStats: () => coop.resetStats(),
+      allyView,
+      proto: COOP_PROTO,
+      theirProto: () => coop.theirProto(),
       snap: () => {
         const g = G.current;
         return {
@@ -6557,6 +6734,8 @@ export default function DungeonOfEchoes() {
           pots: g ? potCount(g) : 0, combat: !!g?.combat, cls: g?.cls, name: g ? playerName(g) : "",
           log: (g?.log ?? []).slice(0, 8).map((l: LogL) => l.t),
           guests: [...COOP_GUESTS.values()].map((r) => ({ pid: r.pid, name: playerName(r.g), wx: r.g.wx, wy: r.g.wy, hp: r.g.hp, gold: r.g.gold })),
+          stats: coop.stats(),
+          proto: COOP_PROTO, theirProto: coop.theirProto(),
         };
       },
     };
@@ -7261,6 +7440,8 @@ export default function DungeonOfEchoes() {
     const cv = mapCv.current; if (cv) drawView(cv, gg, force);
     const we = worldEl.current; if (we) { we.style.transform = worldTf(gg); if (gg.combat) placeCombat(we, gg.combat); placePets(we, gg); }
     placeHero(gg, inp.current);
+    placeAllies();
+    if (we) placeRemoteMobs(we);
     const mc = miniCv.current; const now = performance.now();
     if (mc && (force || now - miniT.current > 120)) { miniT.current = now; drawMini(mc, gg, false); }
   };
@@ -7392,6 +7573,7 @@ export default function DungeonOfEchoes() {
     if (coop.isGuest() && coop.playing() && gg.screen === "map") {
       coop.sendInput({ mx, my, atk: !!(I.atk || I.katk || I.gatk), dodge: COOP_Q.dodge, drink: COOP_Q.drink, abil: COOP_Q.abil, seq: ++COOP_SEQ });
       COOP_Q = { dodge: false, drink: false, abil: -1 };
+      tickCoopPos(gg, I, dt);
       tickParts(dt);
       rtMap(gg, dt, mx, my, I, { mons: false, tiles: false, shop: false });
       drawRef.current(false);
@@ -7407,8 +7589,15 @@ export default function DungeonOfEchoes() {
       if (coop.isHost() && coop.playing()) stepGuests(gg, dt);
       if (gg.combat && (gg.screen as Screen) === "map") { combatStep(gg, dt, I.atk || I.katk || I.gatk); chg = true; }
       if (coop.isHost() && coop.playing()) {
+        tickCoopPos(gg, I, dt);
+        const flCh = gg.floor !== COOP_SENT_FL;
         COOP_STATE_T += dt;
-        if (COOP_STATE_T >= 0.08) { COOP_STATE_T = 0; coop.sendState(buildCoopState(gg)); }
+        if (flCh || COOP_STATE_T >= 0.2) {
+          COOP_STATE_T = 0;
+          COOP_SENT_FL = gg.floor;
+          coop.sendState(buildCoopState(gg));
+          if (flCh) coop.sendPos(buildLocalPos(gg, I));
+        }
       }
       if (!gg.combat) I.atk = false;
       drawRef.current(false);
@@ -8330,7 +8519,7 @@ export default function DungeonOfEchoes() {
     const sty: CSSProperties | undefined = !vis && mm.boss ? { filter: "brightness(0)", opacity: 0.55 } : mm.stun > 0 ? { opacity: 0.6 } : mm.el ? { filter: "drop-shadow(0 0 7px rgba(255,40,40,1)) drop-shadow(0 0 14px rgba(255,180,50,.8))" } : mm.boss ? { filter: "drop-shadow(0 0 8px rgba(180,0,40,1)) drop-shadow(0 0 16px rgba(120,20,80,.85))" } : { filter: "drop-shadow(0 2px 3px rgba(0,0,0,.9))" };
     const anim = REDUCE_FX ? undefined : ghost ? "doeFlicker 2.1s ease-in-out infinite" : chasing ? "doeLean 0.7s ease-in-out infinite" : "doeBreath 2.4s ease-in-out infinite";
     objs.push(
-      <div key={`m${mm.id}`} data-mon={kind} data-elite={mm.el ? "1" : undefined} style={{ ...tPos(mfx - 0.5, mfy - 0.5), overflow: "visible" }}>
+      <div key={`m${mm.id}`} data-mon={kind} data-mid={mm.id} data-elite={mm.el ? "1" : undefined} style={{ ...tPos(mfx - 0.5, mfy - 0.5), overflow: "visible" }}>
         {!REDUCE_FX && (mm.el || mm.boss) ? <div style={{ position: "absolute", left: "-20%", top: "-10%", width: "140%", height: "120%", borderRadius: "50%", background: mm.el ? "radial-gradient(circle, rgba(180,20,20,.35), rgba(255,140,40,.12) 45%, transparent 70%)" : "radial-gradient(circle, rgba(80,0,0,.4), transparent 70%)", animation: "doeAura 1.6s ease-in-out infinite", pointerEvents: "none" }} /> : null}
         <div style={{ position: "absolute", inset: mm.boss ? "-16% -10% 0" : "-10% -6% 0", transformOrigin: "50% 88%", animation: anim, overflow: "visible" }}>{spr(kind, "100%", sty)}</div>
       </div>
@@ -8430,8 +8619,8 @@ export default function DungeonOfEchoes() {
   for (const al of renderPawns(g)) {
     if (!inViewP(al.wx, al.wy)) continue;
     objs.push(
-      <div key={`ally-${al.pid}`} data-ally={al.pid} style={{ ...wBox(al.wx, al.wy, 1), zIndex: 4, overflow: "visible", pointerEvents: "none" }}>
-        <div style={{ position: "absolute", inset: 0 }}>{spr((al.cls as ClassId) || "warrior", "100%")}</div>
+      <div key={`ally-${al.pid}`} data-ally={al.pid} data-ally-an-root="1" style={{ ...wBox(al.wx, al.wy, 1), zIndex: 4, overflow: "visible", pointerEvents: "none" }}>
+        <div data-ally-an="1" style={{ position: "absolute", inset: 0, transformOrigin: "50% 70%" }}>{spr((al.cls as ClassId) || "warrior", "100%")}</div>
         <div data-nameplate={al.name} style={{ position: "absolute", left: "50%", bottom: "100%", transform: "translateX(-50%)", fontSize: 10, fontWeight: 800, color: "#fff8e0", textShadow: "0 1px 3px #000", background: "rgba(0,0,0,.5)", borderRadius: 5, padding: "1px 5px", whiteSpace: "nowrap" }}>{al.name}</div>
         <div style={{ position: "absolute", left: "8%", right: "8%", top: "-22%", height: 3, borderRadius: 2, background: "rgba(0,0,0,.65)", overflow: "hidden" }}><div style={{ width: `${Math.max(0, Math.min(100, al.maxHp ? al.hp / al.maxHp * 100 : 0))}%`, height: "100%", background: "#e5484d" }} /></div>
       </div>

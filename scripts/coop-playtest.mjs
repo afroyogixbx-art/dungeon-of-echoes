@@ -76,6 +76,27 @@ async function snap(page) {
   return page.evaluate(() => window.__COOP.snap());
 }
 
+async function recordAlly(page, ms) {
+  return page.evaluate(async (ms) => {
+    const rows = [];
+    const t0 = performance.now();
+    while (performance.now() - t0 < ms) {
+      rows.push({ t: performance.now() - t0, views: window.__COOP.allyView() });
+      await new Promise((r) => requestAnimationFrame(r));
+    }
+    return rows;
+  }, ms);
+}
+
+function firstView(frames) {
+  const pts = [];
+  for (const f of frames) {
+    const v = (f.views && f.views[0]) || null;
+    if (v) pts.push({ t: f.t, ...v });
+  }
+  return pts;
+}
+
 async function waitSnap(page, pred, timeoutMs, label) {
   const t0 = Date.now();
   let last = null;
@@ -171,6 +192,92 @@ async function main() {
     await A.screenshot({ path: path.join(SHOTS, "coop-two-players.png") });
     await A.screenshot({ path: path.join(SHOTS, "coop-two-players-host.png") });
     await B.screenshot({ path: path.join(SHOTS, "coop-two-players-guest.png") });
+
+    const interp = await A.evaluate(() => {
+      const push = window.__COOP.pushSnap;
+      const sample = window.__COOP.sampleTrack;
+      const INTERP = 100;
+      const t0 = 1000;
+      const buf = [];
+      push(buf, { t: t0, recv: t0, x: 0, y: 0, vx: 3, vy: 0, face: 1, mv: true, an: "walk" });
+      push(buf, { t: t0 + 50, recv: t0 + 50, x: 0.15, y: 0, vx: 3, vy: 0, face: 1, mv: true, an: "walk" });
+      const mid = sample(buf, t0 + 25 + INTERP, INTERP);
+      push(buf, { t: t0 + 100, recv: t0 + 100, x: 0.3, y: 0, vx: 0, vy: 0, face: 1, mv: false, an: "idle" });
+      const held = sample(buf, t0 + 100 + INTERP + 250, INTERP);
+      const movingOnly = [];
+      push(movingOnly, { t: t0, recv: t0, x: 0, y: 0, vx: 3, vy: 0, face: 1, mv: true, an: "walk" });
+      const ex = sample(movingOnly, t0 + INTERP + 40, INTERP);
+      const cap = sample(movingOnly, t0 + INTERP + 500, INTERP);
+      const tp = [];
+      push(tp, { t: t0, recv: t0, x: 0, y: 0, vx: 0, vy: 0, face: 1, mv: false, an: "idle", fl: 1 });
+      push(tp, { t: t0 + 20, recv: t0 + 20, x: 8, y: 8, vx: 0, vy: 0, face: 1, mv: false, an: "idle", fl: 2 });
+      const tele = sample(tp, t0 + 20 + INTERP, INTERP);
+      return { mid, held, ex, cap, tele, tpN: tp.length };
+    });
+    check(interp && interp.mid && Math.abs(interp.mid.x - 0.075) < 0.03 && !interp.mid.snapped, "interp lerps between snapshots", JSON.stringify(interp.mid));
+    check(interp && interp.held && Math.abs(interp.held.x - 0.3) < 0.001 && interp.held.stopped && interp.held.an === "idle", "interp holds exactly on stop (no drift)", JSON.stringify(interp.held));
+    check(interp && interp.ex && interp.ex.x > 0.05 && interp.ex.x < 0.25 && interp.ex.mv, "light extrap while moving", JSON.stringify(interp.ex));
+    check(interp && interp.cap && Math.abs(interp.cap.x - 0.21) < 0.03, "extrap capped (~70ms)", JSON.stringify(interp.cap));
+    check(interp && interp.tele && interp.tele.snapped && Math.abs(interp.tele.x - 8) < 0.001 && interp.tpN === 1, "teleport snaps and clears buffer", JSON.stringify({ tele: interp.tele, tpN: interp.tpN }));
+
+    async function runSmooth(mover, viewer, dir, walkShot, idleShot, label) {
+      await mover.evaluate(() => window.__COOP.resetStats());
+      await viewer.evaluate(() => window.__COOP.resetStats());
+      await mover.evaluate((d) => window.__R.hold(d, 0), dir);
+      const recP = recordAlly(viewer, 850);
+      await new Promise((r) => setTimeout(r, 200));
+      await viewer.screenshot({ path: path.join(SHOTS, walkShot) });
+      const movingFrames = await recP;
+      await mover.evaluate(() => window.__R.stop());
+      await new Promise((r) => setTimeout(r, 180));
+      const settle = await recordAlly(viewer, 420);
+      await viewer.screenshot({ path: path.join(SHOTS, idleShot) });
+      const statsM = await mover.evaluate(() => window.__COOP.stats());
+      const statsV = await viewer.evaluate(() => window.__COOP.stats());
+      const pts = firstView(movingFrames);
+      const later = firstView(settle).filter((p) => p.t > 80);
+      let maxJump = 0, steps = 0, dxSum = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const d = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+        if (d > maxJump) maxJump = d;
+        dxSum += (pts[i].x - pts[i - 1].x);
+        steps++;
+      }
+      const walked = pts.filter((p) => p.an === "walk" || p.mv === "1");
+      const faceOk = pts.some((p) => p.face === String(dir > 0 ? 1 : -1));
+      const mid = pts[Math.floor(pts.length / 2)];
+      let settleSpan = 0, drift = 0;
+      if (later.length >= 2) {
+        const xs = later.map((p) => p.x), ys = later.map((p) => p.y);
+        settleSpan = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+        const dt = Math.max(0.001, (later[later.length - 1].t - later[0].t) / 1000);
+        drift = (later[later.length - 1].x - later[0].x) / dt;
+      }
+      const idled = later.filter((p) => p.an === "idle" && p.mv !== "1");
+      const noLean = later.every((p) => !/rotate\(7deg\)/.test(p.tf));
+      const meanStep = steps ? dxSum / steps : 0;
+      const posBps = Math.max(statsM?.posBps || 0, statsV?.posBps || 0);
+      return {
+        label, n: pts.length, maxJump, meanStep, walked: walked.length, faceOk, mid,
+        settleN: later.length, settleSpan, drift, idled: idled.length, noLean,
+        posBps, stateBps: statsM?.stateBps, statsM, statsV,
+      };
+    }
+
+    const hostView = await runSmooth(B, A, 1, "coop-remote-walk-host.png", "coop-remote-idle-host.png", "host viewing guest");
+    const guestView = await runSmooth(A, B, 1, "coop-remote-walk-guest.png", "coop-remote-idle-guest.png", "guest viewing host");
+    for (const r of [hostView, guestView]) {
+      check(r.n >= 20, `${r.label}: recorded remote frames`, `n=${r.n}`);
+      check(r.maxJump < 0.6, `${r.label}: remote path has no snaps`, `maxJump=${(r.maxJump || 0).toFixed(3)} n=${r.n}`);
+      check(r.meanStep > 0.001 || r.walked >= 8, `${r.label}: remote moves smoothly`, JSON.stringify({ meanStep: r.meanStep, walked: r.walked, mid: r.mid }));
+      check(r.walked >= 5, `${r.label}: remote plays walk cycle while moving`, `walked=${r.walked} mid=${JSON.stringify(r.mid)}`);
+      check(r.faceOk, `${r.label}: remote facing synced`, JSON.stringify(r.mid));
+      check(r.settleSpan < 0.12, `${r.label}: clean stop, no drift/overshoot`, `span=${r.settleSpan} drift=${r.drift} idled=${r.idled}`);
+      check(Math.abs(r.drift) < 0.4, `${r.label}: no rubber-band after stop`, `drift=${r.drift} span=${r.settleSpan}`);
+      check(r.idled >= 8 && r.noLean, `${r.label}: remote idles when stopped`, `idled=${r.idled} noLean=${r.noLean}`);
+      check(r.posBps > 100 && r.posBps < 40000, `${r.label}: position bandwidth reasonable`, JSON.stringify({ posBps: r.posBps, stateBps: r.stateBps }));
+    }
+    check(true, "remote walk/idle screenshots");
 
     const beforeA = await snap(A);
     const beforeB = await snap(B);
