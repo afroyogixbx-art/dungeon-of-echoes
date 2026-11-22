@@ -45,7 +45,7 @@ interface Meta { tokens: number; best: number; owned: Record<string, string[]>; 
 interface TNode { id: string; tier: number; name: string; icon: string; desc: string; cost: number; req: string; st?: Stats; cap?: string; }
 interface Game {
   name?: string;
-  screen: Screen; prev: Screen; mode: Mode; cls: ClassId; lvl: number; xp: number; hp: number; mp: number; gold: number;
+  screen: Screen; prev: Screen; mode: Mode; cls: ClassId; lvl: number; xp: number; hp: number; mp: number; gold: number; dust?: number;
   inv: Inv[]; eq: Partial<Record<GearSlot, Inv>>; floor: number; map: number[][]; seen: boolean[][];
   px: number; py: number; wx?: number; wy?: number; mons: MapMon[]; sx: number; sy: number; log: LogL[]; combat: Combat | null;
   cds: Record<string, number>; buffs: Buffs; perks: string[]; bonus: Stats; goldMult: number; inAb: boolean;
@@ -65,6 +65,7 @@ const GEAR: GearSlot[] = ["weapon", "armor", "helmet", "ring", "amulet"];
 const SLOT_ICON: Record<GearSlot, string> = { weapon: "⚔️", armor: "🛡️", helmet: "⛑️", ring: "💍", amulet: "📿" };
 const SLOT_NAME: Record<Slot, string> = { weapon: "Weapon", armor: "Armor", helmet: "Helmet", ring: "Ring", amulet: "Amulet", consumable: "Consumable" };
 const STAT_LABEL: Record<StatKey, string> = { hp: "HP", mp: "MP", atk: "ATK", def: "DEF", crit: "Crit%", dodge: "Dodge%", ls: "Lifesteal%", fire: "Fire", ice: "Ice", holy: "Holy", poison: "Poison", th: "Thorns%" };
+const STAT_KEYS: StatKey[] = ["hp", "mp", "atk", "def", "crit", "dodge", "ls", "fire", "ice", "holy", "poison", "th"];
 const HIDE = [0.1, 0.2, 0.4, 0.6, 0.85];
 const IDFEE = [10, 25, 60, 120, 250];
 
@@ -2336,9 +2337,67 @@ function salvageInv(g: Game, uids: number[]): number {
   }
   g.inv = keep;
   if (g.sel >= 0 && !g.inv.some((x: Inv) => x.uid === g.sel) && !GEAR.some((k: GearSlot) => g.eq[k]?.uid === g.sel)) g.sel = -1;
-  if (dust > 0) { g.gold += dust; log(g, `✨ Salvaged gear into ${dust} Dust (+${dust} gold).`, "loot"); gain(g, `+${dust} Dust`, GOLDC); }
+  if (dust > 0) {
+    g.dust = dustHeld(g) + dust;
+    log(g, `✨ Salvaged gear into ${dust} Dust.`, "loot");
+    gain(g, `+${dust} Dust`, GOLDC);
+  }
   return dust;
 }
+function dustHeld(g: Game): number { return Math.max(0, Math.floor(g.dust ?? 0)); }
+function sacrificeDust(g: Game, n: number): number {
+  const take = Math.min(Math.max(0, Math.floor(n)), dustHeld(g));
+  if (take <= 0) return 0;
+  g.dust = dustHeld(g) - take;
+  g.gold += take;
+  log(g, `✨ Sacrificed ${take} Dust → +${take} gold.`, "loot");
+  gain(g, `+${take} gold`, GOLDC);
+  return take;
+}
+function addStatMap(into: Stats, s?: Stats): void {
+  if (!s) return;
+  for (const k of STAT_KEYS) if (s[k]) into[k] = (into[k] ?? 0) + (s[k] ?? 0);
+}
+function itemStats(inv: Inv): Stats {
+  const out: Stats = {};
+  addStatMap(out, IT[inv.id].st);
+  addStatMap(out, inv.bon);
+  return out;
+}
+function itemMpreg(inv: Inv): number { return (IT[inv.id].mpreg ?? 0) + (inv.mpreg ?? 0); }
+function itemStatKeys(inv: Inv): Set<string> {
+  const keys = new Set<string>();
+  const st = itemStats(inv);
+  for (const k of STAT_KEYS) if ((st[k] ?? 0) !== 0) keys.add(k);
+  if (itemMpreg(inv) !== 0) keys.add("mpreg");
+  return keys;
+}
+function wornFor(g: Game, inv: Inv): Inv | undefined {
+  const it = IT[inv.id];
+  if (it.slot === "consumable") return undefined;
+  return g.eq[it.slot as GearSlot];
+}
+function setBonusStats(sc: Record<string, number>): Stats {
+  const st: Stats = {};
+  for (const sid of Object.keys(sc)) {
+    const S = SETS[sid]; if (!S) continue;
+    const n = sc[sid] ?? 0;
+    if (n >= 2) addStatMap(st, S.b2);
+    if (S.b3 && n >= 3) addStatMap(st, S.b3);
+    if (n >= S.n) addStatMap(st, S.bf);
+  }
+  return st;
+}
+function previewSetCounts(g: Game, incoming: Inv): Record<string, number> {
+  const slot = IT[incoming.id].slot as GearSlot;
+  const sc: Record<string, number> = {};
+  for (const k of GEAR) {
+    const it = k === slot ? incoming : g.eq[k];
+    if (it) { const s = IT[it.id].set; if (s) sc[s] = (sc[s] ?? 0) + 1; }
+  }
+  return sc;
+}
+
 
 function makeInst(id: string, f: number, roll: boolean, src?: string): Inv {
   const it = IT[id];
@@ -2680,7 +2739,7 @@ function reveal(g: Game): void {
 function newGame(cls: ClassId, mode: Mode): Game {
   const c = CLS[cls];
   const g: Game = {
-    screen: "map", prev: "map", mode, cls, lvl: 1, xp: 0, hp: 1, mp: 1, gold: 30, inv: [], eq: {}, floor: 1, map: [], seen: [], px: 0, py: 0, mons: [], sx: 0, sy: 0,
+    screen: "map", prev: "map", mode, cls, lvl: 1, xp: 0, hp: 1, mp: 1, gold: 30, dust: 0, inv: [], eq: {}, floor: 1, map: [], seen: [], px: 0, py: 0, mons: [], sx: 0, sy: 0,
     log: [], combat: null, cds: {}, buffs: freshBuffs(), perks: [], bonus: {}, goldMult: 1, inAb: false, usedUndying: false, usedShadow: false, usedPhoenix: false, skills: [], skillPts: 0, slots: [null, null, null, null, null], skillVer: 3, skillRanks: {}, skillEnh: [], skillPick: {}, skillPass: {}, skillKey: null, sbuff: {}, sval: {},
     shop: [], stock: [], offers: [], kills: 0, sel: -1, fx: [], turns: 0, tokensEarned: 0, name: lastOrDefaultName(), pots: 2,
   };
@@ -4107,7 +4166,7 @@ function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp, opts?: { mon
 }
 // ---------- co-op (host-authoritative PeerJS) ----------
 const HERO_KEYS = [
-  "name", "cls", "lvl", "xp", "hp", "mp", "gold", "inv", "eq", "px", "py", "wx", "wy",
+  "name", "cls", "lvl", "xp", "hp", "mp", "gold", "dust", "inv", "eq", "px", "py", "wx", "wy",
   "cds", "buffs", "perks", "bonus", "goldMult", "inAb",
   "usedUndying", "usedShadow", "usedPhoenix", "usedRes",
   "kills", "sel", "qs", "pots", "pets", "cpet",
@@ -4129,6 +4188,8 @@ function freshInp(): Inp {
 }
 function copyHero(from: Game, to: Game): void {
   for (const k of HERO_KEYS) (to as unknown as Record<HeroKey, unknown>)[k] = (from as unknown as Record<HeroKey, unknown>)[k];
+  if (typeof to.dust !== "number" || !isFinite(to.dust) || to.dust < 0) to.dust = 0;
+  else to.dust = Math.floor(to.dust);
 }
 function withGuest<T>(world: Game, guest: Game, fn: () => T): T {
   const bak = {} as Game;
@@ -4982,7 +5043,7 @@ const HELP: [string, string][] = [
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
   ["✨ Abilities", "Each class starts with only a basic attack, which is always free. Every other ability — including former level unlocks such as Shield Bash, Fireball, or Leaping Slam — is learned by spending skill points on the in-run skill tree. Learn skills on the category tree (ranks, Enhanced, and one of two specializations). Equip up to five learned abilities in the Skills loadout; only those appear on the bar (keys 1–5). You can change the loadout out of combat. Every ability can be used while moving (hotkey or tap); movement is not stopped, and aimed skills go to your current or nearest target. Abilities cost MP and have cooldowns in seconds. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
   ["🌳 Skill tree", "Each level grants one skill point. Open Skills out of combat to spend them on a category tree (D4-style: not a Paragon board). Basic is open from the start; Core, Defensive, a class path, Mastery, Ultimate and a Key Passive unlock after you have spent 2, 6, 8, 11, 16 and 23 points. Active skills have ranks 1–5, then an Enhanced upgrade, then a choice of two mutually exclusive specializations (respec to change). Passives sit between skills. Equip up to five learned actives in the loadout (keys 1–5). You can pan and pinch-zoom the tree; tap a node for details and Learn/Upgrade. A refund-all respec is available out of combat for a small gold fee (free if you cannot afford it). Existing characters keep the abilities they already had at rank 1, with leftover points refunded. This tree is separate from the Endless token upgrade tree."],
-  ["✨ Dust salvage", "In your bag, Break down turns identified unequipped gear into Dust at a flat rarity rate: Common 1, Uncommon 2, Rare 3, Epic 4, Set 5, Legendary 6 (cursed items use the same tier; iLvl does not matter). 1 Dust = 1 gold, added immediately. Each rarity has a Break down all button that shows the item count and total Dust and asks for confirmation. A lock toggle on every item (inventory grid and item details) — and on equipped gear — stops it from being salvaged or sold, including merchant sell-from-bag. Curse-bound and equipped items are also protected. The lock is saved; old items default to unlocked."],
+  ["✨ Dust salvage", "In your bag, the Dust row sits below the item list. Break down turns identified unequipped gear into Dust at a flat rarity rate: Common 1, Uncommon 2, Rare 3, Epic 4, Set 5, Legendary 6 (cursed items use the same tier; iLvl does not matter). Dust is stored until you Sacrifice it for gold at 1:1 (all, or a chosen amount). Tiny chips under the row break down all of one rarity after a confirmation. A lock toggle on every item (inventory grid and item details) — and on equipped gear — stops it from being salvaged or sold, including merchant sell-from-bag. Curse-bound and equipped items are also protected. The lock is saved; old items default to unlocked."],
   ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions go to a dedicated slot (not the bag) and are scarce — regular foes have a 10% chance to drop one, elites and bosses 25%. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its name, roll, and range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Later general sets, rarer than the earlier ones: Gravebloom Vestments (from floor 6), Rimeward Pall (from floor 10), and Ashen Covenant (from floor 14, Endless). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag. The dungeon holds 67 weapons, 42 armor, 37 helmets, 34 rings and 33 amulets, including 73 set pieces across 19 sets, 24 legendaries (uniques), and 11 cursed items."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
@@ -5542,6 +5603,7 @@ function validRun(x: unknown): Game | null {
     return PERK_BY_ID[p.id] ?? (typeof p.name === "string" && typeof p.desc === "string" ? p : null);
   }).filter((p: Perk | null): p is Perk => !!p) : [];
   g.goldMult = num(g.goldMult) ? g.goldMult : 1;
+  g.dust = num(g.dust) ? Math.max(0, Math.floor(g.dust as number)) : 0;
   g.kills = num(g.kills) ? g.kills : 0; g.turns = num(g.turns) ? g.turns : 0; g.tokensEarned = num(g.tokensEarned) ? g.tokensEarned : 0;
   g.usedUndying = g.usedUndying === true; g.usedShadow = g.usedShadow === true; g.usedPhoenix = g.usedPhoenix === true; g.usedRes = g.usedRes === true;
   if (typeof g.hp !== "number" || !(g.hp > 0)) return null;
@@ -5649,6 +5711,7 @@ export default function DungeonOfEchoes() {
   const [confirm, setConfirm] = useState<Mode | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [reduceFxUi, setReduceFxUi] = useState(() => loadPrefs().reduceFx);
+  const [dustAmt, setDustAmt] = useState(1);
   const [joinCode, setJoinCode] = useState("");
   const [coopJoin, setCoopJoin] = useState(false);
   const [coopEnded, setCoopEnded] = useState("");
@@ -6126,22 +6189,23 @@ export default function DungeonOfEchoes() {
       ))}
     </div>
   );
-  const statChips = (s: Stats | undefined): ReactNode => {
+  const sameMark = (key: string, shared?: Set<string>): ReactNode => shared && shared.has(key) ? <span data-same={key} title="Same stat on both items" style={{ color: t.text.tertiary, fontWeight: 700, marginLeft: 2 }}>⇄</span> : null;
+  const statChips = (s: Stats | undefined, shared?: Set<string>): ReactNode => {
     if (!s) return null;
     const ss: Stats = s;
     const keys = Object.keys(ss) as StatKey[];
     if (keys.length === 0) return null;
-    return <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = ss[k] ?? 0; return <span key={k} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600 }}>{v >= 0 ? "+" : ""}{v} {STAT_LABEL[k]}</span>; })}</div>;
+    return <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = ss[k] ?? 0; return <span key={k} data-stat={k} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600 }}>{v >= 0 ? "+" : ""}{v} {STAT_LABEL[k]}{sameMark(k, shared)}</span>; })}</div>;
   };
-  const affixChips = (inv: Inv, f: number): ReactNode => {
+  const affixChips = (inv: Inv, f: number, shared?: Set<string>): ReactNode => {
     const ilvl = inv.ilvl ?? f;
     const labelOf = (stat: RolledAff["stat"]): string => stat === "mpreg" ? "Mana regen" : STAT_LABEL[stat];
     const fmt = (stat: RolledAff["stat"], v: number): string => stat === "mpreg" ? `${v >= 0 ? "+" : ""}${v}/s` : `${v >= 0 ? "+" : ""}${v}`;
     if (inv.affs && inv.affs.length) {
-      return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{inv.affs.map((a: RolledAff) => <span key={a.id} title={`T${a.tier} ${a.name}: ${labelOf(a.stat)} rolls ${a.lo}–${a.hi} (iLvl ${ilvl})`} style={{ color: a.v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>✦ {a.name}: {fmt(a.stat, a.v)} {labelOf(a.stat)}</span>)}</div>;
+      return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{inv.affs.map((a: RolledAff) => <span key={a.id} data-stat={a.stat} title={`T${a.tier} ${a.name}: ${labelOf(a.stat)} rolls ${a.lo}–${a.hi} (iLvl ${ilvl})`} style={{ color: a.v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>✦ {a.name}: {fmt(a.stat, a.v)} {labelOf(a.stat)}{sameMark(a.stat, shared)}</span>)}</div>;
     }
     const keys = Object.keys(inv.bon) as StatKey[]; if (keys.length === 0) return null;
-    return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = inv.bon[k] ?? 0; const [lo, hi] = affixRange(k, ilvl); return <span key={k} title={`Random affix: ${STAT_LABEL[k]} rolls about ${lo}–${hi} at iLvl ${ilvl}`} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>✦ {v >= 0 ? "+" : ""}{v} {STAT_LABEL[k]}</span>; })}</div>;
+    return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = inv.bon[k] ?? 0; const [lo, hi] = affixRange(k, ilvl); return <span key={k} data-stat={k} title={`Random affix: ${STAT_LABEL[k]} rolls about ${lo}–${hi} at iLvl ${ilvl}`} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>✦ {v >= 0 ? "+" : ""}{v} {STAT_LABEL[k]}{sameMark(k, shared)}</span>; })}</div>;
   };
   const setLines = (sid: string, n: number): ReactNode => {
     const S = SETS[sid]; const parts = S.desc.split(" · ");
@@ -6171,6 +6235,58 @@ export default function DungeonOfEchoes() {
       })}
     </div>
   );
+  const compareBlock = (inv: Inv, worn: Inv | undefined, shared: Set<string>, g: Game): ReactNode => {
+    const it = IT[inv.id];
+    const slot = it.slot as GearSlot;
+    const newSt = itemStats(inv);
+    const newMp = itemMpreg(inv);
+    const oldSt: Stats = worn && worn.ident ? itemStats(worn) : {};
+    const oldMp = worn && worn.ident ? itemMpreg(worn) : 0;
+    const deltas: ReactNode[] = [];
+    const pushDelta = (key: string, label: string, d: number, same: boolean, suffix = ""): void => {
+      if (d === 0) return;
+      deltas.push(
+        <span key={key} data-delta={key} data-same={same ? "1" : "0"} style={{ color: d > 0 ? t.text.success : t.text.danger, fontWeight: 700, fontSize: 12 }}>
+          {d > 0 ? "+" : ""}{d}{suffix} {label}{same ? <span style={{ color: t.text.tertiary, marginLeft: 2 }}>⇄</span> : null}
+        </span>
+      );
+    };
+    for (const k of STAT_KEYS) pushDelta(k, STAT_LABEL[k], (newSt[k] ?? 0) - (oldSt[k] ?? 0), shared.has(k));
+    pushDelta("mpreg", "Mana regen", newMp - oldMp, shared.has("mpreg"), "/s");
+    if (worn && worn.ident) {
+      const nsp = IT[inv.id].sp, osp = IT[worn.id].sp;
+      if (nsp && nsp !== osp) deltas.push(<span key="sp+" data-delta="sp-new" style={{ color: t.text.success, fontWeight: 600, fontSize: 12 }}>+{IT[inv.id].desc || nsp}</span>);
+      if (osp && osp !== nsp) deltas.push(<span key="sp-" data-delta="sp-old" style={{ color: t.text.danger, fontWeight: 600, fontSize: 12 }}>−{IT[worn.id].desc || osp}</span>);
+    }
+    const before = setBonusStats(setCounts(g));
+    const after = setBonusStats(previewSetCounts(g, inv));
+    const setDeltas: ReactNode[] = [];
+    for (const k of STAT_KEYS) {
+      const d = (after[k] ?? 0) - (before[k] ?? 0);
+      if (d === 0) continue;
+      setDeltas.push(<span key={"set-" + k} data-delta={"set-" + k} style={{ color: d > 0 ? t.text.success : t.text.danger, fontWeight: 700, fontSize: 12 }}>{d > 0 ? "+" : ""}{d} {STAT_LABEL[k]} <span style={{ fontWeight: 500, color: t.text.tertiary }}>set</span></span>);
+    }
+    const empty = !worn;
+    return (
+      <div data-compare={slot} data-compare-empty={empty ? "1" : "0"} style={{ marginTop: 4, paddingTop: 4, borderTop: `1px solid ${t.border.default}`, display: "flex", flexDirection: "column", gap: 3 }}>
+        <div style={{ fontSize: 11, color: t.text.secondary, fontWeight: 700 }}>
+          {empty ? `Vs empty ${SLOT_NAME[slot].toLowerCase()}` : `Vs worn: ${instName(worn!)}${locked(worn!) ? " (cursed, locked)" : !worn!.ident ? " (unidentified)" : ""}`}
+        </div>
+        {worn && worn.ident && (
+          <div data-compare-worn={worn.uid} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {statChips(IT[worn.id].st, shared)}
+            {affixChips(worn, g.floor, shared)}
+            {itemMpreg(worn) !== 0 && !(worn.affs && worn.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div data-stat="mpreg" style={{ fontSize: 12, color: t.text.success, fontWeight: 600 }}>+{itemMpreg(worn)}/s Mana regen{sameMark("mpreg", shared)}</div>}
+          </div>
+        )}
+        {(deltas.length > 0 || empty) && (
+          <div data-compare-deltas="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 8px" }}>{deltas}</div>
+        )}
+        {setDeltas.length > 0 && <div data-compare-set="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 8px" }}>{setDeltas}</div>}
+        {deltas.length === 0 && setDeltas.length === 0 && worn && worn.ident && <div style={{ fontSize: 12, color: t.text.tertiary }}>No stat change</div>}
+      </div>
+    );
+  };
   const instDetail = (inv: Inv, g: Game): ReactNode => {
     const it = IT[inv.id];
     if (!inv.ident) return (
@@ -6180,17 +6296,26 @@ export default function DungeonOfEchoes() {
       </div>
     );
     const sc = it.set ? (setCounts(g)[it.set] ?? 0) : 0;
+    const worn = it.slot !== "consumable" ? wornFor(g, inv) : undefined;
+    const comparing = !!(worn ? worn.uid !== inv.uid : it.slot !== "consumable");
+    const shared = new Set<string>();
+    if (comparing && worn && worn.ident) {
+      const a = itemStatKeys(inv), b = itemStatKeys(worn);
+      for (const k of a) if (b.has(k)) shared.add(k);
+    }
+    const compareEl = comparing ? compareBlock(inv, worn, shared, g) : null;
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
         <div style={{ fontSize: 15, color: RCOL[it.r], fontWeight: 600 }}>{inv.pin ? "🔒 " : ""}{it.icon} {instName(inv)}</div>
         <div style={small}>{RAR[it.r]} {SLOT_NAME[it.slot]} · {clsLabel(it)} · iLvl {inv.ilvl ?? "?"}{inv.aname ? ` · ${it.name}` : ""}{it.cursed ? " · " : ""}{it.cursed && <span style={{ color: t.text.danger, fontWeight: 700 }}>{inv.freed ? "Cursed (lifted)" : "Cursed"}</span>}</div>
-        {statChips(it.st)}
+        {statChips(it.st, shared)}
         {((inv.affs && inv.affs.length > 0) || Object.keys(inv.bon).length > 0 || inv.mpreg) && <div style={{ fontSize: 11, color: t.text.tertiary }}>Affixes (rolled at iLvl {inv.ilvl ?? "?"}):</div>}
-        {affixChips(inv, g.floor)}
-        {inv.mpreg && !(inv.affs && inv.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div style={{ fontSize: 13, color: t.text.success, fontWeight: 600 }}>✦ +{inv.mpreg}/s Mana regen</div>}
+        {affixChips(inv, g.floor, shared)}
+        {itemMpreg(inv) !== 0 && !(inv.affs && inv.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div data-stat="mpreg" style={{ fontSize: 13, color: t.text.success, fontWeight: 600 }}>✦ +{itemMpreg(inv)}/s Mana regen{sameMark("mpreg", shared)}</div>}
         {it.set && setLines(it.set, sc)}
         {it.desc && <div style={{ fontSize: 13, color: it.cursed ? t.text.danger : it.r === 4 ? RCOL[4] : t.text.primary }}>{it.sp ? "★ " : ""}{it.desc}</div>}
         {it.cls && !it.cls.includes(g.cls) && <div style={{ fontSize: 12, color: t.text.danger }}>Your class can't equip this (sell it).</div>}
+        {compareEl}
       </div>
     );
   };
@@ -7115,6 +7240,7 @@ export default function DungeonOfEchoes() {
   // ---------- INVENTORY ----------
   if (g.screen === "inventory") {
     const sc = setCounts(g);
+    const invRoot: CSSProperties = { ...root, overflowY: "auto", maxHeight: "100dvh" };
     const toggleSel = (uid: number): void => run((gg: Game) => { gg.sel = gg.sel === uid ? -1 : uid; });
     const itemPanel = (sel: Inv, from: "inv" | "eq", slot?: GearSlot): ReactNode => {
       const selInv = from === "inv" ? sel : undefined;
@@ -7131,18 +7257,14 @@ export default function DungeonOfEchoes() {
               const it = gg.inv.find((x: Inv) => x.uid === sel.uid) ?? GEAR.map((k: GearSlot) => gg.eq[k]).find((x: Inv | undefined) => x && x.uid === sel.uid);
               if (it) it.pin = !it.pin;
             }), { grow: true, key: "pin" })}
-            {selInv && canSalvage(g, selInv) && btn(`Break down · ${dustOf(selInv)} Dust`, () => setSalvAsk({ title: `Break down ${instName(selInv)}?`, body: `This yields ${dustOf(selInv)} Dust (1 Dust = 1 gold). Locked, cursed-bound, and equipped items cannot be salvaged.`, uids: [selInv.uid] }), { grow: true, key: "salv" })}
+            {selInv && canSalvage(g, selInv) && btn(`Break down · ${dustOf(selInv)} Dust`, () => setSalvAsk({ title: `Break down ${instName(selInv)}?`, body: `This yields ${dustOf(selInv)} Dust. Sacrifice Dust for gold at 1:1 in the Dust row below. Locked, curse-bound, and equipped items cannot be salvaged.`, uids: [selInv.uid] }), { grow: true, key: "salv" })}
             {selInv && btn("Drop", () => run((gg: Game) => { gg.inv = gg.inv.filter((x: Inv) => x.uid !== selInv.uid); log(gg, `Dropped ${instName(selInv)}.`); gg.sel = -1; }), { tone: "danger", grow: true })}
           </div>
-          {selInv && IT[selInv.id].slot !== "consumable" && (() => {
-            const cur = g.eq[IT[selInv.id].slot as GearSlot];
-            return cur ? <div style={small}>Currently worn: {instName(cur)}{locked(cur) ? " (cursed, locked)" : ""}</div> : null;
-          })()}
         </div>
       );
     };
     return (
-      <div style={root}>{style}
+      <div data-inv="1" style={invRoot}>{style}
         {hud}
         <div style={row}>
           <div style={{ ...titleSx, fontSize: 20, flex: "1 1 auto" }}>Inventory · <span data-player-name="1">{playerName(g)}</span></div>
@@ -7187,17 +7309,6 @@ export default function DungeonOfEchoes() {
         </div>
         </div><div style={colS}>
         <div style={head}>BAG ({g.inv.length}/{MAXINV})</div>
-        <div style={{ ...card, display: "flex", flexDirection: "column", gap: 6, marginBottom: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 13 }}>✨ Break down into Dust</div>
-          <div style={{ fontSize: 12, color: t.text.secondary }}>1 Dust = 1 gold. Yield is a flat rarity ladder (Common 1 … Legendary 6; Set 5). Cursed items use their rarity. Locked, curse-bound, equipped, unidentified, and consumable items are skipped.</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-            {DUST_TIERS.map((tier: DustTier) => {
-              const items = g.inv.filter((it: Inv) => canSalvage(g, it) && tier.test(IT[it.id]));
-              const dust = items.reduce((n: number, it: Inv) => n + dustOf(it), 0);
-              return btn(`All ${tier.name} (${items.length} · ${dust} Dust)`, () => setSalvAsk({ title: `Break down all ${tier.name}?`, body: `${items.length} item${items.length === 1 ? "" : "s"} will become ${dust} Dust (1 Dust = 1 gold). Locked, curse-bound, and equipped items are not included.`, uids: items.map((it: Inv) => it.uid) }), { disabled: items.length === 0, key: "d" + tier.key });
-            })}
-          </div>
-        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: 6 }}>
           {g.inv.map((it: Inv) => {
             const tt = IT[it.id]; const on = g.sel === it.uid;
@@ -7213,6 +7324,38 @@ export default function DungeonOfEchoes() {
           })}
         </div>
         {notes(g, true)}
+        {(() => {
+          const held = dustHeld(g);
+          const cap = Math.max(1, held);
+          const amt = Math.min(cap, Math.max(1, dustAmt));
+          const chipSx: CSSProperties = { padding: "2px 7px", minHeight: 26, minWidth: 0, borderRadius: 999, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 11, fontWeight: 700, lineHeight: 1.1, cursor: "pointer" };
+          return (
+            <div data-dust="1" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "6px 8px", borderRadius: 10, border: `1px solid ${t.border.default}`, background: t.bg.elevated }}>
+              <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, minHeight: 28 }}>
+                <span data-dust-count={held} style={{ fontSize: 13, fontWeight: 800, whiteSpace: "nowrap" }}>✨ {held} Dust</span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 2 }}>
+                  <button type="button" data-dust-dec="1" disabled={amt <= 1} onClick={() => setDustAmt(Math.max(1, amt - 1))} style={{ ...chipSx, width: 26, padding: 0, opacity: amt <= 1 ? 0.4 : 1, cursor: amt <= 1 ? "default" : "pointer" }}>−</button>
+                  <span data-dust-amt={amt} style={{ minWidth: 16, textAlign: "center", fontSize: 12, fontWeight: 700 }}>{amt}</span>
+                  <button type="button" data-dust-inc="1" disabled={amt >= cap || held <= 0} onClick={() => setDustAmt(Math.min(cap, amt + 1))} style={{ ...chipSx, width: 26, padding: 0, opacity: (amt >= cap || held <= 0) ? 0.4 : 1, cursor: (amt >= cap || held <= 0) ? "default" : "pointer" }}>+</button>
+                </span>
+                <button type="button" data-sacrifice="1" disabled={held <= 0} onClick={() => run((gg: Game) => { const n = sacrificeDust(gg, Math.min(dustHeld(gg), Math.max(1, dustAmt))); if (n > 0) setDustAmt(1); })} style={{ ...chipSx, background: held <= 0 ? t.fill.secondary : t.fill.accentSubtle, opacity: held <= 0 ? 0.45 : 1, cursor: held <= 0 ? "default" : "pointer" }}>Sacrifice Dust → Gold</button>
+                <button type="button" data-sacrifice-all="1" disabled={held <= 0} onClick={() => run((gg: Game) => { sacrificeDust(gg, dustHeld(gg)); setDustAmt(1); })} style={{ ...chipSx, opacity: held <= 0 ? 0.45 : 1, cursor: held <= 0 ? "default" : "pointer" }}>All</button>
+              </div>
+              <div data-dust-tiers="1" style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {DUST_TIERS.map((tier: DustTier) => {
+                  const items = g.inv.filter((it: Inv) => canSalvage(g, it) && tier.test(IT[it.id]));
+                  const dust = items.reduce((n: number, it: Inv) => n + dustOf(it), 0);
+                  const off = items.length === 0;
+                  return (
+                    <button key={tier.key} type="button" data-dust-tier={tier.key} disabled={off} onClick={() => setSalvAsk({ title: `Break down all ${tier.name}?`, body: `${items.length} item${items.length === 1 ? "" : "s"} will become ${dust} Dust. Sacrifice Dust for gold at 1:1 in the row above. Locked, curse-bound, and equipped items are not included.`, uids: items.map((it: Inv) => it.uid) })} style={{ ...chipSx, opacity: off ? 0.4 : 1, cursor: off ? "default" : "pointer" }}>
+                      All {tier.name}{items.length ? ` · ${items.length}` : ""}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
         </div></div>
       </div>
     );

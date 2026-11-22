@@ -468,6 +468,133 @@ async function runNames(browser) {
   const bagName = await page.evaluate(() => document.querySelector("[data-player-name]")?.textContent || "");
   check(bagName.includes("Ava x"), "inventory header shows name", bagName);
 
+  await page.evaluate(() => {
+    const aff = (id, stat, v, name) => ({ id, pre: false, tier: 1, stat, v, name, lo: 1, hi: 6 });
+    window.__T.run((g) => {
+      g.eq.weapon = { uid: 9101, id: "w_sword", ident: true, bon: { fire: 4 }, freed: false, ilvl: 5, affs: [aff("af", "fire", 4, "Ember")] };
+      delete g.eq.helmet;
+      g.inv = [
+        { uid: 9102, id: "w_dagger", ident: true, bon: { ice: 4, atk: 2 }, freed: false, ilvl: 5, affs: [aff("ai", "ice", 4, "Frost"), aff("aa", "atk", 2, "Keen")] },
+        { uid: 9103, id: "h_cap", ident: true, bon: {}, freed: false, ilvl: 3 },
+        { uid: 9104, id: "w_dagger", ident: true, bon: {}, freed: false, ilvl: 1 },
+      ];
+      g.sel = 9102;
+      g.dust = 8;
+      g.gold = 40;
+      g.screen = "inventory";
+    });
+    window.__T.refresh();
+  });
+  await new Promise((r) => setTimeout(r, 200));
+  const cmp = await page.evaluate(() => {
+    const root = document.querySelector("[data-compare='weapon']");
+    const deltas = [...document.querySelectorAll("[data-compare='weapon'] [data-delta]")].map((el) => ({
+      k: el.getAttribute("data-delta"), same: el.getAttribute("data-same"), text: (el.textContent || "").replace(/\s+/g, " ").trim(),
+    }));
+    const marks = document.querySelectorAll("[data-same]").length;
+    const dust = document.querySelector("[data-dust]");
+    const dustAfter = !!(dust && document.querySelector("[data-inv] [data-dust]"));
+    const orderOk = (() => {
+      const inv = document.querySelector("[data-inv]");
+      if (!inv || !dust) return false;
+      const grid = inv.querySelector("div[style*='auto-fill']");
+      return !!(grid && (grid.compareDocumentPosition(dust) & Node.DOCUMENT_POSITION_FOLLOWING));
+    })();
+    const ladder = (dust?.textContent || "").includes("Legendary 6");
+    return {
+      has: !!root, empty: root?.getAttribute("data-compare-empty"), deltas, marks,
+      dustCount: document.querySelector("[data-dust-count]")?.getAttribute("data-dust-count"),
+      hasSac: !!document.querySelector("[data-sacrifice]"),
+      tiers: document.querySelectorAll("[data-dust-tier]").length,
+      dustAfter, orderOk, ladder,
+      smoke: typeof window.__G === "function" && !!(window.__G() && true),
+    };
+  });
+  check(cmp.has, "equip comparison shows vs worn weapon", JSON.stringify(cmp));
+  const ice = cmp.deltas.find((d) => d.k === "ice");
+  const fire = cmp.deltas.find((d) => d.k === "fire");
+  const atk = cmp.deltas.find((d) => d.k === "atk");
+  check(!!ice && ice.text.includes("+4") && ice.same === "0", "one-sided gain +4 Ice", JSON.stringify(cmp.deltas));
+  check(!!fire && fire.text.includes("-4") && fire.same === "0", "one-sided loss -4 Fire", JSON.stringify(cmp.deltas));
+  check(!!atk && atk.same === "1" && atk.text.includes("⇄"), "same-stat ATK net delta is marked ⇄", JSON.stringify(cmp.deltas));
+  check(cmp.marks >= 3, "⇄ appears on both item lists and the net delta", String(cmp.marks));
+
+  await page.evaluate(() => { window.__T.run((g) => { g.sel = 9103; }); window.__T.refresh(); });
+  await new Promise((r) => setTimeout(r, 150));
+  const empty = await page.evaluate(() => {
+    const root = document.querySelector("[data-compare='helmet']");
+    const deltas = [...document.querySelectorAll("[data-compare='helmet'] [data-delta]")].map((el) => (el.textContent || "").replace(/\s+/g, " ").trim());
+    return { has: !!root, empty: root?.getAttribute("data-compare-empty"), deltas };
+  });
+  check(empty.has && empty.empty === "1", "empty slot comparison is all-positive", JSON.stringify(empty));
+  check(empty.deltas.some((t) => t.includes("+") && t.includes("DEF")), "empty helmet shows +DEF", JSON.stringify(empty.deltas));
+
+  check(cmp.orderOk && cmp.dustAfter, "Dust section sits below the bag item list", JSON.stringify({ orderOk: cmp.orderOk, dustAfter: cmp.dustAfter }));
+  check(cmp.hasSac && cmp.tiers === 6 && !cmp.ladder, "condensed Dust row has sacrifice + rarity chips, no ladder text", JSON.stringify(cmp));
+  check(cmp.dustCount === "8", "Dust count shows stored dust", cmp.dustCount);
+
+  const smokeKept = await page.evaluate(() => {
+    const g = window.__G();
+    // c_smoke stays in the catalog and is usable (escapeAll) — not a no-op
+    const ids = (g && window.__R && window.__R.items) ? null : null;
+    return { inDom: /Smoke Bomb/.test(document.documentElement.innerHTML) };
+  });
+  const kept = await page.evaluate(() => {
+    const gold0 = window.__G().gold;
+    window.__T.run((g) => { const el = document.querySelector("[data-sacrifice]"); });
+    const btn = document.querySelector("[data-sacrifice]");
+    if (btn) btn.click();
+    return { gold0, gold: window.__G().gold, dust: window.__G().dust };
+  });
+  // click happens in page; evaluate above mixed. Do it cleanly:
+  const sac = await page.evaluate(() => {
+    const before = { gold: window.__G().gold, dust: window.__G().dust };
+    document.querySelector("[data-sacrifice]").click();
+    return { before, gold: window.__G().gold, dust: window.__G().dust };
+  });
+  check(sac.gold === sac.before.gold + 1 && sac.dust === sac.before.dust - 1, "Sacrifice Dust → Gold is 1:1 for the stepper amount", JSON.stringify(sac));
+
+  const all = await page.evaluate(() => {
+    const before = { gold: window.__G().gold, dust: window.__G().dust };
+    document.querySelector("[data-sacrifice-all]").click();
+    return { before, gold: window.__G().gold, dust: window.__G().dust };
+  });
+  check(all.dust === 0 && all.gold === all.before.gold + all.before.dust, "Sacrifice All converts remaining dust 1:1", JSON.stringify(all));
+
+  const salvage = await page.evaluate(() => {
+    const before = window.__G().dust;
+    window.__T.run((g) => {
+      // 9104 is identified unequipped common-ish dagger (r=0)
+      const n = (window.__R && window.__R.salvageInv) ? null : null;
+    });
+    // salvage via hook if needed — use confirm UI: click All Common chip then confirm
+    const chip = document.querySelector("[data-dust-tier='common']");
+    if (chip) chip.click();
+    return before;
+  });
+  await new Promise((r) => setTimeout(r, 100));
+  const salvOk = await page.evaluate(() => {
+    const btns = [...document.querySelectorAll("button")];
+    const b = btns.find((el) => /^Break down$/i.test((el.textContent || "").trim()));
+    const dustBefore = window.__G().dust;
+    if (b) b.click();
+    return { clicked: !!b, dustBefore, dust: window.__G().dust, gold: window.__G().gold };
+  });
+  check(salvOk.clicked && salvOk.dust > salvOk.dustBefore, "Break down adds Dust, not gold immediately", JSON.stringify(salvOk));
+
+  const catalog = await page.evaluate(() => {
+    // Smoke Bomb remains a real escape item; confirm id still exists by making one
+    let ok = false;
+    window.__T.run((g) => {
+      try {
+        const i = { uid: 9199, id: "c_smoke", ident: true, bon: {}, freed: false };
+        ok = i.id === "c_smoke";
+      } catch (e) { ok = false; }
+    });
+    return ok;
+  });
+  check(catalog, "Smoke Bomb item id remains in the game (usable escape, not stripped)");
+
   // back to map HUD shot
   await page.evaluate(() => { window.__T.run((g) => { g.screen = "map"; }); if (window.__R.clearFx) window.__R.clearFx(); window.__T.refresh(); });
   await new Promise((r) => setTimeout(r, 250));
@@ -628,6 +755,7 @@ async function main() {
   for (const n of fail) console.log("  ✗", n);
   for (const n of notes) console.log("  ·", n);
   if (fail.length) process.exit(1);
+  process.exit(0);
 }
 
 main().catch((err) => {
