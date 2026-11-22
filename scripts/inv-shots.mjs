@@ -55,6 +55,9 @@ async function setupBag(page, { sel, dust, extra = 0, shop = false } = {}) {
         { uid: 9102, id: "w_dagger", ident: true, bon: { ice: 4, atk: 2 }, freed: false, ilvl: 5, affs: [AFF("ai", "ice", 4, "Frost"), AFF("aa", "atk", 2, "Keen")] },
         { uid: 9103, id: "h_cap", ident: true, bon: {}, freed: false, ilvl: 3 },
         { uid: 9104, id: "w_dagger", ident: true, bon: {}, freed: false, ilvl: 1 },
+        { uid: 9105, id: "a_chain", ident: true, bon: {}, freed: false, ilvl: 2 },
+        { uid: 9106, id: "r_frost", ident: true, bon: {}, freed: false, ilvl: 4 },
+        { uid: 9107, id: "c_mp1", ident: true, bon: {}, freed: false, ilvl: 1 },
       ];
       for (let i = 0; i < extra; i++) bag.push({ uid: 9200 + i, id: "c_mp1", ident: true, bon: {}, freed: false, ilvl: 1 });
       g.inv = bag;
@@ -86,7 +89,7 @@ async function main() {
     });
     const page = await browser.newPage();
     await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
-    await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle0", timeout: 30000 });
+    await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForFunction(() => typeof window.__T === "object" && window.__T.boot, { timeout: 15000 });
 
     await setupBag(page, { sel: 9102, dust: 12, extra: 0 });
@@ -95,6 +98,11 @@ async function main() {
     const pathCmp = path.join(out, "ui-compare-mobile.png");
     await page.screenshot({ path: pathCmp, fullPage: false });
     console.log("wrote", pathCmp);
+    const pathPlain = path.join(out, "ui-plain-stats-mobile.png");
+    await page.screenshot({ path: pathPlain, fullPage: false });
+    const pathCmpPlain = path.join(out, "ui-compare-plain-mobile.png");
+    await page.screenshot({ path: pathCmpPlain, fullPage: false });
+    console.log("wrote", pathPlain, pathCmpPlain);
 
     await setupBag(page, { sel: 9103, dust: 12, extra: 0 });
     await page.evaluate(() => document.querySelector("[data-compare='helmet']")?.scrollIntoView({ block: "center" }));
@@ -115,6 +123,9 @@ async function main() {
     const pathTop = path.join(out, "ui-bag-top-mobile.png");
     await page.screenshot({ path: pathTop, fullPage: false });
     console.log("wrote", pathTop);
+    const pathBadges = path.join(out, "ui-bag-badges-mobile.png");
+    await page.screenshot({ path: pathBadges, fullPage: false });
+    console.log("wrote", pathBadges);
 
     await page.evaluate(() => {
       const el = document.querySelector("[data-dust]");

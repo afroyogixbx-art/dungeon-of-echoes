@@ -62,9 +62,16 @@ const POTION_ID = "c_hp1", POTION_HEAL_PCT = 35, POTION_DROP_CHANCE = 0.10, POTI
 const RAR = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
 const RCOL = ["#8a8680", "#5a7a58", "#5a6e88", "#6a5480", "#b8943a"];
 const GEAR: GearSlot[] = ["weapon", "armor", "helmet", "ring", "amulet"];
-const SLOT_ICON: Record<GearSlot, string> = { weapon: "⚔️", armor: "🛡️", helmet: "⛑️", ring: "💍", amulet: "📿" };
+const SLOT_ICON: Record<GearSlot, string> = { weapon: "⚔️", armor: "🦺", helmet: "⛑️", ring: "💍", amulet: "📿" };
 const SLOT_NAME: Record<Slot, string> = { weapon: "Weapon", armor: "Armor", helmet: "Helmet", ring: "Ring", amulet: "Amulet", consumable: "Consumable" };
-const STAT_LABEL: Record<StatKey, string> = { hp: "HP", mp: "MP", atk: "ATK", def: "DEF", crit: "Crit%", dodge: "Dodge%", ls: "Lifesteal%", fire: "Fire", ice: "Ice", holy: "Holy", poison: "Poison", th: "Thorns%" };
+const STAT_LABEL: Record<StatKey, string> = { hp: "HP", mp: "Mana", atk: "Attack", def: "Defense", crit: "Critical Chance", dodge: "Dodge", ls: "Life Steal", fire: "Fire Damage", ice: "Ice Damage", holy: "Holy Damage", poison: "Poison Damage", th: "Thorns" };
+const PCT_STATS: Set<StatKey> = new Set(["crit", "dodge", "ls", "th"]);
+function formatStat(stat: StatKey | "mpreg", v: number, signed = true): string {
+  const sign = signed ? (v > 0 ? "+" : "") : "";
+  if (stat === "mpreg") return `${sign}${v}/s Mana Regeneration`;
+  const pct = PCT_STATS.has(stat);
+  return `${sign}${v}${pct ? "%" : ""} ${STAT_LABEL[stat]}`;
+}
 const STAT_KEYS: StatKey[] = ["hp", "mp", "atk", "def", "crit", "dodge", "ls", "fire", "ice", "holy", "poison", "th"];
 const HIDE = [0.1, 0.2, 0.4, 0.6, 0.85];
 const IDFEE = [10, 25, 60, 120, 250];
@@ -99,13 +106,13 @@ const ITEMS: ItemT[] = [
   I("a_tunic", "Padded Tunic", "👕", "armor", 0, 1, 20, { def: 3, hp: 10 }),
   I("a_robe", "Silk Robe", "👘", "armor", 0, 1, 20, { def: 2, mp: 20 }, { cls: MC }),
   I("a_leather", "Leather Jerkin", "🦺", "armor", 1, 1, 50, { def: 5, dodge: 3 }),
-  I("a_chain", "Chainmail", "🛡️", "armor", 1, 1, 60, { def: 8 }),
+  I("a_chain", "Chainmail", "🦺", "armor", 1, 1, 60, { def: 8 }),
   I("a_cloak", "Shadowweave Cloak", "🧥", "armor", 2, 2, 140, { def: 7, dodge: 8, crit: 4 }),
-  I("a_plate", "Knight's Plate", "🛡️", "armor", 2, 2, 150, { def: 14, hp: 30 }, { cls: ["warrior", "cleric"] }),
+  I("a_plate", "Knight's Plate", "🦺", "armor", 2, 2, 150, { def: 14, hp: 30 }, { cls: ["warrior", "cleric"] }),
   I("a_drake", "Drakescale Mail", "🐲", "armor", 3, 3, 330, { def: 16, hp: 40, fire: 4 }),
-  I("a_aegis", "Aegis of Dawn", "☀️", "armor", 4, 4, 800, { def: 22, hp: 60 }, { sp: "holyWard", desc: "Take 12% less damage." }),
-  I("a_thorn", "Bulwark of Thorns", "🌵", "armor", 4, 4, 800, { def: 20, hp: 50 }, { cls: ["warrior"], sp: "thorns", desc: "Reflect 25% of damage taken." }),
-  I("a_dragon", "Dragonheart Plate", "🐉", "armor", 4, 4, 850, { def: 24, hp: 50, fire: 6 }, { sp: "dotImmune", desc: "Immune to poison and burns." }),
+  I("a_aegis", "Aegis of Dawn", "🦺", "armor", 4, 4, 800, { def: 22, hp: 60 }, { sp: "holyWard", desc: "Take 12% less damage." }),
+  I("a_thorn", "Bulwark of Thorns", "🦺", "armor", 4, 4, 800, { def: 20, hp: 50 }, { cls: ["warrior"], sp: "thorns", desc: "Reflect 25% of damage taken." }),
+  I("a_dragon", "Dragonheart Plate", "🦺", "armor", 4, 4, 850, { def: 24, hp: 50, fire: 6 }, { sp: "dotImmune", desc: "Immune to poison and burns." }),
   I("h_cap", "Leather Cap", "🧢", "helmet", 0, 1, 15, { def: 2 }),
   I("h_hood", "Thief's Hood", "🎩", "helmet", 1, 1, 50, { dodge: 5, crit: 3 }),
   I("h_helm", "Iron Helm", "⛑️", "helmet", 1, 1, 50, { def: 4, hp: 15 }),
@@ -134,7 +141,7 @@ const ITEMS: ItemT[] = [
   I("m_heart", "Heart of the Mountain", "💎", "amulet", 3, 3, 300, { hp: 60, def: 5 }),
   I("m_phoenix", "Phoenix Amulet", "🪶", "amulet", 4, 4, 800, { hp: 40 }, { sp: "phoenix", desc: "Once per floor, revive at 40% HP." }),
   I("s_iron_h", "Ironclad Helm", "⛑️", "helmet", 2, 2, 150, { def: 5, hp: 20 }, { set: "iron" }),
-  I("s_iron_a", "Ironclad Plate", "🛡️", "armor", 2, 2, 180, { def: 12, hp: 25 }, { set: "iron" }),
+  I("s_iron_a", "Ironclad Plate", "🦺", "armor", 2, 2, 180, { def: 12, hp: 25 }, { set: "iron" }),
   I("s_iron_r", "Ironclad Signet", "💍", "ring", 2, 2, 150, { def: 4, hp: 15 }, { set: "iron" }),
   I("s_shad_h", "Shadowstalker Hood", "🎭", "helmet", 2, 2, 150, { dodge: 5, crit: 4 }, { set: "shadow" }),
   I("s_shad_a", "Shadowstalker Cloak", "🧥", "armor", 2, 2, 170, { def: 6, dodge: 6 }, { set: "shadow" }),
@@ -148,12 +155,12 @@ const ITEMS: ItemT[] = [
   I("x_mad", "Crown of Madness", "👑", "helmet", 3, 2, 350, { atk: 14, crit: 20 }, { cursed: true, curse: "c_fragile", desc: "Curse: take 40% more damage." }),
   I("x_leech", "Ring of the Leech King", "💍", "ring", 3, 2, 350, { hp: 80, def: 8 }, { cursed: true, curse: "c_halfheal", desc: "Curse: all healing halved." }),
   I("x_void", "Voidheart Amulet", "🖤", "amulet", 4, 3, 500, { mp: 80, fire: 10, ice: 10 }, { cursed: true, curse: "c_nomana", desc: "Curse: no MP regeneration." }),
-  I("x_greed", "Gambler's Mail", "🎰", "armor", 3, 2, 350, { def: 25, dodge: 10, atk: -8 }, { cursed: true, curse: "c_greed", desc: "Curse: gold gains halved." }),
+  I("x_greed", "Gambler's Mail", "🦺", "armor", 3, 2, 350, { def: 25, dodge: 10, atk: -8 }, { cursed: true, curse: "c_greed", desc: "Curse: gold gains halved." }),
   // ---- v8: more gear (affix-friendly) ----
   I("w_rapier", "Duelist's Rapier", "🤺", "weapon", 1, 1, 60, { atk: 6, crit: 6, dodge: 2 }),
   I("w_spear", "Hunter's Spear", "🔱", "weapon", 1, 1, 60, { atk: 7, crit: 3 }, { cls: ["warrior", "ranger", "rogue"] }),
   I("w_reaper", "Gravereaper Scythe", "⚰️", "weapon", 3, 3, 330, { atk: 17, ls: 6 }, { cls: ["warrior", "rogue"] }),
-  I("a_brig", "Spiked Brigandine", "🦔", "armor", 2, 2, 150, { def: 9, hp: 20, th: 10 }),
+  I("a_brig", "Spiked Brigandine", "🦺", "armor", 2, 2, 150, { def: 9, hp: 20, th: 10 }),
   I("h_visor", "Ember Visor", "🥽", "helmet", 2, 2, 140, { def: 4, fire: 4, crit: 3 }),
   I("r_briar", "Briar Band", "🌿", "ring", 1, 1, 55, { th: 8, def: 2 }),
   I("r_bloodst", "Bloodstone Ring", "🔴", "ring", 2, 2, 140, { ls: 4, hp: 20 }),
@@ -161,7 +168,7 @@ const ITEMS: ItemT[] = [
   I("m_pack", "Collar of the Pack", "🐾", "amulet", 2, 2, 130, { atk: 3, hp: 15 }, { sp: "petBoost", desc: "Your pets deal +30% damage and have +30% HP." }),
   // ---- v8: class sets (4 pieces, 2/3/4-piece bonuses) ----
   I("s_war_h", "Warlord's Greathelm", "🪖", "helmet", 2, 2, 160, { def: 6, hp: 25 }, { set: "warlord", cls: ["warrior"] }),
-  I("s_war_a", "Warlord's Bulwark", "🛡️", "armor", 3, 3, 320, { def: 15, hp: 40 }, { set: "warlord", cls: ["warrior"] }),
+  I("s_war_a", "Warlord's Bulwark", "🦺", "armor", 3, 3, 320, { def: 15, hp: 40 }, { set: "warlord", cls: ["warrior"] }),
   I("s_war_r", "Warlord's Seal", "💍", "ring", 2, 2, 150, { atk: 4, th: 6 }, { set: "warlord", cls: ["warrior"] }),
   I("s_war_m", "Warlord's Torc", "📿", "amulet", 3, 3, 300, { hp: 40, atk: 4 }, { set: "warlord", cls: ["warrior"] }),
   I("s_sto_w", "Stormcaller's Conduit", "⚡", "weapon", 3, 3, 320, { atk: 13, mp: 25, ice: 4 }, { set: "storm", cls: ["mage"] }),
@@ -182,7 +189,7 @@ const ITEMS: ItemT[] = [
   I("s_bst_m", "Beastmaster's Fang Necklace", "🦷", "amulet", 3, 3, 300, { atk: 5, hp: 30 }, { set: "beast", cls: ["ranger"] }),
 
   I("s_emb_w", "Emberforged Blade", "⚔️", "weapon", 2, 2, 160, { atk: 11, fire: 5 }, { set: "ember", ff: 4 }),
-  I("s_emb_a", "Emberforged Mail", "🛡️", "armor", 2, 2, 170, { def: 10, hp: 20, fire: 2 }, { set: "ember", ff: 4 }),
+  I("s_emb_a", "Emberforged Mail", "🦺", "armor", 2, 2, 170, { def: 10, hp: 20, fire: 2 }, { set: "ember", ff: 4 }),
   I("s_emb_h", "Emberforged Casque", "⛑️", "helmet", 2, 2, 150, { def: 5, hp: 15 }, { set: "ember", ff: 4 }),
   I("s_emb_r", "Emberforged Signet", "💍", "ring", 2, 2, 150, { atk: 3, fire: 4 }, { set: "ember", ff: 4 }),
   I("s_dsk_w", "Duskward Shortsword", "🗡️", "weapon", 3, 4, 300, { atk: 15, dodge: 5 }, { set: "dusk", ff: 8 }),
@@ -190,11 +197,11 @@ const ITEMS: ItemT[] = [
   I("s_dsk_h", "Duskward Hood", "🎭", "helmet", 3, 4, 280, { dodge: 5, crit: 4 }, { set: "dusk", ff: 8 }),
   I("s_dsk_m", "Duskward Talisman", "📿", "amulet", 3, 4, 280, { hp: 25, dodge: 4 }, { set: "dusk", ff: 8 }),
   I("s_bld_w", "Bloodmoon Cleaver", "🪓", "weapon", 3, 4, 320, { atk: 16, ls: 4 }, { set: "blood", ff: 8 }),
-  I("s_bld_a", "Bloodmoon Cuirass", "🛡️", "armor", 3, 4, 320, { def: 14, hp: 30 }, { set: "blood", ff: 8 }),
+  I("s_bld_a", "Bloodmoon Cuirass", "🦺", "armor", 3, 4, 320, { def: 14, hp: 30 }, { set: "blood", ff: 8 }),
   I("s_bld_r", "Bloodmoon Band", "💍", "ring", 3, 4, 300, { ls: 5, atk: 4 }, { set: "blood", ff: 8 }),
   I("s_bld_m", "Bloodmoon Charm", "📿", "amulet", 3, 4, 300, { hp: 35, crit: 4 }, { set: "blood", ff: 8 }),
   I("s_ttn_w", "Titanbone Greatblade", "⚔️", "weapon", 3, 6, 360, { atk: 19, def: 3 }, { set: "titan", ff: 12 }),
-  I("s_ttn_a", "Titanbone Plate", "🛡️", "armor", 3, 6, 360, { def: 18, hp: 45 }, { set: "titan", ff: 12 }),
+  I("s_ttn_a", "Titanbone Plate", "🦺", "armor", 3, 6, 360, { def: 18, hp: 45 }, { set: "titan", ff: 12 }),
   I("s_ttn_h", "Titanbone Helm", "⛑️", "helmet", 3, 6, 330, { def: 8, hp: 30 }, { set: "titan", ff: 12 }),
   I("s_ttn_m", "Titanbone Idol", "💎", "amulet", 3, 6, 330, { hp: 40, atk: 6 }, { set: "titan", ff: 12 }),
   I("s_ber_w", "Berserker's Wrathblade", "⚔️", "weapon", 3, 4, 320, { atk: 16, crit: 5 }, { set: "berserk", cls: ["warrior"], ff: 8 }),
@@ -206,7 +213,7 @@ const ITEMS: ItemT[] = [
   I("s_glm_h", "Gloamrunner's Veil", "🎭", "helmet", 3, 4, 280, { dodge: 6, crit: 5 }, { set: "gloam", cls: ["rogue"], ff: 8 }),
   I("s_glm_m", "Gloamrunner's Charm", "📿", "amulet", 3, 4, 280, { atk: 4, dodge: 4 }, { set: "gloam", cls: ["rogue"], ff: 8 }),
   I("s_oath_w", "Oathkeeper's Maul", "🔨", "weapon", 3, 4, 320, { atk: 15, holy: 6 }, { set: "oath", cls: ["cleric"], ff: 8 }),
-  I("s_oath_a", "Oathkeeper's Plate", "🛡️", "armor", 3, 4, 320, { def: 13, hp: 35, holy: 3 }, { set: "oath", cls: ["cleric"], ff: 8 }),
+  I("s_oath_a", "Oathkeeper's Plate", "🦺", "armor", 3, 4, 320, { def: 13, hp: 35, holy: 3 }, { set: "oath", cls: ["cleric"], ff: 8 }),
   I("s_oath_h", "Oathkeeper's Helm", "⛑️", "helmet", 3, 4, 280, { def: 6, hp: 20, mp: 15 }, { set: "oath", cls: ["cleric"], ff: 8 }),
   I("s_oath_m", "Oathkeeper's Relic", "📿", "amulet", 3, 4, 300, { mp: 25, holy: 5, hp: 20 }, { set: "oath", cls: ["cleric"], ff: 8 }),
   I("s_wnd_w", "Windstrider Longbow", "🏹", "weapon", 3, 4, 320, { atk: 16, crit: 8 }, { set: "wind", cls: ["ranger"], ff: 8 }),
@@ -222,7 +229,6 @@ const ITEMS: ItemT[] = [
   I("c_anti", "Antidote", "🌿", "consumable", 0, 1, 12, undefined, { fx: "cleanse", pw: 15, desc: "Cure poison/burn, heal 15%." }),
   I("c_bomb", "Fire Bomb", "💣", "consumable", 1, 1, 40, undefined, { fx: "bomb", desc: "Combat: fire damage to ALL enemies + burn." }),
   I("c_frost", "Frost Grenade", "🧊", "consumable", 2, 2, 70, undefined, { fx: "frost", desc: "Combat: ice damage to ALL nearby foes and freeze them for 2.5 s." }),
-  I("c_smoke", "Smoke Bomb", "💨", "consumable", 1, 1, 30, undefined, { fx: "smoke", desc: "Combat: instantly break off the fight, foes are blinded (not bosses)." }),
   I("c_fury", "Scroll of Fury", "📜", "consumable", 1, 1, 40, undefined, { fx: "fury", desc: "+50% ATK for 20 s. Reading another refreshes the duration." }),
   I("c_iron", "Scroll of Ironskin", "📃", "consumable", 1, 1, 40, undefined, { fx: "iron", desc: "+50% DEF for 25 s. Reading another refreshes the duration." }),
   I("c_map", "Scroll of Revealing", "🗺️", "consumable", 0, 1, 20, undefined, { fx: "reveal", desc: "Map: reveal the whole floor." }),
@@ -232,7 +238,6 @@ const ITEMS: ItemT[] = [
   I("c_might", "Elixir of Might", "🍺", "consumable", 3, 2, 200, undefined, { fx: "eatk", desc: "Permanently +3 ATK." }),
   I("c_life", "Elixir of Vitality", "🍯", "consumable", 3, 2, 200, undefined, { fx: "ehp", desc: "Permanently +25 max HP." }),
   I("c_tome", "Tome of Insight", "📕", "consumable", 3, 3, 250, undefined, { fx: "tome", desc: "Instantly gain a level." }),
-  I("c_storm", "Bottled Storm", "🌪️", "consumable", 1, 1, 45, undefined, { fx: "storm", desc: "Combat: lightning strikes the 3 nearest foes and stuns them." }),
   I("c_treat", "Pet Treat", "🦴", "consumable", 0, 1, 15, undefined, { fx: "treat", desc: "Revive and fully heal your pets." }),
   I("c_pet_wolf", "Wolf Pup Whistle", "🐺", "consumable", 1, 1, 70, undefined, { fx: "pet", pet: "wolf", desc: "Gain a Wolf companion that fights beside you (replaces your current charm pet)." }),
   I("c_pet_owl", "Spirit Owl Feather", "🦉", "consumable", 1, 1, 70, undefined, { fx: "pet", pet: "owl", desc: "Gain a Spirit Owl: quick strikes that can stun." }),
@@ -262,15 +267,15 @@ const ITEMS: ItemT[] = [
   I("w_ashstaff", "Ashen Staff", "🪄", "weapon", 3, 6, 500, { atk: 18, mp: 55, fire: 10 }, { cls: MC }),
   I("w_endblade", "Echoing Longsword", "🗡️", "weapon", 3, 7, 560, { atk: 26, crit: 8 }),
   I("a_hide", "Hide Jerkin", "👕", "armor", 0, 1, 18, { def: 4, hp: 8 }),
-  I("a_scale", "Scale Vest", "🛡️", "armor", 1, 1, 55, { def: 7, hp: 12 }),
+  I("a_scale", "Scale Vest", "🦺", "armor", 1, 1, 55, { def: 7, hp: 12 }),
   I("a_studded", "Studded Leather", "🦺", "armor", 2, 2, 145, { def: 11, dodge: 3 }),
-  I("a_splint", "Splint Mail", "🛡️", "armor", 2, 2, 155, { def: 15, hp: 25 }, { cls: ["warrior", "cleric"] }),
+  I("a_splint", "Splint Mail", "🦺", "armor", 2, 2, 155, { def: 15, hp: 25 }, { cls: ["warrior", "cleric"] }),
   I("a_silkweave", "Silkweave Robes", "👘", "armor", 2, 2, 145, { def: 6, mp: 35 }, { cls: MC }),
   I("a_wyrm", "Wyrmhide Coat", "🐲", "armor", 3, 3, 330, { def: 18, hp: 35, poison: 4 }),
-  I("a_mirror", "Mirror Mail", "🛡️", "armor", 3, 4, 400, { def: 17, th: 12 }),
-  I("a_voidmail", "Void-Touched Mail", "🛡️", "armor", 3, 5, 450, { def: 20, hp: 50, dodge: 4 }),
-  I("a_titanhide", "Titanhide Harness", "🛡️", "armor", 3, 6, 500, { def: 22, hp: 55 }),
-  I("a_echoplate", "Echoplate Cuirass", "🛡️", "armor", 3, 7, 560, { def: 24, hp: 70 }),
+  I("a_mirror", "Mirror Mail", "🦺", "armor", 3, 4, 400, { def: 17, th: 12 }),
+  I("a_voidmail", "Void-Touched Mail", "🦺", "armor", 3, 5, 450, { def: 20, hp: 50, dodge: 4 }),
+  I("a_titanhide", "Titanhide Harness", "🦺", "armor", 3, 6, 500, { def: 22, hp: 55 }),
+  I("a_echoplate", "Echoplate Cuirass", "🦺", "armor", 3, 7, 560, { def: 24, hp: 70 }),
   I("h_coif", "Mail Coif", "⛑️", "helmet", 1, 1, 45, { def: 3, hp: 10 }),
   I("h_barbute", "Barbute", "🪖", "helmet", 2, 2, 140, { def: 6, hp: 18 }, { cls: ["warrior", "cleric"] }),
   I("h_cowl", "Adept's Cowl", "🎩", "helmet", 2, 2, 135, { mp: 22, dodge: 3 }, { cls: MC }),
@@ -298,7 +303,7 @@ const ITEMS: ItemT[] = [
   I("s_grv_r", "Gravebloom Band", "💍", "ring", 3, 3, 280, { poison: 5, atk: 3 }, { set: "grave", ff: 6 }),
   I("s_grv_m", "Gravebloom Amulet", "📿", "amulet", 3, 3, 280, { hp: 25, poison: 4 }, { set: "grave", ff: 6 }),
   I("s_rme_w", "Rimeward Blade", "⚔️", "weapon", 3, 5, 420, { atk: 18, ice: 6 }, { set: "rime", ff: 10 }),
-  I("s_rme_a", "Rimeward Mail", "🛡️", "armor", 3, 5, 420, { def: 16, hp: 30, ice: 3 }, { set: "rime", ff: 10 }),
+  I("s_rme_a", "Rimeward Mail", "🦺", "armor", 3, 5, 420, { def: 16, hp: 30, ice: 3 }, { set: "rime", ff: 10 }),
   I("s_rme_h", "Rimeward Helm", "⛑️", "helmet", 3, 5, 400, { def: 7, hp: 20, ice: 3 }, { set: "rime", ff: 10 }),
   I("s_rme_m", "Rimeward Talisman", "❄️", "amulet", 3, 5, 400, { ice: 6, def: 4 }, { set: "rime", ff: 10 }),
   I("s_ash_h", "Ashen Circlet", "💠", "helmet", 3, 6, 430, { mp: 30, fire: 4, atk: 3 }, { set: "ashen", ff: 14 }),
@@ -582,7 +587,7 @@ function parseSt(s: string): Stats { const o: Stats = {}; for (const p of s.spli
 function statText(s?: Stats): string {
   if (!s) return "";
   const ss: Stats = s;
-  return (Object.keys(ss) as StatKey[]).map((k: StatKey) => `${(ss[k] ?? 0) >= 0 ? "+" : ""}${ss[k] ?? 0} ${STAT_LABEL[k]}`).join(", ");
+  return (Object.keys(ss) as StatKey[]).map((k: StatKey) => formatStat(k, ss[k] ?? 0)).join(", ");
 }
 const TREE: Record<ClassId, TNode[]> = { warrior: [], mage: [], rogue: [], cleric: [], ranger: [] };
 for (const cid of CLASS_IDS) {
@@ -2293,16 +2298,29 @@ function affix(b: Stats): string {
 }
 function instName(inv: Inv): string {
   const it = IT[inv.id];
+  if (!it) return "Unknown item";
   if (!inv.ident) return `Unidentified ${nounOf(it)} ???`;
-  if (inv.aname) return inv.aname;
-  const affs = (inv.affs ?? []).filter((a: RolledAff) => a.tier > 0);
-  const pre = affs.find((a: RolledAff) => a.pre);
-  const suf = affs.find((a: RolledAff) => !a.pre);
-  if (pre || suf) return [pre?.name, it.name, suf?.name].filter(Boolean).join(" ");
-  const a = affix(inv.bon);
-  return a ? `${it.name} ${a}` : it.name;
+  // Unique/legendary designed names are kept; all other identified gear is "{Rarity} {base name}".
+  // Rolled rare names (aname / affix flavor) are never shown. Derived at display time so old saves stay compatible.
+  if (it.r >= 4 && !it.set) return it.name;
+  return `${RAR[it.r]} ${it.name}`;
 }
 function instIcon(inv: Inv): string { const it = IT[inv.id]; return inv.ident || it.slot === "consumable" ? it.icon : SLOT_ICON[it.slot as GearSlot]; }
+function itemGlyph(icon: string, slot: string, size = 22): ReactNode {
+  const badge = slot !== "consumable" && (SLOT_ICON as Record<string, string>)[slot];
+  return (
+    <span data-item-glyph={slot} style={{ position: "relative", display: "inline-block", lineHeight: 1, fontSize: size, verticalAlign: "middle" }}>
+      {icon}
+      {badge ? <span data-slot-badge={slot} aria-label={slot} style={{
+        position: "absolute", right: -5, bottom: -5, fontSize: Math.max(9, Math.round(size * 0.45)),
+        lineHeight: 1, pointerEvents: "none",
+        background: "rgba(12,10,8,.82)", borderRadius: 4, padding: "1px 2px 0",
+        boxShadow: "0 0 0 1px rgba(255,236,200,.35)",
+      }}>{badge}</span> : null}
+    </span>
+  );
+}
+function itemGlyphInv(inv: Inv, size = 22): ReactNode { const it = IT[inv.id]; return itemGlyph(instIcon(inv), it ? it.slot : "consumable", size); }
 function priceOf(inv: Inv): number { return Math.round(IT[inv.id].price * (1 + 0.15 * Object.keys(inv.bon).length)); }
 function sellOf(inv: Inv): number { return inv.ident ? Math.max(1, Math.floor(priceOf(inv) * 0.4)) : 12; }
 function idFee(inv: Inv, f: number): number { return Math.round(IDFEE[IT[inv.id].r] * (1 + 0.1 * f)); }
@@ -2446,10 +2464,70 @@ function rollPremium(f: number, cls: ClassId, taken: string[]): string | null {
   }
   return null;
 }
+// Retired consumables (removed from the catalog). Owned bag/vault copies convert to sell gold on load.
+const REMOVED_SELL: Record<string, number> = { c_smoke: 12, c_storm: 18 };
+const PENDING_GOLD_KEY = "dungeon-of-echoes-pending-gold-v1";
+function removedSell(id: unknown): number {
+  return typeof id === "string" && Object.prototype.hasOwnProperty.call(REMOVED_SELL, id) ? REMOVED_SELL[id] : 0;
+}
+function takePendingGold(): number {
+  try {
+    const n = Math.max(0, Math.floor(Number(kvGet(PENDING_GOLD_KEY)) || 0));
+    if (n) kvSet(PENDING_GOLD_KEY, null);
+    return n;
+  } catch (e) { void e; return 0; }
+}
+function addPendingGold(n: number): void {
+  if (n <= 0) return;
+  try { kvSet(PENDING_GOLD_KEY, String((Number(kvGet(PENDING_GOLD_KEY)) || 0) + n)); } catch (e) { void e; }
+}
+function convertRemovedVault(): void {
+  try {
+    const raw = kvGet(VAULT_KEY);
+    if (!raw) return;
+    const o = JSON.parse(raw) as unknown;
+    if (isObj(o) && isObj(o.item) && removedSell(o.item.id)) {
+      addPendingGold(removedSell(o.item.id));
+      kvSet(VAULT_KEY, null);
+    }
+  } catch (e) { void e; }
+}
+function migrateRemovedItems(g: Game): void {
+  convertRemovedVault();
+  let gold = 0;
+  g.inv = (g.inv ?? []).filter((i: Inv) => {
+    const v = removedSell(i?.id);
+    if (v) { gold += v; return false; }
+    return true;
+  });
+  for (const k of GEAR) {
+    const it = g.eq[k];
+    const v = it ? removedSell(it.id) : 0;
+    if (v) { gold += v; delete g.eq[k]; }
+  }
+  if (g.qs && removedSell(g.qs)) delete g.qs;
+  // Merchant listings of retired items are not owned — drop them without payout.
+  if (Array.isArray(g.shop)) {
+    const shop: Inv[] = [], stock: number[] = [];
+    const rawStock: unknown[] = Array.isArray(g.stock) ? g.stock : [];
+    g.shop.forEach((i: Inv, k: number) => {
+      if (removedSell(i?.id)) return;
+      shop.push(i);
+      stock.push(Math.max(0, Math.floor(Number(rawStock[k]) || 0)));
+    });
+    g.shop = shop; g.stock = stock;
+  }
+  gold += takePendingGold();
+  if (gold > 0) {
+    g.gold = Math.max(0, Math.floor(Number(g.gold) || 0)) + gold;
+    log(g, `♻️ Retired items were converted to ${gold} gold.`, "loot");
+  }
+}
 // ---- the Echo Vault: one item stored across runs (separate key, survives death/permadeath) ----
 const VAULT_KEY = "dungeon-of-echoes-vault-v1";
 interface VaultT { item: Inv; floor: number; cls: ClassId; mode: Mode; ts: number; }
 function vaultGet(): VaultT | null {
+  convertRemovedVault();
   try { const s = kvGet(VAULT_KEY); if (!s) return null; const o = JSON.parse(s) as unknown; if (isObj(o) && okInv(o.item)) return { item: normInv(o.item as Inv), floor: Number(o.floor) || 0, cls: CLASS_IDS.includes(o.cls as ClassId) ? (o.cls as ClassId) : "warrior", mode: o.mode === "endless" ? "endless" : "story", ts: Number(o.ts) || 0 }; } catch (e) { void e; }
   return null;
 }
@@ -2757,6 +2835,8 @@ function newGame(cls: ClassId, mode: Mode): Game {
   // one-time starting perk (3 random Common perks, rolled once and saved with the run) + optional vaulted item
   g.offers = shuffle(starterPool(cls)).slice(0, 3); g.startPick = true; g.vaultOffer = !!vaultGet(); g.screen = "upgrade";
   log(g, mode === "story" ? `You enter the Dungeon of Echoes as a ${c.name}. Reach Floor ${STORY_END} and slay the Echo Lord.` : `∞ Endless run as a ${c.name}. ${g.perks.length ? `${g.perks.length} capstone(s) active. ` : ""}How deep can you go?`, "good");
+  const pending = takePendingGold();
+  if (pending > 0) { g.gold += pending; log(g, `♻️ Retired items were converted to ${pending} gold.`, "loot"); }
   return g;
 }
 
@@ -3569,7 +3649,7 @@ function touchTiles(g: Game, p: { x: number; y: number }, I: Inp): boolean {
       const gold = goldGain(g, (10 + tierOf(g.floor) * 8) * (0.7 + Math.random() * 0.6));
       const got = lootRoll(g, "chest");
       gain(g, `+${gold} gold`, GOLDC);
-      for (const inv of got) { addItem(g, inv); gain(g, `+ ${instName(inv)}`, rarCol(inv)); }
+      for (const inv of got) { addItem(g, inv); const sl = IT[inv.id]?.slot; gain(g, `+ ${instIcon(inv)}${sl && sl !== "consumable" && SLOT_ICON[sl as GearSlot] ? SLOT_ICON[sl as GearSlot] : ""} ${instName(inv)}`, rarCol(inv)); }
     }
     if (tile === 5 && d < 0.55) {
       g.map[ty][tx] = 1; I.slowT = 2;
@@ -4967,7 +5047,7 @@ function combatAct(g: Game, kind: string, arg: string): void {
 }
 // the quick-slot consumable: your chosen one if you still carry it, else the first healing potion
 function qsItem(g: Game): Inv | undefined {
-  const ok = (i: Inv): boolean => { const t = IT[i.id]; return t.slot === "consumable" && ["heal", "both", "mana", "cleanse", "bomb", "frost", "fury", "iron", "storm", "treat"].includes(t.fx ?? ""); };
+  const ok = (i: Inv): boolean => { const t = IT[i.id]; return t.slot === "consumable" && ["heal", "both", "mana", "cleanse", "bomb", "frost", "fury", "iron", "treat"].includes(t.fx ?? ""); };
   if (g.qs) { const q = g.inv.find((i: Inv) => i.id === g.qs && ok(i)); if (q) return q; }
   return g.inv.find((i: Inv) => { const t = IT[i.id]; return t.slot === "consumable" && (t.fx === "heal" || t.fx === "both"); });
 }
@@ -5034,7 +5114,7 @@ const HELP: [string, string][] = [
   ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving, you glide along walls). Exploring: M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. Abilities (keys 1–5, matching your five loadout slots) can be used while moving, in or out of a fight. In combat: Space or J = attack (hold), Enter = attack once, Shift or K = dodge roll, R = quick-slot potion, Tab or Q/E = switch target. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc on the map opens the ⚙ Menu (not mid-fight, and not the title screen by itself). Title requires a confirm from that menu."],
   ["🎮 Gamepad", "Left stick or D-pad moves. Exploring: A/✕ trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. In combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, RT/R2 ability 4, LB/L1 switch target, View/Select quick-slot potion. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options opens the Menu when you are not in a fight (title requires a confirm). It does nothing mid-fight."],
   ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant (stock is limited: each piece of gear sells once, potions and scrolls 1–3 each, then the slot shows SOLD OUT; leaving or reloading doesn't restock — the next merchant floor has fresh wares; Epic/Legendary wares are rare early, more common deeper, at most 2 per shop), 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You do not regenerate health or mana over time; look for potions, abilities, and gear marked ♻ Mana regen."],
-  ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Ranged foes keep their distance: 🏹 archers show a red aim line before loosing a fast arrow, 🐸 Acid Spitters mark a green ring where their acid glob will land, and 🧙 Hex Cultists send a slow purple bolt that hexes you (−25% damage for 4 s). Their aim locks when the wind-up starts, so step aside. ★ Elite monsters (gold glow) are tougher and drop better loot. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. A Smoke Bomb or Shadowmeld breaks off a fight instantly (not against bosses)."],
+  ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Ranged foes keep their distance: 🏹 archers show a red aim line before loosing a fast arrow, 🐸 Acid Spitters mark a green ring where their acid glob will land, and 🧙 Hex Cultists send a slow purple bolt that hexes you (−25% damage for 4 s). Their aim locks when the wind-up starts, so step aside. ★ Elite monsters (gold glow) are tougher and drop better loot. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. The Rogue's Smoke Bomb ability or Shadowmeld breaks off a fight instantly (not against bosses)."],
   ["🔒 Combat lockout", "While any monster is fighting you, the bag, codex, help, skills tree, full map, Menu, save-code screen, title button, merchants and the stairs are locked (greyed out and unclickable; no hotkey opens them). You can still move, attack, use abilities, dodge, switch targets and drink a 🧪 Healing Potion from your dedicated potion slot (count on the button; potions never take bag space), or use a combat consumable you mark with ☆ Quick-slot in the bag. The minimap stays visible. About 1.5 s after the last foe falls or gives up you'll see “Combat over” and everything unlocks."],
   ["☠️ Bosses", "The Broodmother (Floor 5) and the Echo Lord (Floor 10) wake when you step into their lair and fight you right there: acid pools, shadow flame and the Echo Lord's CATACLYSM ring land on the map, and spiderlings or Echo Shades crawl out around the boss. The stairs only appear once the boss is dead. Run too far and the boss returns to its lair and recovers fully — no chipping it down from range."],
   ["🐾 Pets", "Rangers start with a Wolf (plus a Hawk with Pack Leader). Anyone can gain a charm pet from a Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil or Bone Hound Totem (one charm pet at a time). Pets path around walls and hazards, trail behind you and catch up if you pull ahead; if they get stuck they re-path, then poof to your side. In a fight they close along that path: melee pets flank, and the Imp keeps a ranged standoff with line of sight before throwing fire bolts. Enemies attack pets that get closer than you — Bone Hounds draw extra attention. A pet at 0 HP is knocked out 💫 for 12 s, then gets back up at 40%; every knocked-out pet recovers at 50% when the fight ends. Pets do not regenerate health on their own; a Pet Treat fully heals and revives them."],
@@ -5044,7 +5124,7 @@ const HELP: [string, string][] = [
   ["✨ Abilities", "Each class starts with only a basic attack, which is always free. Every other ability — including former level unlocks such as Shield Bash, Fireball, or Leaping Slam — is learned by spending skill points on the in-run skill tree. Learn skills on the category tree (ranks, Enhanced, and one of two specializations). Equip up to five learned abilities in the Skills loadout; only those appear on the bar (keys 1–5). You can change the loadout out of combat. Every ability can be used while moving (hotkey or tap); movement is not stopped, and aimed skills go to your current or nearest target. Abilities cost MP and have cooldowns in seconds. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
   ["🌳 Skill tree", "Each level grants one skill point. Open Skills out of combat to spend them on a category tree (D4-style: not a Paragon board). Basic is open from the start; Core, Defensive, a class path, Mastery, Ultimate and a Key Passive unlock after you have spent 2, 6, 8, 11, 16 and 23 points. Active skills have ranks 1–5, then an Enhanced upgrade, then a choice of two mutually exclusive specializations (respec to change). Passives sit between skills. Equip up to five learned actives in the loadout (keys 1–5). You can pan and pinch-zoom the tree; tap a node for details and Learn/Upgrade. A refund-all respec is available out of combat for a small gold fee (free if you cannot afford it). Existing characters keep the abilities they already had at rank 1, with leftover points refunded. This tree is separate from the Endless token upgrade tree."],
   ["✨ Dust salvage", "In your bag, the Dust row sits below the item list. Break down turns identified unequipped gear into Dust at a flat rarity rate: Common 1, Uncommon 2, Rare 3, Epic 4, Set 5, Legendary 6 (cursed items use the same tier; iLvl does not matter). Dust is stored until you Sacrifice it for gold at 1:1 (all, or a chosen amount). Tiny chips under the row break down all of one rarity after a confirmation. A lock toggle on every item (inventory grid and item details) — and on equipped gear — stops it from being salvaged or sold, including merchant sell-from-bag. Curse-bound and equipped items are also protected. The lock is saved; old items default to unlocked."],
-  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions go to a dedicated slot (not the bag) and are scarce — regular foes have a 10% chance to drop one, elites and bosses 25%. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its name, roll, and range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Later general sets, rarer than the earlier ones: Gravebloom Vestments (from floor 6), Rimeward Pall (from floor 10), and Ashen Covenant (from floor 14, Endless). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag. The dungeon holds 67 weapons, 42 armor, 37 helmets, 34 rings and 33 amulets, including 73 set pieces across 19 sets, 24 legendaries (uniques), and 11 cursed items."],
+  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions go to a dedicated slot (not the bag) and are scarce — regular foes have a 10% chance to drop one, elites and bosses 25%. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its roll range at that Item Level. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Later general sets, rarer than the earlier ones: Gravebloom Vestments (from floor 6), Rimeward Pall (from floor 10), and Ashen Covenant (from floor 14, Endless). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag. The dungeon holds 67 weapons, 42 armor, 37 helmets, 34 rings and 33 amulets, including 73 set pieces across 19 sets, 24 legendaries (uniques), and 11 cursed items."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
   ["💰 Merchant", "Buy potions, scrolls and gear, sell loot, identify items, and lift curses. Merchants appear on even floors."],
@@ -5582,6 +5662,7 @@ function validRun(x: unknown): Game | null {
   if (g.px < 0 || g.py < 0 || g.px >= W || g.py >= H || g.sx < 1 || g.sy < 1 || g.sx >= W - 1 || g.sy >= H - 1 || g.map[g.py][g.px] === 0) return null;
   if (!Array.isArray(g.inv) || !isObj(g.eq) || !Array.isArray(g.mons)) return null;
   if (typeof g.wx !== "number" || typeof g.wy !== "number" || !isFinite(g.wx) || !isFinite(g.wy) || Math.floor(g.wx) !== g.px || Math.floor(g.wy) !== g.py) { g.wx = g.px + 0.5; g.wy = g.py + 0.5; }
+  migrateRemovedItems(g);
   g.inv = g.inv.filter((i: Inv) => okInv(i)).map(normInv).slice(0, MAXINV);
   for (const k of GEAR) { const v = g.eq[k]; if (v === undefined) continue; if (!okInv(v) || IT[v.id].slot !== k) delete g.eq[k]; else g.eq[k] = normInv(v); }
   g.mons = g.mons.filter((mm: MapMon) => isObj(mm) && num(mm.x) && num(mm.y) && num(mm.id) && (mm.boss === true || !!MON[mm.t])).map((mm: MapMon) => ({ ...mm, stun: num(mm.stun) ? mm.stun : 0, awake: mm.awake === true, fx: typeof mm.fx === "number" && Math.floor(mm.fx) === mm.x ? mm.fx : mm.x + 0.5, fy: typeof mm.fy === "number" && Math.floor(mm.fy) === mm.y ? mm.fy : mm.y + 0.5 }));
@@ -5934,7 +6015,7 @@ export default function DungeonOfEchoes() {
       },
     };
     w.__R = {
-      takeSkill, setSlot, gainXp, descend, engage, resolveDeaths, rtAbility, rtDodge, canTakeSkill, skillNodesOf, migrateSkills, migratePots, addItem, makeInst, addPots, drinkPotion, rollPotionDrop, maybeDropPotion, potCount, isHealPot, POTION_DROP_CHANCE, POTION_DROP_ELITE, POTION_HEAL_PCT,
+      takeSkill, setSlot, gainXp, descend, engage, resolveDeaths, rtAbility, rtDodge, canTakeSkill, skillNodesOf, migrateSkills, migratePots, migrateRemovedItems, parseRun, ITEMS, addItem, makeInst, addPots, drinkPotion, rollPotionDrop, maybeDropPotion, potCount, isHealPot, POTION_DROP_CHANCE, POTION_DROP_ELITE, POTION_HEAL_PCT,
       need, levelAbs, canLearnTree, learnTreeNode, respecSkills, skillNodes, setTreeCat, setTreeSel,
       learn: (id: string) => { const g = G.current; if (!g) return false; const ok = learnTreeNode(g, id); LAST_SAVE = saveRun(g); refresh(); return ok; },
       openSkills: () => { const g = G.current; if (!g) return; g.prev = g.screen; g.screen = "skills"; setTreeCat(null); setTreeSel(null); LAST_SAVE = saveRun(g); refresh(); },
@@ -6195,17 +6276,15 @@ export default function DungeonOfEchoes() {
     const ss: Stats = s;
     const keys = Object.keys(ss) as StatKey[];
     if (keys.length === 0) return null;
-    return <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = ss[k] ?? 0; return <span key={k} data-stat={k} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600 }}>{v >= 0 ? "+" : ""}{v} {STAT_LABEL[k]}{sameMark(k, shared)}</span>; })}</div>;
+    return <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = ss[k] ?? 0; return <span key={k} data-stat={k} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600 }}>{formatStat(k, v)}{sameMark(k, shared)}</span>; })}</div>;
   };
   const affixChips = (inv: Inv, f: number, shared?: Set<string>): ReactNode => {
     const ilvl = inv.ilvl ?? f;
-    const labelOf = (stat: RolledAff["stat"]): string => stat === "mpreg" ? "Mana regen" : STAT_LABEL[stat];
-    const fmt = (stat: RolledAff["stat"], v: number): string => stat === "mpreg" ? `${v >= 0 ? "+" : ""}${v}/s` : `${v >= 0 ? "+" : ""}${v}`;
     if (inv.affs && inv.affs.length) {
-      return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{inv.affs.map((a: RolledAff) => <span key={a.id} data-stat={a.stat} title={`T${a.tier} ${a.name}: ${labelOf(a.stat)} rolls ${a.lo}–${a.hi} (iLvl ${ilvl})`} style={{ color: a.v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>✦ {a.name}: {fmt(a.stat, a.v)} {labelOf(a.stat)}{sameMark(a.stat, shared)}</span>)}</div>;
+      return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{inv.affs.map((a: RolledAff) => <span key={a.id} data-stat={a.stat} title={`Rolls ${a.lo}–${a.hi} at Item Level ${ilvl}`} style={{ color: a.v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>{formatStat(a.stat, a.v)}{sameMark(a.stat, shared)}</span>)}</div>;
     }
     const keys = Object.keys(inv.bon) as StatKey[]; if (keys.length === 0) return null;
-    return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = inv.bon[k] ?? 0; const [lo, hi] = affixRange(k, ilvl); return <span key={k} data-stat={k} title={`Random affix: ${STAT_LABEL[k]} rolls about ${lo}–${hi} at iLvl ${ilvl}`} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>✦ {v >= 0 ? "+" : ""}{v} {STAT_LABEL[k]}{sameMark(k, shared)}</span>; })}</div>;
+    return <div data-affixes="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 10px", fontSize: 13 }}>{keys.map((k: StatKey) => { const v = inv.bon[k] ?? 0; const [lo, hi] = affixRange(k, ilvl); return <span key={k} data-stat={k} title={`Rolls about ${lo}–${hi} at Item Level ${ilvl}`} style={{ color: v >= 0 ? t.text.success : t.text.danger, fontWeight: 600, borderBottom: "1px dotted currentColor", cursor: "help" }}>{formatStat(k, v)}{sameMark(k, shared)}</span>; })}</div>;
   };
   const setLines = (sid: string, n: number): ReactNode => {
     const S = SETS[sid]; const parts = S.desc.split(" · ");
@@ -6220,7 +6299,7 @@ export default function DungeonOfEchoes() {
   const clsLabel = (it: ItemT): string => it.cls ? `${it.cls.map((c: ClassId) => CLS[c].name).join("/")} only` : "All classes";
   const tplDetail = (it: ItemT): ReactNode => (
     <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-      <div style={{ fontSize: 15, color: RCOL[it.r], fontWeight: 600 }}>{it.icon} {it.name}</div>
+      <div style={{ fontSize: 15, color: RCOL[it.r], fontWeight: 600 }}>{itemGlyph(it.icon, it.slot, 18)} {it.r >= 4 && !it.set ? it.name : `${RAR[it.r]} ${it.name}`}</div>
       <div style={small}>{RAR[it.r]} {SLOT_NAME[it.slot]} · {clsLabel(it)}{it.cursed ? " · " : ""}{it.cursed && <span style={{ color: t.text.danger, fontWeight: 700 }}>Cursed</span>}</div>
       {statChips(it.st)}
       {it.set && setLines(it.set, -1)}
@@ -6243,16 +6322,16 @@ export default function DungeonOfEchoes() {
     const oldSt: Stats = worn && worn.ident ? itemStats(worn) : {};
     const oldMp = worn && worn.ident ? itemMpreg(worn) : 0;
     const deltas: ReactNode[] = [];
-    const pushDelta = (key: string, label: string, d: number, same: boolean, suffix = ""): void => {
+    const pushDelta = (key: string, stat: StatKey | "mpreg", d: number, same: boolean): void => {
       if (d === 0) return;
       deltas.push(
         <span key={key} data-delta={key} data-same={same ? "1" : "0"} style={{ color: d > 0 ? t.text.success : t.text.danger, fontWeight: 700, fontSize: 12 }}>
-          {d > 0 ? "+" : ""}{d}{suffix} {label}{same ? <span style={{ color: t.text.tertiary, marginLeft: 2 }}>⇄</span> : null}
+          {formatStat(stat, d)}{same ? <span style={{ color: t.text.tertiary, marginLeft: 2 }}>⇄</span> : null}
         </span>
       );
     };
-    for (const k of STAT_KEYS) pushDelta(k, STAT_LABEL[k], (newSt[k] ?? 0) - (oldSt[k] ?? 0), shared.has(k));
-    pushDelta("mpreg", "Mana regen", newMp - oldMp, shared.has("mpreg"), "/s");
+    for (const k of STAT_KEYS) pushDelta(k, k, (newSt[k] ?? 0) - (oldSt[k] ?? 0), shared.has(k));
+    pushDelta("mpreg", "mpreg", newMp - oldMp, shared.has("mpreg"));
     if (worn && worn.ident) {
       const nsp = IT[inv.id].sp, osp = IT[worn.id].sp;
       if (nsp && nsp !== osp) deltas.push(<span key="sp+" data-delta="sp-new" style={{ color: t.text.success, fontWeight: 600, fontSize: 12 }}>+{IT[inv.id].desc || nsp}</span>);
@@ -6264,7 +6343,7 @@ export default function DungeonOfEchoes() {
     for (const k of STAT_KEYS) {
       const d = (after[k] ?? 0) - (before[k] ?? 0);
       if (d === 0) continue;
-      setDeltas.push(<span key={"set-" + k} data-delta={"set-" + k} style={{ color: d > 0 ? t.text.success : t.text.danger, fontWeight: 700, fontSize: 12 }}>{d > 0 ? "+" : ""}{d} {STAT_LABEL[k]} <span style={{ fontWeight: 500, color: t.text.tertiary }}>set</span></span>);
+      setDeltas.push(<span key={"set-" + k} data-delta={"set-" + k} style={{ color: d > 0 ? t.text.success : t.text.danger, fontWeight: 700, fontSize: 12 }}>{formatStat(k, d)} <span style={{ fontWeight: 500, color: t.text.tertiary }}>set</span></span>);
     }
     const empty = !worn;
     return (
@@ -6276,7 +6355,7 @@ export default function DungeonOfEchoes() {
           <div data-compare-worn={worn.uid} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {statChips(IT[worn.id].st, shared)}
             {affixChips(worn, g.floor, shared)}
-            {itemMpreg(worn) !== 0 && !(worn.affs && worn.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div data-stat="mpreg" style={{ fontSize: 12, color: t.text.success, fontWeight: 600 }}>+{itemMpreg(worn)}/s Mana regen{sameMark("mpreg", shared)}</div>}
+            {itemMpreg(worn) !== 0 && !(worn.affs && worn.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div data-stat="mpreg" style={{ fontSize: 12, color: t.text.success, fontWeight: 600 }}>{formatStat("mpreg", itemMpreg(worn))}{sameMark("mpreg", shared)}</div>}
           </div>
         )}
         {(deltas.length > 0 || empty) && (
@@ -6291,7 +6370,7 @@ export default function DungeonOfEchoes() {
     const it = IT[inv.id];
     if (!inv.ident) return (
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <div style={{ fontSize: 15, fontWeight: 600, color: t.text.secondary }}>{inv.pin ? "🔒 " : ""}{instIcon(inv)} {instName(inv)}</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: t.text.secondary }}>{inv.pin ? "🔒 " : ""}{itemGlyphInv(inv, 18)} {instName(inv)}</div>
         <div style={small}>{SLOT_NAME[it.slot]} · rarity, stats and enchantments unknown. It might be cursed. Equip it to reveal (risky), pay a merchant, or read a Scroll of Identify.</div>
       </div>
     );
@@ -6306,12 +6385,12 @@ export default function DungeonOfEchoes() {
     const compareEl = comparing ? compareBlock(inv, worn, shared, g) : null;
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-        <div style={{ fontSize: 15, color: RCOL[it.r], fontWeight: 600 }}>{inv.pin ? "🔒 " : ""}{it.icon} {instName(inv)}</div>
-        <div style={small}>{RAR[it.r]} {SLOT_NAME[it.slot]} · {clsLabel(it)} · iLvl {inv.ilvl ?? "?"}{inv.aname ? ` · ${it.name}` : ""}{it.cursed ? " · " : ""}{it.cursed && <span style={{ color: t.text.danger, fontWeight: 700 }}>{inv.freed ? "Cursed (lifted)" : "Cursed"}</span>}</div>
+        <div style={{ fontSize: 15, color: RCOL[it.r], fontWeight: 600 }}>{inv.pin ? "🔒 " : ""}{itemGlyphInv(inv, 18)} {instName(inv)}</div>
+        <div style={small}>{RAR[it.r]} {SLOT_NAME[it.slot]} · {clsLabel(it)} · Item Level {inv.ilvl ?? "?"}{it.cursed ? " · " : ""}{it.cursed && <span style={{ color: t.text.danger, fontWeight: 700 }}>{inv.freed ? "Cursed (lifted)" : "Cursed"}</span>}</div>
         {statChips(it.st, shared)}
-        {((inv.affs && inv.affs.length > 0) || Object.keys(inv.bon).length > 0 || inv.mpreg) && <div style={{ fontSize: 11, color: t.text.tertiary }}>Affixes (rolled at iLvl {inv.ilvl ?? "?"}):</div>}
+        {((inv.affs && inv.affs.length > 0) || Object.keys(inv.bon).length > 0 || inv.mpreg) && <div style={{ fontSize: 11, color: t.text.tertiary }}>Affixes (rolled at Item Level {inv.ilvl ?? "?"}):</div>}
         {affixChips(inv, g.floor, shared)}
-        {itemMpreg(inv) !== 0 && !(inv.affs && inv.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div data-stat="mpreg" style={{ fontSize: 13, color: t.text.success, fontWeight: 600 }}>✦ +{itemMpreg(inv)}/s Mana regen{sameMark("mpreg", shared)}</div>}
+        {itemMpreg(inv) !== 0 && !(inv.affs && inv.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div data-stat="mpreg" style={{ fontSize: 13, color: t.text.success, fontWeight: 600 }}>{formatStat("mpreg", itemMpreg(inv))}{sameMark("mpreg", shared)}</div>}
         {it.set && setLines(it.set, sc)}
         {it.desc && <div style={{ fontSize: 13, color: it.cursed ? t.text.danger : it.r === 4 ? RCOL[4] : t.text.primary }}>{it.sp ? "★ " : ""}{it.desc}</div>}
         {it.cls && !it.cls.includes(g.cls) && <div style={{ fontSize: 12, color: t.text.danger }}>Your class can't equip this (sell it).</div>}
@@ -7226,7 +7305,7 @@ export default function DungeonOfEchoes() {
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {g.inv.map((it: Inv) => (
             <div key={it.uid} style={{ ...card, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", padding: 8 }}>
-              <div style={{ flex: "1 1 160px", minWidth: 0, fontSize: 14, fontWeight: 600, color: it.ident ? RCOL[IT[it.id].r] : t.text.secondary }}>{instIcon(it)} {instName(it)}</div>
+              <div style={{ flex: "1 1 160px", minWidth: 0, fontSize: 14, fontWeight: 600, color: it.ident ? RCOL[IT[it.id].r] : t.text.secondary }}>{itemGlyphInv(it, 18)} {instName(it)}</div>
               {it.pin ? <span style={{ fontSize: 12, fontWeight: 700 }}>🔒 Locked</span> : btn(`Sell ${sellOf(it)}g`, () => run((gg: Game) => { if (!canSellItem(gg, it)) return; gg.inv = gg.inv.filter((x: Inv) => x.uid !== it.uid); gg.gold += sellOf(it); log(gg, `Sold ${instName(it)}.`, "loot"); }), { disabled: !canSellItem(g, it) })}
             </div>
           ))}
@@ -7273,7 +7352,7 @@ export default function DungeonOfEchoes() {
         </div>
         <div style={cols}><div style={colS}>
         <div style={{ ...card, fontSize: 13, display: "flex", flexWrap: "wrap", gap: 10 }}>
-          <span>⚔️ ATK {f.atk}</span><span>🛡️ DEF {f.def}</span><span>🎯 Crit {f.crit}%</span><span>💨 Dodge {f.dodge}%</span>
+          <span>⚔️ Attack {f.atk}</span><span>🛡️ Defense {f.def}</span><span>🎯 Critical Chance {f.crit}%</span><span>💨 Dodge {f.dodge}%</span>
           {f.ls > 0 && <span>🩸 LS {f.ls}%</span>}
           {f.fire + f.ice + f.holy + f.poison > 0 && <span>🌈 Elem +{f.fire + f.ice + f.holy + f.poison}</span>}
           {Object.keys(sc).filter((s: string) => sc[s] >= 2).map((s: string) => <span key={s} style={{ color: t.text.accent }}>🧩 {SETS[s].name} {sc[s]}/{SETS[s].n}</span>)}
@@ -7299,7 +7378,7 @@ export default function DungeonOfEchoes() {
             return (
               <div key={k} style={{ display: "contents" }}>
                 <button onClick={() => it ? toggleSel(it.uid) : run((gg: Game) => { gg.sel = -1; })} style={{ minWidth: 0, minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: it && k !== "ring" && k !== "amulet" ? bloodBg(it.uid) : undefined, border: `2px solid ${it ? RCOL[IT[it.id].r] : t.border.default}`, boxShadow: it ? rarGlow(IT[it.id].r) : undefined, borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 4, cursor: "pointer" }}>
-                  <div style={{ fontSize: 22, filter: it && k === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{it ? IT[it.id].icon : SLOT_ICON[k]}{it && (it.pin || locked(it)) ? "🔒" : ""}</div>
+                  <div style={{ fontSize: 22, filter: it && k === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{it ? itemGlyph(IT[it.id].icon, k, 22) : SLOT_ICON[k]}{it && (it.pin || locked(it)) ? "🔒" : ""}</div>
                   <div style={{ fontSize: 11, color: t.text.secondary }}>{it ? instName(it) : `No ${SLOT_NAME[k].toLowerCase()}`}</div>
                 </button>
                 {on && it ? itemPanel(it, "eq", k) : null}
@@ -7315,8 +7394,8 @@ export default function DungeonOfEchoes() {
             return (
               <div key={it.uid} style={{ display: "contents" }}>
                 <button onClick={() => toggleSel(it.uid)} style={{ minHeight: 64, backgroundColor: on ? t.fill.accentSubtle : t.bg.elevated, backgroundImage: tt.slot === "weapon" || tt.slot === "armor" || tt.slot === "helmet" ? bloodBg(it.uid) : undefined, border: `2px ${it.ident ? "solid" : "dashed"} ${it.ident ? RCOL[tt.r] : t.border.strong}`, boxShadow: rarGlow(tt.r, it.ident), borderRadius: 10, color: t.text.primary, fontFamily: "inherit", padding: 2, cursor: "pointer", minWidth: 0, position: "relative" }}>
-                  <div style={{ fontSize: 24, filter: tt.slot === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{instIcon(it)}</div>
-                  <div style={{ fontSize: 9, color: t.text.secondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.pin ? "🔒 " : ""}{it.ident ? tt.name : "???"}</div>
+                  <div style={{ fontSize: 24, filter: tt.slot === "weapon" ? "drop-shadow(0 2px 2px rgba(170,0,0,.75))" : undefined }}>{itemGlyphInv(it, 24)}</div>
+                  <div style={{ fontSize: 9, color: t.text.secondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.pin ? "🔒 " : ""}{it.ident ? instName(it) : "???"}</div>
                 </button>
                 {on ? itemPanel(it, "inv") : null}
               </div>

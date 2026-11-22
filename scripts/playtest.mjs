@@ -527,18 +527,12 @@ async function runNames(browser) {
     return { has: !!root, empty: root?.getAttribute("data-compare-empty"), deltas };
   });
   check(empty.has && empty.empty === "1", "empty slot comparison is all-positive", JSON.stringify(empty));
-  check(empty.deltas.some((t) => t.includes("+") && t.includes("DEF")), "empty helmet shows +DEF", JSON.stringify(empty.deltas));
+  check(empty.deltas.some((t) => t.includes("+") && t.includes("Defense")), "empty helmet shows +Defense", JSON.stringify(empty.deltas));
 
   check(cmp.orderOk && cmp.dustAfter, "Dust section sits below the bag item list", JSON.stringify({ orderOk: cmp.orderOk, dustAfter: cmp.dustAfter }));
   check(cmp.hasSac && cmp.tiers === 6 && !cmp.ladder, "condensed Dust row has sacrifice + rarity chips, no ladder text", JSON.stringify(cmp));
   check(cmp.dustCount === "8", "Dust count shows stored dust", cmp.dustCount);
 
-  const smokeKept = await page.evaluate(() => {
-    const g = window.__G();
-    // c_smoke stays in the catalog and is usable (escapeAll) — not a no-op
-    const ids = (g && window.__R && window.__R.items) ? null : null;
-    return { inDom: /Smoke Bomb/.test(document.documentElement.innerHTML) };
-  });
   const kept = await page.evaluate(() => {
     const gold0 = window.__G().gold;
     window.__T.run((g) => { const el = document.querySelector("[data-sacrifice]"); });
@@ -582,18 +576,23 @@ async function runNames(browser) {
   });
   check(salvOk.clicked && salvOk.dust > salvOk.dustBefore, "Break down adds Dust, not gold immediately", JSON.stringify(salvOk));
 
-  const catalog = await page.evaluate(() => {
-    // Smoke Bomb remains a real escape item; confirm id still exists by making one
-    let ok = false;
+  const retired = await page.evaluate(() => {
+    const gold0 = window.__G().gold;
     window.__T.run((g) => {
-      try {
-        const i = { uid: 9199, id: "c_smoke", ident: true, bon: {}, freed: false };
-        ok = i.id === "c_smoke";
-      } catch (e) { ok = false; }
+      g.inv.push({ uid: 9199, id: "c_smoke", ident: true, bon: {}, freed: false, ilvl: 1 });
+      g.inv.push({ uid: 9200, id: "c_storm", ident: true, bon: {}, freed: false, ilvl: 1 });
+      window.__R.migrateRemovedItems(g);
     });
-    return ok;
+    const g = window.__G();
+    const catalog = (window.__R.ITEMS || []).some((i) => i.id === "c_smoke" || i.id === "c_storm");
+    return {
+      gold0, gold: g.gold,
+      leftover: g.inv.some((i) => i.id === "c_smoke" || i.id === "c_storm"),
+      catalog,
+    };
   });
-  check(catalog, "Smoke Bomb item id remains in the game (usable escape, not stripped)");
+  check(!retired.catalog, "c_smoke and c_storm are gone from the item catalog", JSON.stringify(retired));
+  check(!retired.leftover && retired.gold === retired.gold0 + 12 + 18, "owned Smoke Bomb and Bottled Storm convert to sell gold on load", JSON.stringify(retired));
 
   // back to map HUD shot
   await page.evaluate(() => { window.__T.run((g) => { g.screen = "map"; }); if (window.__R.clearFx) window.__R.clearFx(); window.__T.refresh(); });
