@@ -113,14 +113,14 @@ async function runClass(browser, cls) {
 
     const learned = await page.evaluate(() => {
       const g = window.__G();
-      const nodes = window.__R.skillNodesOf(g.cls);
-      const root = nodes.find((n) => window.__R.canTakeSkill(g, n) && n.ab);
+      const nodes = window.__R.skillNodes(g.cls);
+      const root = nodes.find((n) => n.kind === "skill" && window.__R.canLearnTree(g, n.id));
       if (!root) return { ok: false, reason: "no open root", pts: g.skillPts, lvl: g.lvl };
       const ok = window.__R.learn(root.id);
       const s = window.__T.snap();
-      return { ok, node: root.id, ab: root.ab, ...s };
+      return { ok, node: root.id, ab: root.id, ...s };
     });
-    check(learned.ok && learned.skills.includes(learned.node), `${prefix} learn root`, JSON.stringify(learned));
+    check(learned.ok && learned.slots && learned.slots[0] === learned.ab, `${prefix} learn root`, JSON.stringify({ ok: learned.ok, node: learned.node, slots: learned.slots, pts: learned.skillPts }));
     check(learned.slots && learned.slots[0] === learned.ab, `${prefix} auto-slot learned ability`, JSON.stringify(learned.slots));
     check(learned.bar && learned.bar[0] === learned.ab, `${prefix} bar shows slotted ability`, JSON.stringify(learned.bar));
 
@@ -181,7 +181,7 @@ async function runMigrate(browser) {
     check(must.every((id) => (r.learned || []).includes(id)), "migrate keeps old level+tree abilities", JSON.stringify(r.learned));
     check(!(r.learned || []).some((id) => ["march", "haste", "sprint", "wstr", "swift"].includes(id)), "migrate drops speed boosts", JSON.stringify(r.learned));
     check(!(r.skills || []).includes("march") && !(r.slots || []).includes("march") && !(r.slots || []).includes("haste"), "migrate strips speed from skills/slots", JSON.stringify({ skills: r.skills, slots: r.slots }));
-    check(r.skillVer === 2, "migrate sets skillVer 2", r.skillVer);
+    check(r.skillVer === 3, "migrate sets skillVer 3", r.skillVer);
     check(r.haste === 0, "migrate clears Swift buff", r.haste);
     // L18 earned 17 points; 6 learned (5 core + reflect) => 11 unspent. Auto-slot first 5 learned.
     check(r.skillPts === 11, "migrate fair unspent points (17-6)", r.skillPts);
@@ -254,7 +254,41 @@ async function runDodge(browser) {
   });
 }
 
+
+async function runShots(browser) {
+  const dir = new URL("../playtest-shots/", import.meta.url);
+  const { mkdir } = await import("node:fs/promises");
+  const path = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const out = fileURLToPath(dir);
+  await mkdir(out, { recursive: true });
+  const page = await browser.newPage();
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2 });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle0", timeout: 30000 });
+  await page.waitForFunction(() => typeof window.__T !== "undefined" && typeof window.__R !== "undefined", { timeout: 15000 });
+  await page.evaluate(() => {
+    window.__T.boot("warrior");
+    window.__R.lvlTo(12);
+    const g = window.__G();
+    const basics = window.__R.skillNodes(g.cls).filter((n) => n.kind === "skill");
+    for (const n of basics.slice(0, 2)) window.__R.learn(n.id);
+    window.__R.openSkills();
+    if (window.__R.clearFx) window.__R.clearFx();
+  });
+  await new Promise((r) => setTimeout(r, 300));
+  await page.screenshot({ path: path.join(out, "skill-overview-mobile.png"), fullPage: false });
+  await page.evaluate(() => {
+    window.__R.openCat("core");
+    if (window.__R.clearFx) window.__R.clearFx();
+  });
+  await new Promise((r) => setTimeout(r, 300));
+  await page.screenshot({ path: path.join(out, "skill-core-mobile.png"), fullPage: false });
+  await page.close();
+  notes.push(`screenshots: ${out}skill-overview-mobile.png , ${out}skill-core-mobile.png`);
+}
+
 async function main() {
+
 
   const vite = startVite();
   let browser;
@@ -278,6 +312,8 @@ async function main() {
     await runMigrate(browser);
     process.stdout.write("\n== dodge ==\n");
     await runDodge(browser);
+    process.stdout.write("\n== shots ==\n");
+    await runShots(browser);
   } finally {
     if (browser) await browser.close();
     vite.kill("SIGTERM");

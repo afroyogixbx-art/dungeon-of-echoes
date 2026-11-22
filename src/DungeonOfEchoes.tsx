@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useGrokTheme } from "./grok";
 import type { ReactNode, CSSProperties, ChangeEvent, FocusEvent } from "./grok";
+import { CLASS_TREE, CAT_ORDER, CAT_GATES, catsOf, catOf, allNodes, nodeById, skillNodes, treeAbilities, RENAME_ABS, pointsSpent, catUnlocked, rankOf, hasEnh, forkOf, modsFor, passiveStats, SKILL_VER as TREE_VER, type CatId, type TreeNode, type SkillState } from "./skillTree";
 
 type ClassId = "warrior" | "mage" | "rogue" | "cleric" | "ranger";
 type Slot = "weapon" | "armor" | "helmet" | "ring" | "amulet" | "consumable";
@@ -50,6 +51,8 @@ interface Game {
   offers: Perk[]; kills: number; sel: number; fx: Fx[]; turns: number; tokensEarned: number; stains?: number[]; rem?: string[]; hurtTs?: number; usedRes?: boolean; biome?: Biome; bannerTs?: number; qs?: string;
   pets?: Pet[]; cpet?: string; startPick?: boolean; vaultOffer?: boolean; vaultThen?: Screen; vaultSel?: number;
   skills?: string[]; skillPts?: number; slots?: (string | null)[]; skillVer?: number;
+  skillRanks?: Record<string, number>; skillEnh?: string[]; skillPick?: Record<string, string>; skillPass?: Record<string, number>; skillKey?: string | null;
+  sbuff?: Record<string, number>; sval?: Record<string, number>;
 }
 
 const W = 32, H = 32, R = 4, MAXINV = 24, STORY_END = 10;
@@ -408,6 +411,16 @@ const CLS: Record<ClassId, ClassT> = {
     ] },
 };
 const CLASS_IDS: ClassId[] = ["warrior", "mage", "rogue", "cleric", "ranger"];
+(function attachTreeAbs(): void {
+  for (const id of CLASS_IDS) {
+    for (const a of CLS[id].abs) {
+      if (RENAME_ABS[a.id]) a.name = RENAME_ABS[a.id];
+    }
+    for (const extra of treeAbilities(id)) {
+      if (!CLS[id].abs.some((x: Ab) => x.id === extra.id)) CLS[id].abs.push(extra);
+    }
+  }
+})();
 
 const CAPS: Record<ClassId, Perk[]> = {
   warrior: [
@@ -758,6 +771,8 @@ function skillNode(cls: ClassId, id: string): SkillNode | undefined { return ski
 function ownedSkills(g: Game): string[] { return Array.isArray(g.skills) ? g.skills : []; }
 function skillOwnsAb(g: Game, id: string): boolean {
   if (SPEED_ABS.has(id)) return false;
+  if ((g.skillRanks ?? {})[id] >= 1) return true;
+  if ((g.skillVer ?? 0) >= 3) return false;
   return ownedSkills(g).some((nid: string) => skillNode(g.cls, nid)?.ab === id);
 }
 function learnedAbs(g: Game): Ab[] {
@@ -977,6 +992,7 @@ function canTakeSkill(g: Game, n: SkillNode): boolean {
   return reqs.every((id: string) => ownedSkills(g).includes(id));
 }
 function takeSkill(g: Game, id: string): boolean {
+  if (learnTreeNode(g, id)) return true;
   const n = skillNode(g.cls, id); if (!n || !canTakeSkill(g, n)) return false;
   g.skills = ownedSkills(g).concat(id);
   g.skillPts = Math.max(0, (g.skillPts ?? 0) - 1);
@@ -987,6 +1003,104 @@ function takeSkill(g: Game, id: string): boolean {
   log(g, `🌳 Learned ${n.icon} ${n.name}.`, "good");
   return true;
 }
+function treeNodeCat(cls: ClassId, id: string): CatId | undefined {
+  for (const c of catsOf(cls)) if (c.nodes.some((n: TreeNode) => n.id === id)) return c.id;
+  return undefined;
+}
+function canLearnTree(g: Game, id: string): boolean {
+  if ((g.skillPts ?? 0) < 1) return false;
+  const n = nodeById(g.cls, id); if (!n) return false;
+  const cat = treeNodeCat(g.cls, id); if (cat && !catUnlocked(g as SkillState, cat)) return false;
+  if (n.kind === "skill") return rankOf(g as SkillState, n.id) < (n.ranks ?? 5);
+  if (n.kind === "enh") return rankOf(g as SkillState, n.parent ?? "") >= 1 && !(g.skillEnh ?? []).includes(n.id);
+  if (n.kind === "fork") {
+    if (!hasEnh(g as SkillState, n.parent ?? "")) return false;
+    if ((g.skillPick ?? {})[n.parent ?? ""]) return false;
+    return true;
+  }
+  if (n.kind === "passive") return ((g.skillPass ?? {})[n.id] ?? 0) < (n.ranks ?? 3);
+  if (n.kind === "key") return !g.skillKey;
+  return false;
+}
+function learnTreeNode(g: Game, id: string): boolean {
+  // allow passing a skill ability id
+  let nid = id;
+  if (!nodeById(g.cls, nid)) {
+    const sk = skillNodes(g.cls).find((n: TreeNode) => n.id === id);
+    if (sk) nid = sk.id; else return false;
+  }
+  if (!canLearnTree(g, nid)) return false;
+  const n = nodeById(g.cls, nid)!;
+  g.skillPts = Math.max(0, (g.skillPts ?? 0) - 1);
+  if (n.kind === "skill") {
+    const was = rankOf(g as SkillState, n.id);
+    g.skillRanks = { ...(g.skillRanks ?? {}), [n.id]: was + 1 };
+    if (was === 0) {
+      const a = CLS[g.cls].abs.find((x: Ab) => x.id === n.id);
+      if (a) { noteAbUnlock(g, a); autoSlot(g, a.id); }
+    }
+    log(g, was === 0 ? `🌳 Learned ${n.icon} ${n.name}.` : `🌳 ${n.name} is now rank ${was + 1}.`, "good");
+    return true;
+  }
+  if (n.kind === "enh") {
+    g.skillEnh = (g.skillEnh ?? []).concat(n.id);
+    log(g, `🌳 ${n.name}.`, "good");
+    return true;
+  }
+  if (n.kind === "fork" && n.parent) {
+    g.skillPick = { ...(g.skillPick ?? {}), [n.parent]: n.id };
+    log(g, `🌳 Chose ${n.name}.`, "good");
+    return true;
+  }
+  if (n.kind === "passive") {
+    g.skillPass = { ...(g.skillPass ?? {}), [n.id]: ((g.skillPass ?? {})[n.id] ?? 0) + 1 };
+    log(g, `🌳 ${n.name} rank ${(g.skillPass ?? {})[n.id]}.`, "good");
+    return true;
+  }
+  if (n.kind === "key") {
+    g.skillKey = n.id;
+    log(g, `⭐ Key Passive: ${n.name}.`, "good");
+    return true;
+  }
+  g.skillPts = (g.skillPts ?? 0) + 1;
+  return false;
+}
+function respecSkills(g: Game): void {
+  if (g.combat) { log(g, "Respec is only available out of combat."); return; }
+  const cost = g.gold >= 25 ? 25 : 0;
+  g.gold -= cost;
+  g.skillRanks = {}; g.skillEnh = []; g.skillPick = {}; g.skillPass = {}; g.skillKey = null;
+  g.slots = [null, null, null, null, null];
+  g.skillPts = Math.max(0, g.lvl - 1);
+  g.skillVer = TREE_VER;
+  log(g, cost ? `🌳 You refunded every skill for ${cost} gold.` : "🌳 You refunded every skill.", "good");
+}
+
+function convertTreeV3(g: Game): void {
+  if (g.skillVer === TREE_VER && g.skillRanks && typeof g.skillRanks === "object") {
+    g.slots = normSlots(g);
+    return;
+  }
+  const learned = learnedAbs(g);
+  const ranks: Record<string, number> = { ...(g.skillRanks ?? {}) };
+  for (const a of learned) if ((ranks[a.id] ?? 0) < 1) ranks[a.id] = 1;
+  g.skillRanks = ranks;
+  g.skillEnh = Array.isArray(g.skillEnh) ? g.skillEnh : [];
+  g.skillPick = g.skillPick && typeof g.skillPick === "object" ? g.skillPick : {};
+  g.skillPass = g.skillPass && typeof g.skillPass === "object" ? g.skillPass : {};
+  if (g.skillKey === undefined) g.skillKey = null;
+  const spent = pointsSpent(g as SkillState);
+  const earned = Math.max(0, g.lvl - 1);
+  g.skillPts = Math.max(0, earned - spent);
+  if (!g.slots || g.slots.every((x) => !x)) {
+    const slots: (string | null)[] = [null, null, null, null, null];
+    const have = learnedAbs(g);
+    for (let i = 0; i < 5 && i < have.length; i++) slots[i] = have[i].id;
+    g.slots = slots;
+  } else g.slots = normSlots(g);
+  g.skillVer = TREE_VER;
+}
+
 function migrateSkills(g: Game): void {
   if (g.buffs) g.buffs.haste = 0;
   const legal = new Set(skillNodesOf(g.cls).map((n: SkillNode) => n.id));
@@ -1050,28 +1164,42 @@ function migrateSkills(g: Game): void {
       g.skillPts = fair;
     }
   }
+  convertTreeV3(g);
 }
 function skillUp(g: Game, id: string): { cd: number; dmg: number; rad: number; dur: number; misc: Record<string, number> } {
   const out = { cd: 0, dmg: 0, rad: 0, dur: 0, misc: {} as Record<string, number> };
-  for (const nid of ownedSkills(g)) {
-    const n = skillNode(g.cls, nid); if (!n) continue;
-    if (n.cd && n.cd.id === id) out.cd += n.cd.v;
-    if (n.dmg && n.dmg.id === id) out.dmg += n.dmg.v;
-    if (n.rad && n.rad.id === id) out.rad += n.rad.v;
-    if (n.dur && n.dur.id === id) out.dur += n.dur.v;
-    if (n.misc) for (const k of Object.keys(n.misc)) out.misc[k] = (out.misc[k] ?? 0) + (n.misc[k] ?? 0);
+  if ((g.skillVer ?? 0) < 3) {
+    for (const nid of ownedSkills(g)) {
+      const n = skillNode(g.cls, nid); if (!n) continue;
+      if (n.cd && n.cd.id === id) out.cd += n.cd.v;
+      if (n.dmg && n.dmg.id === id) out.dmg += n.dmg.v;
+      if (n.rad && n.rad.id === id) out.rad += n.rad.v;
+      if (n.dur && n.dur.id === id) out.dur += n.dur.v;
+      if (n.misc) for (const k of Object.keys(n.misc)) out.misc[k] = (out.misc[k] ?? 0) + (n.misc[k] ?? 0);
+    }
   }
+  const m = modsFor(g as SkillState, id);
+  out.cd += m.cd ?? 0; out.dmg += m.dmg ?? 0; out.rad += m.rad ?? 0; out.dur += m.dur ?? 0;
+  if (m.misc) for (const k of Object.keys(m.misc)) out.misc[k] = (out.misc[k] ?? 0) + (m.misc[k] ?? 0);
   return out;
 }
 function skillStats(g: Game): Stats {
   const st: Stats = {};
-  for (const nid of ownedSkills(g)) {
-    const n = skillNode(g.cls, nid);
-    if (n?.st) {
-      for (const k of Object.keys(n.st) as (keyof Stats)[]) {
-        const v = n.st[k]; if (typeof v === "number") (st[k] as number) = ((st[k] as number) ?? 0) + v;
+  if ((g.skillVer ?? 0) < 3) {
+    for (const nid of ownedSkills(g)) {
+      const n = skillNode(g.cls, nid);
+      if (n?.st) {
+        for (const k of Object.keys(n.st) as (keyof Stats)[]) {
+          const v = n.st[k]; if (typeof v === "number") (st[k] as number) = ((st[k] as number) ?? 0) + v;
+        }
       }
     }
+  }
+  const ps = passiveStats(g as SkillState);
+  const map: Record<string, keyof Stats> = { hp: "hp", mp: "mp", atk: "atk", def: "def", crit: "crit", dodge: "dodge" };
+  for (const k of Object.keys(ps)) {
+    const dest = map[k];
+    if (dest) (st[dest] as number) = ((st[dest] as number) ?? 0) + ps[k];
   }
   return st;
 }
@@ -1407,9 +1535,298 @@ function castExtra(g: Game, id: string, label: string): boolean {
       log(g, "💧 Purify cleanses you and scorches the undead.", "heal");
       return true;
     }
-    default: return false;
+    default: return castTreeSkill(g, id, label);
   }
 }
+function pstat(g: Game, k: string): number { return passiveStats(g as SkillState)[k] ?? 0; }
+function sbuffSet(g: Game, key: string, dur: number, val?: number): void {
+  g.sbuff = { ...(g.sbuff ?? {}), [key]: Math.max(g.sbuff?.[key] ?? 0, dur) };
+  if (val !== undefined) g.sval = { ...(g.sval ?? {}), [key]: val };
+}
+function applyBurn(e: Enemy, t: number, d: number): void { e.burnT = Math.max(e.burnT, t); e.burnD = Math.max(e.burnD, d); }
+function applyPois(e: Enemy, t: number, d: number): void { e.poisT = Math.max(e.poisT, t); e.poisD = Math.max(e.poisD, d); }
+function applySlow(e: Enemy, t: number): void { e.slowT = Math.max(e.slowT ?? 0, t); }
+function applyRoot(e: Enemy, t: number): void { e.rootT = Math.max(e.rootT ?? 0, t); }
+function applyBleed(e: Enemy, t: number, d: number): void { e.poisT = Math.max(e.poisT, t); e.poisD = Math.max(e.poisD, Math.max(e.poisD, d)); }
+function faceDir(): [number, number] { return [Math.cos(FACE), Math.sin(FACE)]; }
+function treeMul(g: Game, id: string, base: number): number {
+  const up = skillUp(g, id);
+  let m = base * (1 + (up.dmg ?? 0));
+  const cat = treeNodeCat(g.cls, id);
+  if (cat === "basic") m *= 1 + pstat(g, "basicDmg") / 100;
+  if (cat === "mastery") m *= 1 + pstat(g, "mastDmg") / 100;
+  return m;
+}
+function treeRad(g: Game, id: string, base: number): number { return base + (skillUp(g, id).rad ?? 0) + pstat(g, "aoeRad") / 100 * base; }
+function treeDur(g: Game, id: string, base: number): number { return base + (skillUp(g, id).dur ?? 0); }
+function treeStun(g: Game, id: string, base: number): number { return (base + (skillUp(g, id).misc.stun ?? 0)) * (1 + pstat(g, "stunP") / 100); }
+
+function hitMany(g: Game, es: Enemy[], mult: number, label: string, forceCrit = false): number {
+  let n = 0; for (const e of es) n += hitEnemy(g, e, mult, forceCrit, label); return n;
+}
+function foesIn(g: Game, x: number, y: number, r: number): Enemy[] {
+  const c = g.combat; if (!c) return [];
+  return alive(c).filter((e: Enemy) => Math.hypot((e.x ?? 0) - x, (e.y ?? 0) - y) <= r);
+}
+function statusFromMisc(g: Game, e: Enemy, misc: Record<string, number>, atk: number): void {
+  if (misc.burn) applyBurn(e, misc.burn, Math.round(atk * 0.25));
+  if (misc.poison) applyPois(e, misc.poison, Math.round(atk * 0.3));
+  if (misc.bleed) applyBleed(e, misc.bleed, Math.round(atk * 0.2));
+  if (misc.slow && (misc.slowT || misc.slow)) applySlow(e, misc.slowT || 3);
+  if (misc.root) applyRoot(e, misc.root);
+  if (misc.shred) { e.def = Math.max(0, e.def - misc.shred); }
+  if (misc.mark || misc.vuln) e.marked = Math.max(e.marked ?? 0, misc.mark || misc.vulnT || 6);
+}
+
+function pushTreeZone(g: Game, z: { x: number; y: number; r: number; t: number; dmg?: number; heal?: number; slow?: number; tick?: number; k: string; misc?: Record<string, number> }): void {
+  const c = g.combat; if (!c) return;
+  const acc = c as Combat & { tz?: typeof z[] };
+  (acc.tz ?? (acc.tz = [])).push({ ...z, acc: 0 } as typeof z & { acc: number });
+}
+
+function castTreeSkill(g: Game, id: string, label: string): boolean {
+  const n = nodeById(g.cls, id); if (!n || !n.fx) return false;
+  const fx = n.fx;
+  const up = skillUp(g, id);
+  const misc = { ...(fx.misc ?? {}), ...(up.misc ?? {}) };
+  const f = full(g);
+  const [px, py] = heroXY(g);
+  const c = g.combat;
+  const t = c ? tgt(c) : undefined;
+  const dmg = treeMul(g, id, fx.dmg ?? 1);
+  const rad = treeRad(g, id, fx.rad ?? 2);
+  const dur = treeDur(g, id, fx.dur ?? 0);
+  const dist = (fx.dist ?? 4) + (up.misc.dist ?? 0) + (modsFor(g as SkillState, id).dist ?? 0);
+  const stun = fx.stun ? treeStun(g, id, fx.stun) : 0;
+  const [fdx, fdy] = faceDir();
+  const aimX = t ? (t.x ?? px) : px + fdx * dist, aimY = t ? (t.y ?? py) : py + fdy * dist;
+
+  const afterHit = (e: Enemy, dealt: number): void => {
+    statusFromMisc(g, e, misc, f.atk);
+    if (stun) stunE(g, e, stun);
+    if (misc.lifesteal && dealt > 0) healPlayer(g, Math.round(dealt * misc.lifesteal), !!c);
+    if (misc.selfHeal) healPlayer(g, Math.round(f.maxHp * misc.selfHeal), !!c);
+  };
+
+  switch (fx.k) {
+    case "hit": {
+      if (!t) return false;
+      const bonus = (t.stun > 0 || (misc.statusBonus && ((t.slowT ?? 0) > 0 || (t.rootT ?? 0) > 0))) ? (misc.stunBonus ?? 0) : 0;
+      const low = (t.hp / t.max) < (misc.execTh ?? 0) ? (misc.execMul ?? 1) : 1;
+      const dealt = hitEnemy(g, t, dmg * (1 + bonus) * low, false, label);
+      afterHit(t, dealt);
+      if (misc.splash) hitMany(g, foesIn(g, t.x ?? 0, t.y ?? 0, misc.splashRad ?? 1.6).filter((e) => e !== t), dmg * misc.splash, label);
+      addPulseEx(id, FACE, 1.2);
+      break;
+    }
+    case "nova": {
+      const es = foesIn(g, px, py, rad);
+      for (const e of es) {
+        let m = dmg;
+        if (misc.undeadOnly && !e.undead) { if (misc.allDmg) m = misc.allDmg; else continue; }
+        if (e.undead && misc.undeadBonus) m *= 1 + misc.undeadBonus;
+        const dealt = hitEnemy(g, e, m, false, label);
+        afterHit(e, dealt);
+      }
+      if (misc.selfHeal) healPlayer(g, Math.round(f.maxHp * misc.selfHeal), !!c);
+      if (stun) for (const e of es) stunE(g, e, stun);
+      addPulseEx(id, 0, rad, "rgba(255,220,150,.55)");
+      break;
+    }
+    case "cone": {
+      const half = Math.PI * 50 / 180;
+      const es = (c ? alive(c) : []).filter((e: Enemy) => {
+        const dx = (e.x ?? 0) - px, dy = (e.y ?? 0) - py, m = Math.hypot(dx, dy);
+        if (m > rad || m < 0.01) return m <= rad && m >= 0.01;
+        const ang = Math.atan2(dy, dx), d = Math.atan2(Math.sin(ang - FACE), Math.cos(ang - FACE));
+        return Math.abs(d) <= half;
+      });
+      for (const e of es) { const dealt = hitEnemy(g, e, dmg, false, label); afterHit(e, dealt); }
+      addPulseEx(id, FACE, rad);
+      break;
+    }
+    case "line": {
+      const ux = (aimX - px), uy = (aimY - py), m0 = Math.hypot(ux, uy) || 1;
+      const vx = ux / m0, vy = uy / m0;
+      const es = (c ? alive(c) : []).filter((e: Enemy) => {
+        const dx = (e.x ?? 0) - px, dy = (e.y ?? 0) - py;
+        const along = dx * vx + dy * vy; if (along < 0 || along > dist) return false;
+        const perp = Math.abs(dx * vy - dy * vx);
+        return perp <= 0.7 + (up.rad ?? 0);
+      });
+      es.sort((a, b) => Math.hypot((a.x ?? 0) - px, (a.y ?? 0) - py) - Math.hypot((b.x ?? 0) - px, (b.y ?? 0) - py));
+      es.forEach((e, i) => {
+        let m = dmg;
+        if (i === 0 && misc.firstBonus) m += misc.firstBonus;
+        if (misc.firstN && i < misc.firstN && misc.firstBonus) m = dmg + misc.firstBonus;
+        const dealt = hitEnemy(g, e, m, false, label); afterHit(e, dealt);
+      });
+      if (misc.endNova && es.length) {
+        const last = es[es.length - 1];
+        hitMany(g, foesIn(g, last.x ?? 0, last.y ?? 0, 1.6), misc.endNova, label);
+      }
+      addPulseEx(id, FACE, dist / 2);
+      break;
+    }
+    case "proj":
+    case "missiles": {
+      const nshot = (fx.n ?? 1) + (misc.n ?? 0);
+      const targets: Enemy[] = [];
+      if (c) {
+        const pool = alive(c);
+        if (t) targets.push(t);
+        for (const e of pool) if (targets.length < nshot && !targets.includes(e)) targets.push(e);
+      }
+      for (let i = 0; i < Math.max(1, nshot); i++) {
+        const e = targets[i] ?? t;
+        if (!e) continue;
+        let m = dmg;
+        if (fx.k === "missiles") m = dmg;
+        const dealt = hitEnemy(g, e, m, false, label);
+        afterHit(e, dealt);
+        if (misc.extra && i === 0 && targets[1]) { const d2 = hitEnemy(g, targets[1], dmg * misc.extra, false, label); afterHit(targets[1], d2); }
+        if (misc.bounce) bounceHits(g, e, 1 + misc.bounce, dmg * (misc.bounceDmg ?? 0.7), 0.75, label, "#cde");
+      }
+      if (misc.selfHeal) healPlayer(g, Math.round(f.maxHp * misc.selfHeal), !!c);
+      addPulseEx(id, FACE, 1.4);
+      break;
+    }
+    case "chain": {
+      bounceHits(g, t, (fx.n ?? 4) + (misc.n ?? 0), dmg, fx.fade ?? 0.75, label, "#9cf");
+      if (t && stun) stunE(g, t, stun);
+      break;
+    }
+    case "dash": {
+      tryDash(g, aimX - px, aimY - py, dist);
+      const [nx, ny] = heroXY(g);
+      const es = foesIn(g, nx, ny, rad || 1.4);
+      for (const e of es) { const dealt = hitEnemy(g, e, dmg, false, label); afterHit(e, dealt); if (stun) stunE(g, e, stun); }
+      if (misc.pierce) {
+        // foes along the path
+        for (const e of (c ? alive(c) : [])) {
+          if (es.includes(e)) continue;
+          const along = ((e.x ?? 0) - px) * (nx - px) + ((e.y ?? 0) - py) * (ny - py);
+          // loose path check
+          const path = Math.hypot(nx - px, ny - py) || 1;
+          const t0 = along / (path * path);
+          if (t0 > 0 && t0 < 1) {
+            const cx = px + (nx - px) * t0, cy = py + (ny - py) * t0;
+            if (Math.hypot((e.x ?? 0) - cx, (e.y ?? 0) - cy) < 0.9) hitEnemy(g, e, dmg * misc.pierce, false, label);
+          }
+        }
+      }
+      addPulseEx(id, FACE, 1.6);
+      break;
+    }
+    case "blink": {
+      tryDash(g, fdx * dist, fdy * dist, dist);
+      if (misc.nextCrit) g.buffs.nextCrit = Math.max(g.buffs.nextCrit ?? 0, misc.nextCrit);
+      if (misc.arrive && t) hitEnemy(g, t, misc.arrive, false, label);
+      addPulseEx(id, FACE, 1);
+      log(g, `${label}!`, "good");
+      break;
+    }
+    case "heal": {
+      const pct = (fx.pct ?? 0.25) + (misc.pct ?? 0);
+      const h = healPlayer(g, Math.round(f.maxHp * pct), !!c);
+      if (fx.pets || misc.healPets) for (const p of g.pets ?? []) if (p.ko <= 0) p.hp = Math.min(p.max, p.hp + Math.round(p.max * (misc.healPets ?? pct)));
+      log(g, `${label}: +${h} HP.`, "heal");
+      break;
+    }
+    case "shield": {
+      const amt = Math.round(f.maxMp * ((fx.pctMp ?? 0.3) + (misc.pctMp ?? 0)));
+      g.buffs.shield = Math.max(g.buffs.shield, amt);
+      if (dur) sbuffSet(g, "shieldT", dur);
+      log(g, `${label}: absorb ${amt}.`, "good");
+      break;
+    }
+    case "buff": {
+      const key = fx.key ?? id;
+      if (key === "rage") g.buffs.rage = Math.max(g.buffs.rage, dur || 8);
+      else if (key === "reflect") g.buffs.reflect = Math.max(g.buffs.reflect ?? 0, dur || 4);
+      else if (key === "evade") g.buffs.evade = Math.max(g.buffs.evade, 2 + (misc.charges ?? 0) - 2 + (misc.charges ?? 2));
+      else if (key === "pethaste") g.buffs.pethaste = Math.max(g.buffs.pethaste ?? 0, dur || 8);
+      else if (key === "frenzy") g.buffs.frenzy = Math.max(g.buffs.frenzy, dur || 8);
+      else sbuffSet(g, key, dur || 5, misc.dr ?? misc.atkMul ?? 1);
+      if (fx.healPct) healPlayer(g, Math.round(f.maxHp * fx.healPct), !!c);
+      if (misc.healPets) for (const p of g.pets ?? []) if (p.ko <= 0) p.hp = Math.min(p.max, p.hp + Math.round(p.max * misc.healPets));
+      if (misc.selfHeal) healPlayer(g, Math.round(f.maxHp * misc.selfHeal), !!c);
+      log(g, `${label}!`, "good");
+      addFx(g, n.name, "good", "p");
+      break;
+    }
+    case "zone":
+    case "spin":
+    case "meteor": {
+      const delay = fx.delay ?? 0;
+      const zx = fx.k === "meteor" ? aimX : (fx.k === "zone" && t ? (t.x ?? aimX) : px);
+      const zy = fx.k === "meteor" ? aimY : (fx.k === "zone" && t ? (t.y ?? aimY) : py);
+      if (fx.k === "meteor" && delay > 0 && c) {
+        (c.tele ?? (c.tele = [])).push({ id: UID++, x: zx, y: zy, r: rad, t: delay, max: delay, dmg: dmg * f.atk, from: -1, kind: "tree:" + id });
+      } else if (fx.k === "spin") {
+        g.buffs.whirl = Math.max(g.buffs.whirl ?? 0, dur || 2);
+      } else {
+        pushTreeZone(g, { x: zx, y: zy, r: rad, t: dur || 3, dmg: dmg, heal: fx.heal ?? misc.heal, slow: fx.slow ?? misc.slow, tick: fx.tick ?? 1, k: id, misc });
+      }
+      if (misc.selfHeal) healPlayer(g, Math.round(f.maxHp * misc.selfHeal), !!c);
+      addPulseEx(id, 0, rad, "rgba(180,220,255,.45)");
+      log(g, `${label}!`, "good");
+      break;
+    }
+    case "pull": {
+      if (!c) return false;
+      for (const e of foesIn(g, px, py, rad || dist || 5)) {
+        const dx = px - (e.x ?? 0), dy = py - (e.y ?? 0), m = Math.hypot(dx, dy) || 1;
+        e.x = (e.x ?? 0) + dx / m * Math.min(m, 2.5); e.y = (e.y ?? 0) + dy / m * Math.min(m, 2.5);
+        if (misc.dmg) { const dealt = hitEnemy(g, e, misc.dmg, false, label); afterHit(e, dealt); }
+        if (misc.root) applyRoot(e, misc.root);
+      }
+      log(g, `${label}!`, "good");
+      break;
+    }
+    case "taunt": {
+      for (const e of foesIn(g, px, py, rad)) { e.tauntT = Math.max(e.tauntT ?? 0, dur || 6); if (misc.dmg) hitEnemy(g, e, misc.dmg, false, label); if (misc.slow) applySlow(e, dur || 4); }
+      log(g, `${label}!`, "good");
+      break;
+    }
+    case "hex": {
+      if (!t || t.boss) { log(g, "It has no effect on that foe."); return true; }
+      t.polyT = Math.max(t.polyT ?? 0, dur || 4);
+      log(g, `${label}!`, "good");
+      break;
+    }
+    case "mark": {
+      if (!t) return false;
+      t.marked = Math.max(t.marked ?? 0, dur || 8);
+      t.hmark = Math.max(t.hmark ?? 0, dur || 8);
+      if (misc.slow) applySlow(t, dur || 8);
+      statusFromMisc(g, t, misc, f.atk);
+      log(g, `${label}!`, "good");
+      break;
+    }
+    case "trap": {
+      if (!c) return false;
+      const tr = c.traps ?? (c.traps = []);
+      if (tr.length >= (fx.max ?? misc.max ?? 2)) tr.shift();
+      tr.push({ id: UID++, x: px + fdx * 1.2, y: py + fdy * 1.2, r: rad || 2, fuse: 0 });
+      log(g, `${label} is set.`, "good");
+      break;
+    }
+    case "wall":
+    case "summon":
+    case "orbit":
+    case "decoy": {
+      pushTreeZone(g, { x: px + fdx * 1.2, y: py + fdy * 1.2, r: rad || 2.2, t: dur || 5, dmg: dmg * 0.4, tick: fx.tick ?? 1.2, k: id, misc });
+      if (misc.dr) sbuffSet(g, "dr:" + id, dur || 5, misc.dr);
+      log(g, `${label}!`, "good");
+      break;
+    }
+    default:
+      return false;
+  }
+  return true;
+}
+
 function tickZones(g: Game, dt: number): void {
   const c = g.combat; if (!c) return;
   const [px, py] = heroXY(g);
@@ -1568,7 +1985,10 @@ function tickScrollBuffs(g: Game, dt: number): void {
   if ((b.veil ?? 0) > 0) b.veil = Math.max(0, (b.veil ?? 0) - dt);
   if ((b.haste ?? 0) > 0) b.haste = Math.max(0, (b.haste ?? 0) - dt);
   if ((b.pethaste ?? 0) > 0) b.pethaste = Math.max(0, (b.pethaste ?? 0) - dt);
+  const sb = g.sbuff;
+  if (sb) for (const k of Object.keys(sb)) { sb[k] = Math.max(0, (sb[k] ?? 0) - dt); if (sb[k] <= 0) { delete sb[k]; if (g.sval) delete g.sval[k]; } }
 }
+
 function fmtBuff(n: number): string { return n >= 10 ? `${Math.ceil(n)}s` : `${Math.max(0.1, n).toFixed(1)}s`; }
 function log(g: Game, t: string, c: string = "sys"): void { g.log.unshift({ t, c, ts: Date.now() }); if (g.log.length > 60) g.log.pop(); }
 function addFx(g: Game, text: string, c: string, at: string): void { g.fx.push({ id: UID++, text, c, at, ts: Date.now() }); if (g.fx.length > 12) g.fx.shift(); }
@@ -2104,7 +2524,7 @@ function newGame(cls: ClassId, mode: Mode): Game {
   const c = CLS[cls];
   const g: Game = {
     screen: "map", prev: "map", mode, cls, lvl: 1, xp: 0, hp: 1, mp: 1, gold: 30, inv: [], eq: {}, floor: 1, map: [], seen: [], px: 0, py: 0, mons: [], sx: 0, sy: 0,
-    log: [], combat: null, cds: {}, buffs: freshBuffs(), perks: [], bonus: {}, goldMult: 1, inAb: false, usedUndying: false, usedShadow: false, usedPhoenix: false, skills: [], skillPts: 0, slots: [null, null, null, null, null], skillVer: 2,
+    log: [], combat: null, cds: {}, buffs: freshBuffs(), perks: [], bonus: {}, goldMult: 1, inAb: false, usedUndying: false, usedShadow: false, usedPhoenix: false, skills: [], skillPts: 0, slots: [null, null, null, null, null], skillVer: 3, skillRanks: {}, skillEnh: [], skillPick: {}, skillPass: {}, skillKey: null, sbuff: {}, sval: {},
     shop: [], stock: [], offers: [], kills: 0, sel: -1, fx: [], turns: 0, tokensEarned: 0,
   };
   g.eq.weapon = makeInst(c.start[0], 1, false);
@@ -2504,6 +2924,15 @@ const RANGED: Record<string, { min: number; max: number; fire: number }> = { cas
 const ARATE: Record<ClassId, number> = { warrior: 0.62, mage: 0.6, rogue: 0.42, cleric: 0.6, ranger: 0.5 };
 const ARNG: Record<ClassId, number> = { warrior: 17, mage: 62, rogue: 15, cleric: 18, ranger: 72 };
 const ABR: Record<string, number> = { bash: 20, backstab: 19, poison: 19, smite: 62, fireball: 72, trap: 72, frenzy: 72, multi: 90, sstep: 48, exec: 22, missiles: 72, poly: 48, mdeath: 64, hmark: 72, drain: 48, chain: 64, shuri: 64, meteor: 80, rain: 80, gwell: 64 };
+(function fillTreeRanges(): void {
+  const need = new Set(["hit", "proj", "chain", "mark", "hex", "missiles", "trap"]);
+  for (const id of CLASS_IDS) {
+    for (const n of skillNodes(id)) {
+      if (ABR[n.id] !== undefined || !n.fx || !need.has(n.fx.k)) continue;
+      ABR[n.id] = Math.round((n.fx.dist ?? 5) * U);
+    }
+  }
+})();
 function clampN(v: number, a: number, b: number): number { return v < a ? a : v > b ? b : v; }
 function eDist(c: Combat, e: Enemy): number { return Math.hypot((c.px ?? 0) - (e.x ?? 0), (c.py ?? 0) - (e.y ?? 0)); }
 function nearP(c: Combat, r: number): Enemy[] { return alive(c).filter((e: Enemy) => eDist(c, e) <= r); }
@@ -3997,8 +4426,8 @@ const HELP: [string, string][] = [
   ["✨ Starting perk", "Every new run (Story and Endless) opens with a choice of 3 random Common perks. The roll is saved, so reloading won't change it."],
   ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
-  ["✨ Abilities", "Each class starts with only a basic attack, which is always free. Every other ability — including former level unlocks such as Shield Bash, Fireball, or Leaping Slam — is learned by spending skill points on the in-run skill tree. Equip up to five learned abilities in the Skills loadout; only those appear on the bar (keys 1–5). You can change the loadout out of combat. Every ability can be used while moving (hotkey or tap); movement is not stopped, and aimed skills go to your current or nearest target. Abilities cost MP and have cooldowns in seconds. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
-  ["🌳 Skill tree", "Each time you level up you gain one skill point. Open Skills out of combat to spend points on a branching tree: main skills are roots (some with a level gate), and sub-skills branch off with prerequisites. You can choose between branches; you do not have to fill one line to reach another. Existing characters keep every ability they already had, marked as learned, with the first five auto-slotted and a fair pool of unspent points. Speed-boost skills (War March, Haste, Sprint, Wind Stride, Blessed Swiftness) were removed; any points spent on them are refunded on load. This tree is separate from the Endless token upgrade tree."],
+  ["✨ Abilities", "Each class starts with only a basic attack, which is always free. Every other ability — including former level unlocks such as Shield Bash, Fireball, or Leaping Slam — is learned by spending skill points on the in-run skill tree. Learn skills on the category tree (ranks, Enhanced, and one of two specializations). Equip up to five learned abilities in the Skills loadout; only those appear on the bar (keys 1–5). You can change the loadout out of combat. Every ability can be used while moving (hotkey or tap); movement is not stopped, and aimed skills go to your current or nearest target. Abilities cost MP and have cooldowns in seconds. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
+  ["🌳 Skill tree", "Each level grants one skill point. Open Skills out of combat to spend them on a category tree (D4-style: not a Paragon board). Basic is open from the start; Core, Defensive, a class path, Mastery, Ultimate and a Key Passive unlock after you have spent 2, 6, 8, 11, 16 and 23 points. Active skills have ranks 1–5, then an Enhanced upgrade, then a choice of two mutually exclusive specializations (respec to change). Passives sit between skills. Equip up to five learned actives in the loadout (keys 1–5). You can pan and pinch-zoom the tree; tap a node for details and Learn/Upgrade. A refund-all respec is available out of combat for a small gold fee (free if you cannot afford it). Existing characters keep the abilities they already had at rank 1, with leftover points refunded. This tree is separate from the Endless token upgrade tree."],
   ["✨ Dust salvage", "In your bag, Break down turns identified unequipped gear into Dust at a flat rarity rate: Common 1, Uncommon 2, Rare 3, Epic 4, Set 5, Legendary 6 (cursed items use the same tier; iLvl does not matter). 1 Dust = 1 gold, added immediately. Each rarity has a Break down all button that shows the item count and total Dust and asks for confirmation. A lock toggle on every item (inventory grid and item details) — and on equipped gear — stops it from being salvaged or sold, including merchant sell-from-bag. Curse-bound and equipped items are also protected. The lock is saved; old items default to unlocked."],
   ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its name, roll, and range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Later general sets, rarer than the earlier ones: Gravebloom Vestments (from floor 6), Rimeward Pall (from floor 10), and Ashen Covenant (from floor 14, Endless). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag. The dungeon holds 67 weapons, 42 armor, 37 helmets, 34 rings and 33 amulets, including 73 set pieces across 19 sets, 24 legendaries (uniques), and 11 cursed items."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
@@ -4664,6 +5093,31 @@ export default function DungeonOfEchoes() {
   const [homeAsk, setHomeAsk] = useState(false);
   const [salvAsk, setSalvAsk] = useState<{ title: string; body: string; uids: number[] } | null>(null);
   const [loadSel, setLoadSel] = useState<number>(0);
+  const [treeCat, setTreeCat] = useState<CatId | null>(null);
+  const [treeSel, setTreeSel] = useState<string | null>(null);
+  const treeCam = useRef({ x: 24, y: 24, s: 1, pid: -1, lx: 0, ly: 0, moved: false, p2: -1, p2x: 0, p2y: 0, pin: 0 });
+
+  const fitCatTree = (catId: CatId): void => {
+    const g0 = G.current; if (!g0) return;
+    const nodes = (catsOf(g0.cls).find((c) => c.id === catId)?.nodes) ?? [];
+    const ns0 = 56, gx0 = 28, gy0 = 36;
+    const maxX0 = Math.max(320, ...nodes.map((n) => n.x * (ns0 + gx0))) + ns0 + 40;
+    const maxY0 = Math.max(240, ...nodes.map((n) => n.y * (ns0 + gy0))) + ns0 + 40;
+    const apply = (): void => {
+      const el = document.querySelector("[data-tree-canvas='1']") as HTMLElement | null;
+      const w = el?.clientWidth ?? 360;
+      const h = el?.clientHeight ?? 400;
+      const s0 = Math.max(0.8, Math.min(1, (w - 24) / Math.max(1, maxX0), (h - 24) / Math.max(1, maxY0)));
+      treeCam.current.s = s0;
+      treeCam.current.x = 8;
+      treeCam.current.y = 8;
+      refresh();
+    };
+    requestAnimationFrame(apply);
+  };
+
+
+
   const [codeText, setCodeText] = useState<string>("");
   const [imp, setImp] = useState<string>("");
   const [msg, setMsg] = useState<string>("");
@@ -4720,8 +5174,13 @@ export default function DungeonOfEchoes() {
     w.__T = { run, refresh, boot, toTitle, snap: () => snap(G.current) };
     w.__R = {
       takeSkill, setSlot, gainXp, descend, engage, rtAbility, canTakeSkill, skillNodesOf, migrateSkills,
-      need, levelAbs,
+      need, levelAbs, canLearnTree, learnTreeNode, respecSkills, skillNodes, setTreeCat, setTreeSel,
       learn: (id: string) => { const g = G.current; if (!g) return false; const ok = takeSkill(g, id); LAST_SAVE = saveRun(g); refresh(); return ok; },
+      openSkills: () => { const g = G.current; if (!g) return; g.prev = g.screen; g.screen = "skills"; setTreeCat(null); setTreeSel(null); LAST_SAVE = saveRun(g); refresh(); },
+      openCat: (id: string) => { setTreeCat(id as CatId); setTreeSel(null); fitCatTree(id as CatId); },
+      clearFx: () => { AB_POPS.splice(0, AB_POPS.length); const g = G.current; if (g) { g.fx = []; g.bannerTs = 0; } setToast(""); refresh(); },
+      treeZoom: (s0: number, x: number, y: number) => { treeCam.current.s = s0; treeCam.current.x = x; treeCam.current.y = y; refresh(); },
+
       slot: (i: number, id: string | null) => { const g = G.current; if (!g) return; setSlot(g, i, id); LAST_SAVE = saveRun(g); refresh(); },
       xp: (n: number) => { const g = G.current; if (!g) return; gainXp(g, n); LAST_SAVE = saveRun(g); refresh(); },
       lvlTo: (n: number) => { const g = G.current; if (!g) return; let guard = 0; while (g.lvl < n && guard++ < 80) gainXp(g, Math.max(1, need(g.lvl) - g.xp)); LAST_SAVE = saveRun(g); refresh(); },
@@ -5951,74 +6410,190 @@ export default function DungeonOfEchoes() {
 
   // ---------- SKILLS (in-run tree; separate from Endless token TREE) ----------
   if (g.screen === "skills") {
-    const nodes = skillNodesOf(g.cls);
-    const have = ownedSkills(g);
-    const TNW = 92, TNH = 80, TGX = 12, TGY = 46;
-    const nx = (n: SkillNode) => n.x * (TNW + TGX);
-    const ny = (n: SkillNode) => n.y * (TNH + TGY);
-    const maxX = Math.max(0, ...nodes.map((n: SkillNode) => nx(n))) + TNW + 8;
-    const maxY = Math.max(0, ...nodes.map((n: SkillNode) => ny(n))) + TNH + 8;
+    const spent = pointsSpent(g as SkillState);
+    const cats = catsOf(g.cls);
+    const inFight = inCombatNow();
+    const cam = treeCam.current;
+    const ns = 56, gx = 28, gy = 36;
+    const pos = (n: TreeNode) => ({ x: n.x * (ns + gx), y: n.y * (ns + gy) });
+    const cat = treeCat ? catOf(g.cls, treeCat) : undefined;
+    const catNodes = cat?.nodes ?? [];
+    const maxX = Math.max(320, ...catNodes.map((n) => pos(n).x)) + ns + 40;
+    const maxY = Math.max(240, ...catNodes.map((n) => pos(n).y)) + ns + 40;
     const learned = learnedAbs(g);
     const slots = normSlots(g);
-    const inFight = inCombatNow();
     const assign = (id: string): void => { if (inFight) return; run((gg: Game) => { setSlot(gg, loadSel, id); }); };
+    const sel = treeSel ? nodeById(g.cls, treeSel) : undefined;
+    const nodeState = (n: TreeNode): "learned" | "open" | "locked" => {
+      if (n.kind === "skill") {
+        if (rankOf(g as SkillState, n.id) > 0) return "learned";
+        return canLearnTree(g, n.id) ? "open" : "locked";
+      }
+      if (n.kind === "enh") return (g.skillEnh ?? []).includes(n.id) ? "learned" : canLearnTree(g, n.id) ? "open" : "locked";
+      if (n.kind === "fork") {
+        if ((g.skillPick ?? {})[n.parent ?? ""] === n.id) return "learned";
+        if ((g.skillPick ?? {})[n.parent ?? ""] && (n.mutex ?? []).includes((g.skillPick ?? {})[n.parent ?? ""] ?? "")) return "locked";
+        return canLearnTree(g, n.id) ? "open" : "locked";
+      }
+      if (n.kind === "passive") return ((g.skillPass ?? {})[n.id] ?? 0) > 0 ? "learned" : canLearnTree(g, n.id) ? "open" : "locked";
+      if (n.kind === "key") return g.skillKey === n.id ? "learned" : canLearnTree(g, n.id) ? "open" : "locked";
+      return "locked";
+    };
+    const goBack = (): void => {
+      if (treeSel) { setTreeSel(null); return; }
+      if (treeCat) { setTreeCat(null); return; }
+      run((gg: Game) => { gg.screen = gg.prev === "skills" ? "map" : (gg.prev || "map"); });
+    };
+    const onCanvasDown = (ev: React.PointerEvent<HTMLDivElement>): void => {
+      ev.preventDefault();
+      const C = treeCam.current;
+      if (C.pid === -1) {
+        C.pid = ev.pointerId; C.lx = ev.clientX; C.ly = ev.clientY; C.moved = false;
+        try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (err) { void err; }
+      } else if (C.p2 === -1 && ev.pointerId !== C.pid) {
+        C.p2 = ev.pointerId; C.p2x = ev.clientX; C.p2y = ev.clientY;
+        C.pin = Math.hypot(ev.clientX - C.lx, ev.clientY - C.ly) || 1;
+      }
+    };
+    const onCanvasMove = (ev: React.PointerEvent<HTMLDivElement>): void => {
+      const C = treeCam.current;
+      if (C.p2 !== -1 && (ev.pointerId === C.pid || ev.pointerId === C.p2)) {
+        const x1 = ev.pointerId === C.pid ? ev.clientX : C.lx;
+        const y1 = ev.pointerId === C.pid ? ev.clientY : C.ly;
+        const x2 = ev.pointerId === C.p2 ? ev.clientX : C.p2x;
+        const y2 = ev.pointerId === C.p2 ? ev.clientY : C.p2y;
+        if (ev.pointerId === C.pid) { C.lx = ev.clientX; C.ly = ev.clientY; }
+        else { C.p2x = ev.clientX; C.p2y = ev.clientY; }
+        const d = Math.hypot(x2 - x1, y2 - y1) || 1;
+        const next = Math.max(0.8, Math.min(1.7, C.s * (d / (C.pin || d))));
+        C.s = next; C.pin = d; C.moved = true; refresh();
+        return;
+      }
+      if (ev.pointerId !== C.pid) return;
+      const dx = ev.clientX - C.lx, dy = ev.clientY - C.ly;
+      if (Math.hypot(dx, dy) > 6) C.moved = true;
+      C.x += dx; C.y += dy; C.lx = ev.clientX; C.ly = ev.clientY;
+      refresh();
+    };
+    const onCanvasUp = (ev: React.PointerEvent<HTMLDivElement>): void => {
+      const C = treeCam.current;
+      if (ev.pointerId === C.p2) { C.p2 = -1; return; }
+      if (ev.pointerId === C.pid) { C.pid = -1; C.p2 = -1; }
+    };
+    const onWheel = (ev: React.WheelEvent<HTMLDivElement>): void => {
+      ev.preventDefault();
+      const C = treeCam.current;
+      const f = ev.deltaY > 0 ? 0.92 : 1.08;
+      C.s = Math.max(0.8, Math.min(1.7, C.s * f));
+      refresh();
+    };
     return (
       <div style={root}>{style}
         {hud}
         <div style={row}>
-          <div style={{ fontSize: 20, fontWeight: 800, flex: "1 1 auto" }}>🌳 Skill Tree · {CLS[g.cls].name}</div>
-          <div style={{ fontWeight: 800, color: (g.skillPts ?? 0) > 0 ? t.text.accent : t.text.secondary }}>{g.skillPts ?? 0} unspent</div>
-          {btn("Back", () => run((gg: Game) => { gg.screen = gg.prev === "skills" ? "map" : (gg.prev || "map"); }), { tone: "primary" })}
+          <div style={{ fontSize: 18, fontWeight: 800, flex: "1 1 auto", minWidth: 0 }}>🌳 Skills · {CLS[g.cls].name}{cat ? ` · ${cat.name}` : ""}</div>
+          <div style={{ fontWeight: 800, color: (g.skillPts ?? 0) > 0 ? t.text.accent : t.text.secondary }}>{g.skillPts ?? 0} unspent · {spent} spent</div>
+          {btn(treeCat || treeSel ? "Back" : "Close", goBack, { tone: "primary" })}
         </div>
-        <div style={{ fontSize: 13, color: t.text.secondary }}>Spend a point on any open branch. Roots may require a level; branches need the node they grow from. The basic attack is always free. Equip up to five learned abilities in the loadout — only those appear on the bar (keys 1–5). Change the loadout out of combat.</div>
-        <div style={{ ...card, display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ fontWeight: 800 }}>Loadout · 5 slots{inFight ? " (change after combat)" : ""}</div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ ...card, display: "flex", flexDirection: "column", gap: treeCat ? 4 : 8 }}>
+          <div style={{ fontWeight: 800, fontSize: treeCat ? 13 : undefined }}>Loadout · 5 slots{inFight ? " (change after combat)" : ""}</div>
+          <div style={{ display: "flex", gap: treeCat ? 4 : 8, flexWrap: "wrap" }}>
             {slots.map((id: string | null, i: number) => {
               const a = id ? CLS[g.cls].abs.find((x: Ab) => x.id === id) : undefined;
               const on = loadSel === i;
               return (
-                <button key={i} type="button" disabled={inFight} onClick={() => setLoadSel(i)} style={{ minWidth: 112, textAlign: "left", borderRadius: 10, padding: "8px 10px", border: `2px solid ${on ? "#c9a24a" : t.border.default}`, background: on ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: inFight ? "default" : "pointer" }}>
-                  <div style={{ fontSize: 11, color: t.text.secondary }}>Slot {i + 1}</div>
-                  <div style={{ fontWeight: 700 }}>{a ? `${a.icon} ${a.name}` : "Empty"}</div>
+                <button key={i} type="button" disabled={inFight} onClick={() => setLoadSel(i)} style={{ minWidth: treeCat ? 56 : 112, flex: treeCat ? "1 1 0" : undefined, minHeight: 44, textAlign: "left", borderRadius: 10, padding: treeCat ? "6px 6px" : "8px 10px", border: `2px solid ${on ? "#c9a24a" : t.border.default}`, background: on ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: inFight ? "default" : "pointer" }}>
+                  {treeCat ? (
+                    <div style={{ fontWeight: 700, fontSize: 16, textAlign: "center" }}>{a ? a.icon : (i + 1)}</div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 11, color: t.text.secondary }}>Slot {i + 1}</div>
+                      <div style={{ fontWeight: 700 }}>{a ? `${a.icon} ${a.name}` : "Empty"}</div>
+                    </>
+                  )}
                 </button>
               );
             })}
           </div>
+          {!treeCat ? (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
             <span style={{ fontSize: 12, color: t.text.secondary }}>Equip in slot {loadSel + 1}:</span>
             {learned.map((a: Ab) => (
-              <button key={a.id} type="button" disabled={inFight} onClick={() => assign(a.id)} style={{ borderRadius: 8, padding: "6px 8px", border: `1px solid ${slots.includes(a.id) ? "#c9a24a" : t.border.default}`, background: slots.includes(a.id) ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: inFight ? "default" : "pointer" }}>{a.icon} {a.name}{slots.includes(a.id) ? " ✓" : ""}</button>
+              <button key={a.id} type="button" disabled={inFight} onClick={() => assign(a.id)} style={{ minHeight: 44, borderRadius: 8, padding: "6px 8px", border: `1px solid ${slots.includes(a.id) ? "#c9a24a" : t.border.default}`, background: slots.includes(a.id) ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: inFight ? "default" : "pointer" }}>{a.icon} {a.name}{slots.includes(a.id) ? " ✓" : ""}</button>
             ))}
-            {learned.length === 0 ? <span style={{ fontSize: 12, color: t.text.secondary }}>Learn an ability on the tree first.</span> : null}
-            {slots[loadSel] && !inFight ? <button type="button" onClick={() => run((gg: Game) => { setSlot(gg, loadSel, null); })} style={{ borderRadius: 8, padding: "6px 8px", border: `1px solid ${t.border.default}`, background: t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: "pointer" }}>Unequip slot {loadSel + 1}</button> : null}
+            {learned.length === 0 ? <span style={{ fontSize: 12, color: t.text.secondary }}>Learn an active skill on the tree first.</span> : null}
+            {slots[loadSel] && !inFight ? <button type="button" onClick={() => run((gg: Game) => { setSlot(gg, loadSel, null); })} style={{ minHeight: 44, borderRadius: 8, padding: "6px 8px", border: `1px solid ${t.border.default}`, background: t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: "pointer" }}>Unequip</button> : null}
           </div>
+          ) : null}
         </div>
-        <div style={{ ...card, overflow: "auto", maxHeight: land ? "52vh" : "46vh" }}>
-          <div style={{ position: "relative", width: maxX, height: maxY, minWidth: "100%" }}>
-            <svg width={maxX} height={maxY} style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}>
-              {nodes.flatMap((n: SkillNode) => (n.req ?? []).map((rid: string) => {
-                const p = skillNode(g.cls, rid); if (!p) return null;
-                const x1 = nx(p) + TNW / 2, y1 = ny(p) + TNH, x2 = nx(n) + TNW / 2, y2 = ny(n), mid = (y1 + y2) / 2;
-                const lit = have.includes(n.id) || have.includes(p.id);
-                return <path key={`${n.id}-${rid}`} d={`M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`} stroke={lit ? "#c9a24a" : "#555"} strokeWidth={2} fill="none" />;
-              }))}
-            </svg>
-            {nodes.map((n: SkillNode) => {
-              const owned = have.includes(n.id);
-              const open = canTakeSkill(g, n);
-              const missing = (n.req ?? []).filter((r: string) => !have.includes(r)).map((r: string) => skillNode(g.cls, r)?.name ?? r);
-              const why = !owned && !open ? (n.lv && g.lvl < n.lv ? `Lv ${n.lv}` : missing.length ? missing.join(", ") : (g.skillPts ?? 0) < 1 ? "Need a point" : "Locked") : "";
-              const clickable = open || !!(owned && n.ab && !inFight);
-              return (
-                <button key={n.id} type="button" disabled={!clickable} onClick={() => { if (open) run((gg: Game) => { takeSkill(gg, n.id); }); else if (owned && n.ab) assign(n.ab); }} title={n.desc + (why ? ` — ${why}` : owned && n.ab ? " — click to equip" : "")} style={{ position: "absolute", left: nx(n), top: ny(n), width: TNW, height: TNH, textAlign: "left", borderRadius: 10, padding: "6px 7px", border: `2px solid ${owned ? "#c9a24a" : open ? t.border.strong : t.border.default}`, background: owned ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: clickable ? "pointer" : "default", opacity: owned || open ? 1 : 0.55, overflow: "hidden" }}>
-                  <div style={{ fontWeight: 700, fontSize: 12, lineHeight: 1.2 }}>{n.icon} {n.name}{n.cap ? " ★" : ""} {owned ? "✓" : open ? "" : "🔒"}</div>
-                  <div style={{ fontSize: 10, color: t.text.secondary, marginTop: 2, lineHeight: 1.25 }}>{owned ? n.desc : why || n.desc}</div>
-                </button>
-              );
-            })}
+        {!treeCat ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ fontSize: 13, color: t.text.secondary }}>Spend points in a category. Deeper categories open as you spend more. Tap a category to open its tree. This is a skill tree, not a Paragon board.</div>
+            <div style={{ display: "grid", gridTemplateColumns: land ? "1fr 1fr 1fr" : "1fr 1fr", gap: 8 }}>
+              {cats.map((c) => {
+                const open = catUnlocked(g as SkillState, c.id);
+                return (
+                  <button key={c.id} type="button" onClick={() => { if (!open) return; treeCam.current = { ...treeCam.current, x: 8, y: 8, s: 0.5, pid: -1, p2: -1 }; setTreeCat(c.id); setTreeSel(null); fitCatTree(c.id); }} style={{ minHeight: 88, textAlign: "left", borderRadius: 12, padding: "12px 12px", border: `2px solid ${open ? "#c9a24a" : t.border.default}`, background: open ? t.bg.elevated : t.bg.base, color: t.text.primary, fontFamily: "inherit", cursor: open ? "pointer" : "default", opacity: open ? 1 : 0.55 }}>
+                    <div style={{ fontWeight: 800, fontSize: 16 }}>{c.icon} {c.name} {open ? "" : "🔒"}</div>
+                    <div style={{ fontSize: 12, color: t.text.secondary, marginTop: 4 }}>{open ? c.blurb : `Spend ${c.gate} points to unlock (you have spent ${spent}).`}</div>
+                  </button>
+                );
+              })}
+            </div>
+            <div>{btn(inFight ? "Respec (out of combat)" : "Respec — refund all (25 gold, or free)", () => { if (inFight) return; run((gg: Game) => { respecSkills(gg); }); setTreeSel(null); }, { disabled: inFight, tone: "accent", tall: true })}</div>
           </div>
-        </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: "1 1 auto" }}>
+            <div style={{ fontSize: 13, color: t.text.secondary }}>{cat?.blurb} Drag or pinch to move the tree. Tap a node for details.</div>
+            <div data-tree-canvas="1" onPointerDown={onCanvasDown} onPointerMove={onCanvasMove} onPointerUp={onCanvasUp} onPointerCancel={onCanvasUp} onWheel={onWheel} style={{ ...card, position: "relative", overflow: "hidden", height: land ? "58vh" : "56vh", touchAction: "none", overscrollBehavior: "contain" }}>
+              <div style={{ position: "absolute", left: cam.x, top: cam.y, width: maxX, height: maxY, transform: `scale(${cam.s})`, transformOrigin: "0 0" }}>
+                <svg width={maxX} height={maxY} style={{ position: "absolute", left: 0, top: 0, pointerEvents: "none" }}>
+                  {catNodes.flatMap((n) => {
+                    const links: { a: TreeNode; b: TreeNode }[] = [];
+                    if (n.kind === "enh" && n.parent) {
+                      const p0 = catNodes.find((x) => x.id === n.parent); if (p0) links.push({ a: p0, b: n });
+                    }
+                    if (n.kind === "fork" && n.enh) {
+                      const p0 = catNodes.find((x) => x.id === n.enh); if (p0) links.push({ a: p0, b: n });
+                    }
+                    return links.map(({ a, b }) => {
+                      const p1 = pos(a), p2 = pos(b);
+                      const x1 = p1.x + ns / 2, y1 = p1.y + ns, x2 = p2.x + ns / 2, y2 = p2.y, mid = (y1 + y2) / 2;
+                      const lit = nodeState(a) === "learned" || nodeState(b) === "learned";
+                      return <path key={`${a.id}-${b.id}`} d={`M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`} stroke={lit ? "#c9a24a" : "#555"} strokeWidth={2} fill="none" />;
+                    });
+                  })}
+                </svg>
+                {catNodes.map((n) => {
+                  const stt = nodeState(n);
+                  const p0 = pos(n);
+                  const rk = n.kind === "skill" ? rankOf(g as SkillState, n.id) : n.kind === "passive" ? ((g.skillPass ?? {})[n.id] ?? 0) : 0;
+                  return (
+                    <button key={n.id} type="button" data-tree-node={n.id} onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => ev.stopPropagation()} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.stopPropagation(); if (treeCam.current.moved) return; setTreeSel(n.id); }} style={{ position: "absolute", left: p0.x, top: p0.y, width: ns, minWidth: 44, height: ns, minHeight: 44, borderRadius: n.kind === "key" ? 18 : n.kind === "passive" ? 12 : 10, border: `2px solid ${stt === "learned" ? "#c9a24a" : stt === "open" ? t.border.strong : t.border.default}`, background: stt === "learned" ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: "pointer", opacity: stt === "locked" ? 0.5 : 1, overflow: "hidden", padding: 4 }}>
+                      <div style={{ fontSize: 16, lineHeight: 1 }}>{n.icon}</div>
+                      <div style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.1, marginTop: 2 }}>{n.name}</div>
+                      {n.kind === "skill" || n.kind === "passive" ? <div style={{ fontSize: 9, color: t.text.secondary }}>{rk}/{n.ranks ?? (n.kind === "skill" ? 5 : 3)}</div> : null}
+                      {stt === "locked" ? <div style={{ fontSize: 10 }}>🔒</div> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {sel ? (
+              <div style={{ ...card, display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ fontWeight: 800 }}>{sel.icon} {sel.name}{sel.new ? " · New" : ""} {sel.kind === "fork" ? "· Specialization" : sel.kind === "enh" ? "· Enhanced" : sel.kind === "key" ? "· Key Passive" : sel.kind === "passive" ? "· Passive" : "· Skill"}</div>
+                <div style={{ fontSize: 13, color: t.text.secondary }}>{sel.desc}{sel.mp != null ? `  · ${sel.mp} MP, ${sel.cd}s CD` : ""}</div>
+                {sel.kind === "skill" ? <div style={{ fontSize: 12 }}>Rank {rankOf(g as SkillState, sel.id)} / {sel.ranks ?? 5}. Each rank increases power. After rank 1 you may learn Enhanced, then one specialization.</div> : null}
+                {sel.kind === "fork" && (g.skillPick ?? {})[sel.parent ?? ""] && (g.skillPick ?? {})[sel.parent ?? ""] !== sel.id ? <div style={{ fontSize: 12, color: t.text.secondary }}>The other specialization is already chosen. Respec to change.</div> : null}
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {btn(sel.kind === "skill" && rankOf(g as SkillState, sel.id) > 0 ? `Upgrade (${g.skillPts ?? 0} pts)` : `Learn (${g.skillPts ?? 0} pts)`, () => run((gg: Game) => { learnTreeNode(gg, sel.id); }), { disabled: inFight || !canLearnTree(g, sel.id), tone: "accent", tall: true })}
+                  {sel.kind === "skill" && rankOf(g as SkillState, sel.id) > 0 && !inFight ? btn("Equip in selected slot", () => assign(sel.id), { tall: true }) : null}
+                  {btn("Close details", () => setTreeSel(null), { tall: true })}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        )}
       </div>
     );
   }
