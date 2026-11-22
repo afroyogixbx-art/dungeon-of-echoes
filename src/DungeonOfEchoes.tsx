@@ -2841,16 +2841,17 @@ function abCost(g: Game, ab: Ab): number {
 }
 function abCd(g: Game, ab: Ab): number { const f = full(g); const base = Math.max(0, ab.cd - (f.sp.includes("cdr") ? 1.5 : 0) - (g.perks.includes("archmage") ? 1.5 : 0)); return f.curses.includes("c_lag") ? base * 1.5 : base; }
 function runAbility(g: Game, id: string, label: string): void {
-  const c = g.combat; if (!c) return;
-  const f = full(g); const b = g.buffs; const t = tgt(c);
+  const c = g.combat;
+  if (!c && abNeedsTarget(id)) return;
+  const f = full(g); const b = g.buffs; const t = c ? tgt(c) : undefined;
   g.inAb = true;
   switch (id) {
     case "bash": if (t) { hitEnemy(g, t, 1.3, false, label); stunE(g, t, 2); } break;
     case "cleave": {
       const ww = g.perks.includes("whirlwind");
-      const px = c.px ?? 0, py = c.py ?? 0, reach = (ww ? 34 : 26) / U, half = Math.PI * 50 / 180;
-      for (const e of alive(c)) {
-        if (!los(g, px, py, e.x ?? 0, e.y ?? 0) || eDist(c, e) > reach) continue;
+      const px = c ? (c.px ?? g.wx ?? g.px + 0.5) : (g.wx ?? g.px + 0.5), py = c ? (c.py ?? g.wy ?? g.py + 0.5) : (g.wy ?? g.py + 0.5), reach = (ww ? 34 : 26) / U, half = Math.PI * 50 / 180;
+      for (const e of c ? alive(c) : []) {
+        if (!los(g, px, py, e.x ?? 0, e.y ?? 0) || eDist(c!, e) > reach) continue;
         if (!ww && !inCone(px, py, FACE, e.x ?? 0, e.y ?? 0, half, reach)) continue;
         hitEnemy(g, e, ww ? 1.2 : 1.0, false, label); if (ww) stunE(g, e, 1.5);
       }
@@ -2858,9 +2859,9 @@ function runAbility(g: Game, id: string, label: string): void {
       break;
     }
     case "smash": {
-      const px = c.px ?? 0, py = c.py ?? 0, reach = 2.4;
-      for (const e of alive(c)) {
-        if (eDist(c, e) > reach || !los(g, px, py, e.x ?? 0, e.y ?? 0)) continue;
+      const px = c ? (c.px ?? g.wx ?? g.px + 0.5) : (g.wx ?? g.px + 0.5), py = c ? (c.py ?? g.wy ?? g.py + 0.5) : (g.wy ?? g.py + 0.5), reach = 2.4;
+      for (const e of c ? alive(c) : []) {
+        if (eDist(c!, e) > reach || !los(g, px, py, e.x ?? 0, e.y ?? 0)) continue;
         hitEnemy(g, e, 1.2, false, label);
       }
       addPulse("smash", 0);
@@ -2868,24 +2869,25 @@ function runAbility(g: Game, id: string, label: string): void {
     }
     case "cry": b.rage = 8; healPlayer(g, Math.round(f.maxHp * 0.15), true); log(g, "📣 Battle Cry! +50% ATK for 8 s.", "good"); break;
     case "fireball": {
-      const ts = g.perks.includes("chain") ? alive(c) : t ? [t] : [];
+      const ts = (g.perks.includes("chain") && c) ? alive(c) : t ? [t] : [];
       for (const e of ts) { hitEnemy(g, e, 2.2, false, label); if (e.hp > 0) { e.burnT = 3; e.burnD = Math.max(e.burnD, Math.round(f.atk * 0.3)); } }
       break;
     }
-    case "nova": { const m = g.perks.includes("chain") ? 1.8 : 1.2; for (const e of g.perks.includes("chain") ? alive(c) : nearP(c, 34 / U)) { hitEnemy(g, e, m, false, label); stunE(g, e, 3); } break; }
+    case "nova": { const m = g.perks.includes("chain") ? 1.8 : 1.2; for (const e of !c ? [] : g.perks.includes("chain") ? alive(c) : nearP(c, 34 / U)) { hitEnemy(g, e, m, false, label); stunE(g, e, 3); } break; }
     case "arcane": { b.shield += Math.round(f.maxMp * 0.4 + g.lvl * 4); log(g, `🔮 Arcane Shield absorbs the next ${b.shield} damage.`, "good"); break; }
-    case "backstab": if (t) hitEnemy(g, t, 2.2, (c.elapsed ?? 0) < 3 || t.stun > 0, label); break;
+    case "backstab": if (t) hitEnemy(g, t, 2.2, ((c ? c.elapsed : 0) ?? 0) < 3 || t.stun > 0, label); break;
     case "poison": if (t) { hitEnemy(g, t, 1.0, false, label); if (t.hp > 0) { t.poisT = 4; t.poisD = Math.max(t.poisD, Math.round(f.atk * 0.45)); log(g, `${t.name} is badly poisoned.`); } } break;
     case "evade": b.evade = 2; log(g, "💨 You melt into the shadows: next 2 attacks will miss.", "good"); break;
     case "heal": { const amt = Math.round(f.maxHp * 0.35 * (f.sp.includes("healBoost") ? 1.5 : 1) * (g.perks.includes("highpriest") ? 1.5 : 1)); b.dotT = 0; const h = healPlayer(g, amt, true); log(g, `✨ You heal for ${h}.`, "heal"); break; }
     case "smite": {
       const wr = g.perks.includes("wrath");
-      const ts = wr ? alive(c) : t ? [t] : [];
+      const ts = (wr && c) ? alive(c) : t ? [t] : [];
       for (const e of ts) { hitEnemy(g, e, e.undead ? 2.5 : 1.8, false, label, true); if (wr && e.undead) stunE(g, e, 1.5); }
       break;
     }
     case "holy": b.holy = 6; log(g, "🔆 Holy Shield: damage halved for 6 s.", "good"); break;
     case "multi": {
+      if (!c) break;
       if (g.perks.includes("volley")) { for (const e of alive(c)) { hitEnemy(g, e, 0.7, false, label); hitEnemy(g, e, 0.7, false, label); } }
       else for (let k = 0; k < 4; k++) { const a = alive(c); if (a.length === 0) break; hitEnemy(g, pick(a), 0.7, false, label); }
       break;
@@ -2895,16 +2897,20 @@ function runAbility(g: Game, id: string, label: string): void {
   }
   g.inAb = false;
 }
+function abNeedsTarget(id: string): boolean {
+  // ABR lists a range for aimed skills; everything else is a self-buff, aura, or point-blank pulse
+  return id in ABR;
+}
 function useAbility(g: Game, id: string): ActRes {
-  const c = g.combat; if (!c) return "none";
   const ab = CLS[g.cls].abs.find((a: Ab) => a.id === id); if (!ab) return "none";
   if (!abReadyId(g, id)) { const i = abIdxOf(g, id); log(g, `${ab.name} unlocks at level ${abUnlockAt(i)}.`); addFx(g, `Lv ${abUnlockAt(i)}`, "sys", "p"); return "none"; }
   if ((g.cds[id] ?? 0) > 0) { log(g, `${ab.name} is on cooldown.`); return "none"; }
   const cost = abCost(g, ab);
   if (g.mp < cost) { log(g, `Not enough MP for ${ab.name}.`); return "none"; }
+  if (abNeedsTarget(id) && !g.combat) { log(g, `No target for ${ab.name}.`); addFx(g, "no target", "sys", "p"); return "none"; }
   g.mp -= cost; g.cds[id] = cdSec(g, ab);
   runAbility(g, id, `${ab.icon} ${ab.name}`);
-  if (g.perks.includes("echo") && (id === "fireball" || id === "nova") && Math.random() < 0.3 && alive(c).length > 0) {
+  if (g.perks.includes("echo") && (id === "fireball" || id === "nova") && Math.random() < 0.3 && g.combat && alive(g.combat).length > 0) {
     log(g, "🔁 Arcane Echo! The spell repeats!", "good");
     runAbility(g, id, `${ab.icon} ${ab.name} (echo)`);
   }
@@ -3092,7 +3098,7 @@ function unequip(g: Game, slot: GearSlot): void {
 
 const HELP: [string, string][] = [
   ["🕹️ Controls (touch)", "Touch and drag anywhere on the LEFT half of the screen to spawn a floating joystick; hold it to keep moving (analog, 8 directions). Out of combat the right side holds 🎒 Bag, 📖 Codex, ❓ Help, 🏠 and 💾. When a fight starts the same view swaps to combat controls: ⚔️ Attack (hold to keep swinging), your 3 abilities with cooldown rings, 💨 Dodge roll and a 🧪 potion quick-slot showing how many you carry. Tap an enemy to target it. Tap the minimap (top-right of the dungeon view) for the full map, which pauses the game. Item pickups float above your hero. Works in portrait and landscape."],
-  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving, you glide along walls). Exploring: M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. In combat: Space or J = attack (hold), Enter = attack once, 1/2/3 = abilities, Shift or K = dodge roll, R or 4 = quick-slot potion, Tab or Q/E = switch target. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc during play opens the exit prompt (the game pauses; confirming saves and exits) — even mid-fight."],
+  ["⌨️ Keyboard", "Move: WASD or arrow keys (hold to keep moving, you glide along walls). Exploring: M = full map, I or B = bag, Enter/Space/E = trade when next to a merchant, C = codex, H = help. Abilities (keys 1–9, 0) can be used while moving, in or out of a fight. In combat: Space or J = attack (hold), Enter = attack once, Shift or K = dodge roll, R = quick-slot potion, Tab or Q/E = switch target. Menus: arrows/WASD move the yellow highlight, Enter/Space selects, Q/E switch class tabs, Esc goes back. Esc during play opens the exit prompt (the game pauses; confirming saves and exits) — even mid-fight."],
   ["🎮 Gamepad", "Left stick or D-pad moves. Exploring: A/✕ trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. In combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, RT/R2 ability 4, LB/L1 switch target, View/Select quick-slot potion. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options pauses (exit prompt), also mid-fight."],
   ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant (stock is limited: each piece of gear sells once, potions and scrolls 1–3 each, then the slot shows SOLD OUT; leaving or reloading doesn't restock — the next merchant floor has fresh wares; Epic/Legendary wares are rare early, more common deeper, at most 2 per shop), 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You do not regenerate health or mana over time; look for potions, abilities, and gear marked ♻ Mana regen."],
   ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Ranged foes keep their distance: 🏹 archers show a red aim line before loosing a fast arrow, 🐸 Acid Spitters mark a green ring where their acid glob will land, and 🧙 Hex Cultists send a slow purple bolt that hexes you (−25% damage for 4 s). Their aim locks when the wind-up starts, so step aside. ★ Elite monsters (gold glow) are tougher and drop better loot. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. A Smoke Bomb or Shadowmeld breaks off a fight instantly (not against bosses)."],
@@ -3102,7 +3108,7 @@ const HELP: [string, string][] = [
   ["✨ Starting perk", "Every new run (Story and Endless) opens with a choice of 3 random Common perks. The roll is saved, so reloading won't change it."],
   ["🎲 Boss perks", "In Endless, after each boss you pick one perk from 3 offers. The roll is saved with the run, so reloading won't reroll them. Perks come in five rarities — Common, Uncommon, Rare, Epic and Legendary — and rarer ones are clearly stronger. Odds shift toward rarer tiers as you go deeper; a 10th-floor boss (and every 10 floors after) always offers at least one Epic or Legendary perk. The pool mixes shared perks with class-specific ones for Warrior, Mage, Rogue, Cleric and Ranger. Perks you already have won't be offered again."],
   ["🏦 Echo Vault", "After the boss on every 10th floor you may seal ONE item (from your bag or equipped) in the Echo Vault. It leaves the current run, keeps its random affixes and survives death. Depositing again replaces the stored item (you're asked to confirm). When you start a new run you're offered to bring it along; if you decline it stays vaulted."],
-  ["✨ Abilities", "Each class starts with only a basic attack. Class abilities unlock as you level: the first at level 3, then 6, 9 and (if a class has a fourth) 12. Locked buttons show a lock and the required level, and a banner announces “New ability unlocked” when one opens. Warriors learn Shield Bash, a frontal-cone Cleave, Battle Cry, then Smash (a circular shockwave). Clerics learn Heal, Smite, Holy Shield, then the same Smash. Mage, Rogue and Ranger keep their three class abilities. Abilities cost MP and have cooldowns in seconds — each button shows a sweep and the time left. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
+  ["✨ Abilities", "Each class starts with only a basic attack. Class abilities unlock as you level: the first at level 3, then 6, 9 and (if a class has a fourth) 12. Locked buttons show a lock and the required level, and a banner announces “New ability unlocked” when one opens. Warriors learn Shield Bash, a frontal-cone Cleave, Battle Cry, then Smash (a circular shockwave). Clerics learn Heal, Smite, Holy Shield, then the same Smash. Mage, Rogue and Ranger keep their three class abilities. Abilities cost MP and have cooldowns in seconds — each button shows a sweep and the time left. Every ability can be used while moving (hotkey or tap); movement is not stopped or interrupted, and aimed skills go to your current or nearest target. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
   ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its name, roll, and range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Later general sets, rarer than the earlier ones: Gravebloom Vestments (from floor 6), Rimeward Pall (from floor 10), and Ashen Covenant (from floor 14, Endless). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag. The dungeon holds 67 weapons, 42 armor, 37 helmets, 34 rings and 33 amulets, including 73 set pieces across 19 sets, 24 legendaries (uniques), and 11 cursed items."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
@@ -4156,7 +4162,16 @@ export default function DungeonOfEchoes() {
     const kn = joyKnob.current; if (kn) kn.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
   };
   const joyUp = (e: { pointerId: number }): void => { if (joyRef.current.id === e.pointerId) resetJoy(); };
-  const joyH = { onPointerDown: joyDown, onPointerMove: joyMove, onPointerUp: joyUp, onPointerCancel: joyUp, onLostPointerCapture: joyUp };
+  const joyLost = (e: { pointerId: number; currentTarget: HTMLDivElement }): void => {
+    if (joyRef.current.id !== e.pointerId) return;
+    // a React refresh can remount the capture element while the stick finger is still down;
+    // recapture so movement is not forced to a stop when an ability is pressed
+    if (livePtr.current.has(e.pointerId)) {
+      try { e.currentTarget.setPointerCapture(e.pointerId); joyRef.current.el = e.currentTarget; return; } catch (err) { void err; }
+    }
+    resetJoy();
+  };
+  const joyH = { onPointerDown: joyDown, onPointerMove: joyMove, onPointerUp: joyUp, onPointerCancel: joyUp, onLostPointerCapture: joyLost };
   const joyEl = (
     <div ref={joyBase} style={{ display: "none", position: "fixed", width: 104, height: 104, marginLeft: -52, marginTop: -52, borderRadius: "50%", border: "2px solid rgba(255,220,160,.45)", background: "radial-gradient(circle, rgba(255,200,120,.12), rgba(0,0,0,.3))", pointerEvents: "none", zIndex: 40 }}>
       <div ref={joyKnob} style={{ position: "absolute", left: "50%", top: "50%", width: 48, height: 48, borderRadius: "50%", background: "radial-gradient(circle at 40% 35%, #f3d9a6, #8a5a2a)", boxShadow: "0 0 12px rgba(255,180,90,.6)", transform: "translate(-50%, -50%)" }} />
@@ -4223,7 +4238,7 @@ export default function DungeonOfEchoes() {
     navMove(0, 1, true);
   };
   const abil = (i: number): void => {
-    const gg = G.current; if (!gg || gg.screen !== "map" || !gg.combat) return;
+    const gg = G.current; if (!gg || gg.screen !== "map") return;
     const a = CLS[gg.cls].abs[i]; if (!a) return;
     if (!abReady(gg, i)) { addFx(gg, `Lv ${abUnlockAt(i)}`, "sys", "p"); refresh(); return; }
     if ((gg.cds[a.id] ?? 0) > 0 || gg.mp < abCost(gg, a)) { addFx(gg, (gg.cds[a.id] ?? 0) > 0 ? "cooldown" : "no MP", "sys", "p"); refresh(); return; }
@@ -4280,10 +4295,14 @@ export default function DungeonOfEchoes() {
       return;
     }
     if (!gg) return;
+    if (k === "1" || k === "2" || k === "3" || k === "4" || k === "5" || k === "6" || k === "7" || k === "8" || k === "9" || k === "0") {
+      e.preventDefault();
+      abil(k === "0" ? 9 : Number(k) - 1);
+      return;
+    }
     if (gg.combat) {
       if (k === " " || k === "j") { if (onBtn && k === " ") return; e.preventDefault(); I.katk = true; run((x: Game) => rtAttack(x)); return; }
       if (k === "Enter") { if (onBtn) return; e.preventDefault(); run((x: Game) => rtAttack(x)); return; }
-      if (k === "1" || k === "2" || k === "3" || k === "4") { abil(Number(k) - 1); return; }
       if (k === "Shift" || k === "k") { dodge(); return; }
       if (k === "r" || k === "4") { quick(); return; }
       if (k === "Tab") { e.preventDefault(); cycleTarget(e.shiftKey ? -1 : 1); return; }
@@ -5110,7 +5129,7 @@ export default function DungeonOfEchoes() {
           const locked = !abReady(g, i); const lv = abUnlockAt(i);
           const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
           return (
-            <button key={a.id} onClick={() => abil(i)} aria-label={locked ? `${a.name} unlocks at level ${lv}` : `${a.name} (key ${i + 1})`} title={locked ? `Unlocks at level ${lv}` : `${a.name}: ${a.desc}`} style={{ ...roundBtn, borderColor: locked ? "#665" : cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: locked ? 0.55 : noMp && cd <= 0 ? 0.55 : 1, filter: locked ? "grayscale(.7)" : undefined }}>
+            <button key={a.id} type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); abil(i); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={locked ? `${a.name} unlocks at level ${lv}` : `${a.name} (key ${i + 1})`} title={locked ? `Unlocks at level ${lv}` : `${a.name}: ${a.desc}`} style={{ ...roundBtn, borderColor: locked ? "#665" : cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: locked ? 0.55 : noMp && cd <= 0 ? 0.55 : 1, filter: locked ? "grayscale(.7)" : undefined }}>
               <span>{locked ? "🔒" : a.icon}</span>{locked ? null : ring(fr)}
               <span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: locked ? "#ffe08a" : "#ffe6b0", textShadow: "0 1px 2px #000" }}>{locked ? `Lv ${lv}` : cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
               <span style={{ position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" }}>{i + 1}</span>
@@ -5136,6 +5155,19 @@ export default function DungeonOfEchoes() {
   ) : null;
   const mapActions = c ? combatActions : (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+            {CLS[g.cls].abs.map((a: Ab, i: number) => {
+              const locked = !abReady(g, i); const lv = abUnlockAt(i);
+              const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
+              return (
+                <button key={a.id} type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); abil(i); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={locked ? `${a.name} unlocks at level ${lv}` : `${a.name} (key ${i + 1})`} title={locked ? `Unlocks at level ${lv}` : `${a.name}: ${a.desc}`} style={{ ...roundBtn, borderColor: locked ? "#665" : cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: locked ? 0.55 : noMp && cd <= 0 ? 0.55 : 1, filter: locked ? "grayscale(.7)" : undefined }}>
+                  <span>{locked ? "🔒" : a.icon}</span>{locked ? null : ring(fr)}
+                  <span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: locked ? "#ffe08a" : "#ffe6b0", textShadow: "0 1px 2px #000" }}>{locked ? `Lv ${lv}` : cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
+                  <span style={{ position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" }}>{i + 1}</span>
+                </button>
+              );
+            })}
+          </div>
           {onMerchant && btn("💰 Trade", interact, { tone: "accent", tall: true })}
           {btn(`🎒 Bag (${g.inv.length})`, () => run((gg: Game) => { gg.screen = "inventory"; gg.sel = -1; }), { tone: "primary", tall: true })}
           <div style={row}>
