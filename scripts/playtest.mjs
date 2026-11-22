@@ -708,6 +708,197 @@ async function runPots(browser) {
   await page.close();
 }
 
+
+async function runTransfer(browser) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle0", timeout: 30000 });
+  await page.waitForFunction(() => typeof window.__T !== "undefined" && typeof window.__R !== "undefined", { timeout: 15000 });
+  await page.evaluate(() => window.__T.boot("warrior"));
+
+  const pack = (src, dst, gold) => {
+    const g = window.__G();
+    for (const k of Object.keys(g.eq || {})) delete g.eq[k];
+    g.inv = [src, dst].filter(Boolean);
+    g.gold = gold;
+    g.usedPhoenix = false;
+    g.combat = null;
+    g.buffs = g.buffs || {};
+    g.buffs.dotT = 0;
+    g.buffs.dotD = 0;
+  };
+
+  const success = await page.evaluate((packSrc) => {
+    const R = window.__R;
+    const src = { uid: 7001, id: "w_dagger", ident: true, bon: { def: 4 }, freed: false, ilvl: 3 };
+    const dst = { uid: 7002, id: "w_club", ident: true, bon: {}, freed: false, ilvl: 1 };
+    eval(packSrc)(src, dst, 5000);
+    const g = window.__G();
+    const beforeDef = R.itemStats(dst).def;
+    const r = R.applyTransfer(g, 7001, 7002, { kind: "stat", stat: "def", v: 4 });
+    const after = g.inv.find((i) => i.uid === 7002);
+    return {
+      r, gold: g.gold,
+      srcGone: !g.inv.some((i) => i.uid === 7001) && !Object.values(g.eq || {}).some((i) => i && i.uid === 7001),
+      destLeft: !!after,
+      beforeDef: beforeDef ?? 0, destDef: after ? (R.itemStats(after).def ?? 0) : null,
+      destBonDef: after && after.bon.def,
+      log: (g.log || []).slice(0, 3).map((l) => l.t),
+    };
+  }, pack.toString());
+  check(success.r === true, "stat transfer success path returns true", JSON.stringify(success));
+  check(success.gold === 0, "success path deducts 5,000 gold", JSON.stringify(success));
+  check(success.srcGone && success.destLeft, "source deleted and destination kept", JSON.stringify(success));
+  check(success.destDef === success.beforeDef + 4 && success.destBonDef === 4, "stat value is preserved on the destination", JSON.stringify(success));
+
+  const poor = await page.evaluate((packSrc) => {
+    const R = window.__R;
+    const src = { uid: 7011, id: "w_dagger", ident: true, bon: { def: 4 }, freed: false, ilvl: 3 };
+    const dst = { uid: 7012, id: "w_club", ident: true, bon: {}, freed: false, ilvl: 1 };
+    eval(packSrc)(src, dst, 4999);
+    const g = window.__G();
+    const r = R.applyTransfer(g, 7011, 7012, { kind: "stat", stat: "def", v: 4 });
+    return { r, gold: g.gold, src: !!g.inv.find((i) => i.uid === 7011), destDef: R.itemStats(g.inv.find((i) => i.uid === 7012) || dst).def ?? 0 };
+  }, pack.toString());
+  check(poor.r === "Not enough gold." && poor.gold === 4999 && poor.src && poor.destDef === 0, "insufficient gold is blocked and items are unchanged", JSON.stringify(poor));
+
+  const locked = await page.evaluate((packSrc) => {
+    const R = window.__R;
+    const src = { uid: 7021, id: "w_dagger", ident: true, bon: { def: 4 }, freed: false, ilvl: 3, pin: true };
+    const dst = { uid: 7022, id: "w_club", ident: true, bon: {}, freed: false, ilvl: 1 };
+    eval(packSrc)(src, dst, 5000);
+    const g = window.__G();
+    const r = R.applyTransfer(g, 7021, 7022, { kind: "stat", stat: "def", v: 4 });
+    return { r, gold: g.gold, src: !!g.inv.find((i) => i.uid === 7021) };
+  }, pack.toString());
+  check(typeof locked.r === "string" && /unlock/i.test(locked.r) && locked.gold === 5000 && locked.src, "locked (pinned) source is blocked", JSON.stringify(locked));
+
+  const equipped = await page.evaluate((packSrc) => {
+    const R = window.__R;
+    const src = { uid: 7031, id: "w_dagger", ident: true, bon: { def: 4 }, freed: false, ilvl: 3 };
+    const dst = { uid: 7032, id: "w_club", ident: true, bon: {}, freed: false, ilvl: 1 };
+    eval(packSrc)(src, dst, 5000);
+    const g = window.__G();
+    g.eq.weapon = src;
+    g.inv = [dst];
+    const r = R.applyTransfer(g, 7031, 7032, { kind: "stat", stat: "def", v: 4 });
+    return { r, gold: g.gold, stillEq: g.eq.weapon && g.eq.weapon.uid === 7031, destDef: R.itemStats(g.inv.find((i) => i.uid === 7032) || dst).def ?? 0 };
+  }, pack.toString());
+  check(typeof equipped.r === "string" && /unequip/i.test(equipped.r) && equipped.gold === 5000 && equipped.stillEq && equipped.destDef === 0, "equipped source is blocked", JSON.stringify(equipped));
+
+  const modified = await page.evaluate((packSrc) => {
+    const R = window.__R;
+    const src = { uid: 7041, id: "w_dagger", ident: true, bon: { def: 4 }, freed: false, ilvl: 3 };
+    const dst = { uid: 7042, id: "w_club", ident: true, bon: { atk: 3 }, freed: false, ilvl: 2, affs: [{ id: "a_atk", pre: false, tier: 1, stat: "atk", v: 3, name: "Keen", lo: 2, hi: 4 }] };
+    eval(packSrc)(src, dst, 5000);
+    const g = window.__G();
+    const atk0 = R.itemStats(dst).atk;
+    const r = R.applyTransfer(g, 7041, 7042, { kind: "stat", stat: "def", v: 4 });
+    const after = g.inv.find((i) => i.uid === 7042);
+    return { r, atk0, atk: after ? R.itemStats(after).atk : null, def: after ? R.itemStats(after).def : null, affAtk: after && after.affs && after.affs.some((a) => a.stat === "atk" && a.v === 3) };
+  }, pack.toString());
+  check(modified.r === true && modified.atk === modified.atk0 && modified.def === 4 && modified.affAtk, "transfer onto a modified item keeps existing affixes and adds the new stat", JSON.stringify(modified));
+
+  const stacked = await page.evaluate((packSrc) => {
+    const R = window.__R;
+    const src = { uid: 7051, id: "w_dagger", ident: true, bon: { def: 5 }, freed: false, ilvl: 3 };
+    const dst = { uid: 7052, id: "a_tunic", ident: true, bon: { def: 4 }, freed: false, ilvl: 2 };
+    eval(packSrc)(src, dst, 5000);
+    const g = window.__G();
+    const before = R.itemStats(dst).def; // tunic base 3 + bon 4 = 7
+    const r = R.applyTransfer(g, 7051, 7052, { kind: "stat", stat: "def", v: 5 });
+    const after = g.inv.find((i) => i.uid === 7052);
+    return { r, before, after: after ? R.itemStats(after).def : null, bon: after && after.bon.def };
+  }, pack.toString());
+  check(stacked.r === true && stacked.before === 7 && stacked.after === 12 && stacked.bon === 9, "same-stat values add together on the destination", JSON.stringify(stacked));
+
+  const legend = await page.evaluate((packSrc) => {
+    const R = window.__R;
+    const src = { uid: 7061, id: "m_phoenix", ident: true, bon: {}, freed: false, ilvl: 8 };
+    const dst = { uid: 7062, id: "a_dragon", ident: true, bon: {}, freed: false, ilvl: 8 };
+    eval(packSrc)(src, dst, 5000);
+    const g = window.__G();
+    const r = R.applyTransfer(g, 7061, 7062, { kind: "sp", sp: "phoenix" });
+    const after = g.inv.find((i) => i.uid === 7062);
+    g.inv = [];
+    if (after) g.eq.armor = after;
+    const sps = after ? R.itemSps(after) : [];
+    const f = R.full(g);
+    const dotT0 = g.buffs.dotT || 0;
+    R.applyDot(g, 10, "poison");
+    const shrugged = (g.buffs.dotT || 0) === dotT0 && (g.log || []).some((l) => /shrugs off the poison/i.test(l.t));
+    g.hp = 0;
+    R.lethal(g);
+    return {
+      r, sps, fullSp: f.sp.slice(),
+      shrugged, hp: g.hp, usedPhoenix: g.usedPhoenix,
+      log: (g.log || []).slice(0, 5).map((l) => l.t),
+    };
+  }, pack.toString());
+  check(legend.r === true && legend.sps.includes("dotImmune") && legend.sps.includes("phoenix") && legend.fullSp.includes("dotImmune") && legend.fullSp.includes("phoenix"), "legendary ability transfers onto another legendary and both are on the item", JSON.stringify(legend));
+  check(legend.shrugged, "destination's original legendary immunity still works after the transfer", JSON.stringify(legend));
+  check(legend.usedPhoenix === true && legend.hp > 0, "transferred phoenix blessing actually revives on the new item", JSON.stringify(legend));
+
+  // UI: service is on the merchant and the four steps can be walked
+  const ui = await page.evaluate(() => {
+    const R = window.__R;
+    const src = { uid: 7071, id: "w_dagger", ident: true, bon: { def: 5 }, freed: false, ilvl: 3 };
+    const dst = { uid: 7072, id: "w_club", ident: true, bon: { def: 4 }, freed: false, ilvl: 2 };
+    const g = window.__G();
+    for (const k of Object.keys(g.eq || {})) delete g.eq[k];
+    g.inv = [src, dst];
+    g.gold = 5000;
+    g.shop = [R.makeInst("c_hp1", 1, false, "shop")];
+    g.stock = [3];
+    g.combat = null;
+    g.screen = "shop";
+    window.__T.refresh();
+    return { screen: window.__G().screen };
+  });
+  check(ui.screen === "shop", "shop screen opened for transfer UI", JSON.stringify(ui));
+  await new Promise((r) => setTimeout(r, 150));
+  const open = await page.$("[data-xfer-open='1']");
+  check(!!open, "merchant shows the Stat Transfer service");
+  const tapped = await page.evaluate(() => {
+    const b = [...document.querySelectorAll("button")].find((el) => /Transfer 5,000g/i.test(el.textContent || ""));
+    if (!b) return false;
+    b.click();
+    return true;
+  });
+  check(tapped, "Transfer 5,000g button is clickable");
+  await new Promise((r) => setTimeout(r, 100));
+  const step1 = await page.$("[data-xfer='src']");
+  check(!!step1, "step 1 source picker is shown");
+  await page.evaluate(() => {
+    const row = document.querySelector("[data-xfer-item='7071'][data-xfer-kind='src'] button");
+    if (row) row.click();
+  });
+  await new Promise((r) => setTimeout(r, 80));
+  check(!!(await page.$("[data-xfer='dst']")), "step 2 destination picker is shown");
+  await page.evaluate(() => {
+    const row = document.querySelector("[data-xfer-item='7072'][data-xfer-kind='dst'] button");
+    if (row) row.click();
+  });
+  await new Promise((r) => setTimeout(r, 80));
+  check(!!(await page.$("[data-xfer='pick']")), "step 3 pick list is shown");
+  await page.evaluate(() => {
+    const row = document.querySelector("[data-xfer-pick='stat:def'] button");
+    if (row) row.click();
+  });
+  await new Promise((r) => setTimeout(r, 80));
+  const confirm = await page.evaluate(() => {
+    const root = document.querySelector("[data-xfer='confirm']");
+    const stack = document.querySelector("[data-xfer-stack='1']");
+    return { ok: !!root, stack: stack ? stack.textContent : "", confirmBtn: !!document.querySelector("[data-xfer-confirm='1']") };
+  });
+  check(confirm.ok && confirm.confirmBtn, "step 4 confirm screen is shown", JSON.stringify(confirm));
+  check(/\+4 Defense\s*→\s*\+9 Defense/.test(confirm.stack || ""), "confirm screen shows same-stat stacking in plain text", JSON.stringify(confirm));
+
+  check(errors.length === 0, "stat transfer had no page errors", errors.join(" | "));
+  await page.close();
+}
+
 async function main() {
 
 
@@ -741,6 +932,8 @@ async function main() {
     await runNames(browser);
     process.stdout.write("\n== potions ==\n");
     await runPots(browser);
+    process.stdout.write("\n== stat transfer ==\n");
+    await runTransfer(browser);
     process.stdout.write("\n== shots ==\n");
     await runShots(browser);
   } finally {

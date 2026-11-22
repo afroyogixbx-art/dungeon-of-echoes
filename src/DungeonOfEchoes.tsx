@@ -37,7 +37,7 @@ interface Buffs { rage: number; holy: number; evade: number; shield: number; fre
 interface Pet { k: string; hp: number; max: number; x: number; y: number; ko: number; cd: number; aT?: number; tx?: number; ty?: number; tmp?: number; }
 interface PetT { name: string; icon: string; hpF: number; mult: number; spd: number; reach: number; rate: number; desc: string; }
 interface RolledAff { id: string; pre: boolean; tier: number; stat: StatKey | "mpreg"; v: number; name: string; lo: number; hi: number; }
-interface Inv { uid: number; id: string; ident: boolean; bon: Stats; freed: boolean; ilvl?: number; affs?: RolledAff[]; aname?: string; mpreg?: number; pin?: boolean; }
+interface Inv { uid: number; id: string; ident: boolean; bon: Stats; freed: boolean; ilvl?: number; affs?: RolledAff[]; aname?: string; mpreg?: number; pin?: boolean; sps?: string[]; }
 interface LogL { t: string; c: string; ts?: number; }
 interface Fx { id: number; text: string; c: string; at: string; ts: number; }
 interface Full { maxHp: number; maxMp: number; atk: number; def: number; crit: number; dodge: number; ls: number; fire: number; ice: number; holy: number; poison: number; th: number; sp: string[]; curses: string[]; }
@@ -2390,6 +2390,133 @@ function itemStatKeys(inv: Inv): Set<string> {
   if (itemMpreg(inv) !== 0) keys.add("mpreg");
   return keys;
 }
+
+const TRANSFER_COST = 5000;
+/** Plain wording for special abilities, keyed by sp id (item-agnostic so a transferred power still reads clearly). */
+const SP_DESC: Record<string, string> = {
+  doubleStrike: "20% chance to strike twice.",
+  chainShock: "Attacks arc lightning to all other foes for 35%.",
+  freezeHit: "Attacks have a 25% chance to freeze.",
+  manaSave: "Spells cost 30% less MP.",
+  petx2: "Pet damage doubled.",
+  critPoison: "Critical hits inflict heavy poison.",
+  healBoost: "Heal restores 50% more.",
+  holyWard: "Take 12% less damage.",
+  thorns: "Reflect 25% of damage taken.",
+  dotImmune: "Immune to poison and burns.",
+  cdr: "All ability cooldowns 1.5 s shorter.",
+  void: "+15% damage dealt.",
+  phoenix: "Once per floor, revive at 40% HP.",
+  petBoost: "Your pets deal +30% damage and have +30% HP.",
+  reapSoul: "Kills restore 8% HP and 10% MP.",
+  cleaveHit: "Basic attacks also cleave a nearby foe for 50%.",
+  skyfall: "Your first hit in a fight deals 175%.",
+  soulburn: "Ability hits ignite the target and restore 10 MP.",
+  shadowVeil: "After you are hit, gain +20% dodge for 3 s.",
+  insight: "Abilities deal 20% more damage.",
+  thorns15: "Reflect 15% of damage taken.",
+  critHeal: "Critical hits heal 5% HP.",
+  arcanist: "Abilities cost 25% less and deal +20% damage.",
+  flameHit: "Attacks can ignite foes.",
+  ghoststep: "Dodging an attack heals 4% HP.",
+  bloodlust: "Kills heal 8% HP.",
+  colossus: "Take 12% less damage.",
+  execute: "+25% damage to wounded foes.",
+  opener: "Your first hit in a fight deals 150%.",
+  lifeTap: "8% of damage dealt is returned as healing.",
+  pierce: "Basic attacks also pierce a nearby foe for 40%.",
+  graveRot: "Attacks inflict a heavier rot.",
+};
+function spDesc(sp: string): string {
+  if (SP_DESC[sp]) return SP_DESC[sp];
+  const it = ITEMS.find((i: ItemT) => i.sp === sp && i.desc && !i.cursed);
+  if (it?.desc) return it.desc;
+  const set = Object.values(SETS).find((s: SetT) => s.sp === sp);
+  return set ? set.desc : sp;
+}
+function itemSps(inv: Inv): string[] {
+  const out: string[] = [];
+  const add = (s?: string): void => { if (s && !out.includes(s)) out.push(s); };
+  add(IT[inv.id]?.sp);
+  if (inv.sps) for (const s of inv.sps) add(s);
+  return out;
+}
+type XferPick = { kind: "stat"; stat: StatKey | "mpreg"; v: number } | { kind: "sp"; sp: string };
+function xferLines(inv: Inv): XferPick[] {
+  const lines: XferPick[] = [];
+  const st = itemStats(inv);
+  for (const k of STAT_KEYS) { const v = st[k] ?? 0; if (v !== 0) lines.push({ kind: "stat", stat: k, v }); }
+  const mp = itemMpreg(inv);
+  if (mp !== 0) lines.push({ kind: "stat", stat: "mpreg", v: mp });
+  for (const sp of itemSps(inv)) lines.push({ kind: "sp", sp });
+  return lines;
+}
+function xferLabel(pick: XferPick): string { return pick.kind === "stat" ? formatStat(pick.stat, pick.v) : "★ " + spDesc(pick.sp); }
+function isGearInv(inv: Inv): boolean { const it = IT[inv.id]; return !!it && it.slot !== "consumable"; }
+function findOwned(g: Game, uid: number): Inv | undefined {
+  return g.inv.find((x: Inv) => x.uid === uid) ?? GEAR.map((k: GearSlot) => g.eq[k]).find((x: Inv | undefined) => !!x && x.uid === uid);
+}
+function srcBlockReason(g: Game, inv: Inv): string | null {
+  if (!isGearInv(inv)) return "Only equippable gear can be stripped.";
+  if (!inv.ident) return "Identify the source item first.";
+  if (pinned(inv)) return "Unlock the source item first.";
+  if (locked(inv)) return "Lift the curse on the source item first.";
+  if (isEquipped(g, inv)) return "Unequip the source item first.";
+  if (xferLines(inv).length === 0) return "That item has no stats or abilities to transfer.";
+  return null;
+}
+function dstBlockReason(inv: Inv, src?: Inv): string | null {
+  if (!isGearInv(inv)) return "Only equippable gear can receive a transfer.";
+  if (!inv.ident) return "Identify the destination item first.";
+  if (src && inv.uid === src.uid) return "Pick a different item as the destination.";
+  return null;
+}
+function addTransferredStat(inv: Inv, stat: StatKey | "mpreg", v: number): void {
+  if (stat === "mpreg") inv.mpreg = (inv.mpreg ?? 0) + v;
+  else inv.bon = { ...inv.bon, [stat]: (inv.bon[stat] ?? 0) + v };
+  if (!inv.affs || inv.affs.length === 0) {
+    if (stat !== "mpreg") inv.affs = undefined;
+    return;
+  }
+  const existing = inv.affs.find((a: RolledAff) => a.stat === stat);
+  if (existing) {
+    existing.v += v;
+    if (v > 0) existing.hi = Math.max(existing.hi, existing.v);
+    else existing.lo = Math.min(existing.lo, existing.v);
+  } else {
+    inv.affs = [...inv.affs, { id: "xfer_" + stat, pre: false, tier: 0, stat, v, name: "Transferred", lo: v, hi: v }];
+  }
+}
+/** Deducts 5,000 gold, moves one stat or special onto dest, destroys source. Returns true or an error. */
+function applyTransfer(g: Game, srcUid: number, dstUid: number, pick: XferPick): true | string {
+  if (g.gold < TRANSFER_COST) return "Not enough gold.";
+  const srcFound = findOwned(g, srcUid);
+  if (!srcFound) return "Source item not found.";
+  const sBlock = srcBlockReason(g, srcFound);
+  if (sBlock) return sBlock;
+  const src = g.inv.find((x: Inv) => x.uid === srcUid);
+  if (!src) return "Unequip the source item first.";
+  const dst = findOwned(g, dstUid);
+  if (!dst) return "Destination item not found.";
+  const dBlock = dstBlockReason(dst, src);
+  if (dBlock) return dBlock;
+  const lines = xferLines(src);
+  const ok = pick.kind === "stat"
+    ? lines.some((l: XferPick) => l.kind === "stat" && l.stat === pick.stat && l.v === pick.v)
+    : lines.some((l: XferPick) => l.kind === "sp" && l.sp === pick.sp);
+  if (!ok) return "That bonus is no longer on the source item.";
+  const srcName = instName(src), dstName = instName(dst);
+  g.gold -= TRANSFER_COST;
+  if (pick.kind === "stat") addTransferredStat(dst, pick.stat, pick.v);
+  else if (!itemSps(dst).includes(pick.sp)) dst.sps = [...(dst.sps ?? []), pick.sp];
+  g.inv = g.inv.filter((x: Inv) => x.uid !== src.uid);
+  if (g.sel === src.uid) g.sel = dst.uid;
+  clamp(g);
+  syncPets(g);
+  log(g, `✨ Transferred ${xferLabel(pick)} onto ${dstName}. ${srcName} was destroyed.`, "good");
+  return true;
+}
+
 function wornFor(g: Game, inv: Inv): Inv | undefined {
   const it = IT[inv.id];
   if (it.slot === "consumable") return undefined;
@@ -2606,7 +2733,7 @@ function full(g: Game): Full {
   addStats(f, skillStats(g));
   for (const k of GEAR) {
     const it = g.eq[k];
-    if (it) { const tt = IT[it.id]; addStats(f, tt.st); addStats(f, it.bon); if (tt.sp) f.sp.push(tt.sp); if (tt.curse) f.curses.push(tt.curse); }
+    if (it) { const tt = IT[it.id]; addStats(f, tt.st); addStats(f, it.bon); for (const sp of itemSps(it)) f.sp.push(sp); if (tt.curse) f.curses.push(tt.curse); }
   }
   const sc = setCounts(g);
   for (const sid of Object.keys(sc)) { const S = SETS[sid]; if (sc[sid] >= 2) addStats(f, S.b2); if (S.b3 && sc[sid] >= 3) addStats(f, S.b3); if (sc[sid] >= S.n) { addStats(f, S.bf); f.sp.push(S.sp); } }
@@ -2919,7 +3046,7 @@ function healPlayer(g: Game, amt: number, combatHeal: boolean): number {
   return h;
 }
 function applyDot(g: Game, d: number, label: string): void {
-  if (full(g).sp.includes("dotImmune") || g.perks.includes("dragonheart")) { log(g, `${g.perks.includes("dragonheart") ? "Dragonheart" : "Dragonheart Plate"} shrugs off the ${label}.`, "good"); return; }
+  if (full(g).sp.includes("dotImmune") || g.perks.includes("dragonheart")) { log(g, `${g.perks.includes("dragonheart") ? "Dragonheart" : "Your gear"} shrugs off the ${label}.`, "good"); return; }
   g.buffs.dotT = 3; g.buffs.dotD = Math.max(g.buffs.dotD, d);
   log(g, `You are ${label === "burn" ? "burning 🔥" : "poisoned ☠️"}!`, "bad");
 }
@@ -2927,7 +3054,7 @@ function lethal(g: Game): void {
   if (g.hp > 0) return;
   const f = full(g);
   if (g.perks.includes("undying") && !g.usedUndying) { g.hp = 1; g.usedUndying = true; log(g, "🩸 UNDYING! You refuse to fall!", "good"); addFx(g, "UNDYING", "good", "p"); return; }
-  if (f.sp.includes("phoenix") && !g.usedPhoenix) { g.hp = Math.round(f.maxHp * 0.4); g.usedPhoenix = true; log(g, "🪶 The Phoenix Amulet blazes — you rise again!", "good"); addFx(g, "REVIVE", "good", "p"); return; }
+  if (f.sp.includes("phoenix") && !g.usedPhoenix) { g.hp = Math.round(f.maxHp * 0.4); g.usedPhoenix = true; log(g, "🪶 A phoenix blessing blazes — you rise again!", "good"); addFx(g, "REVIVE", "good", "p"); return; }
   if (g.perks.includes("resurrect") && !g.usedRes) { g.hp = Math.round(f.maxHp * 0.5); g.usedRes = true; log(g, "🕯️ Divine Resurrection! Holy light drags you back from death.", "good"); addFx(g, "REVIVE", "good", "p"); }
 }
 function die(g: Game): void {
@@ -3036,7 +3163,7 @@ function resolveDeaths(g: Game): void {
     e.dead = true; e.hp = 0; e.wind = 0; e.wk = ""; e.dt0 = Date.now(); g.kills++;
     { const [dx, dy] = atXY(g, e); spawnBurst(dx, dy, "death", e.undead ? "#b8d080" : "#c8bfb0"); }
     if (full(g).sp.includes("bloodlust")) { const h = healPlayer(g, Math.max(1, Math.round(full(g).maxHp * 0.08)), false); if (h > 0) { log(g, `🩸 Bloodlust heals ${h}.`, "heal"); addFx(g, `+${h}`, "heal", "p"); } }
-    if (full(g).sp.includes("reapSoul")) { const F = full(g); const h = healPlayer(g, Math.max(1, Math.round(F.maxHp * 0.08)), false); const m = Math.max(1, Math.round(F.maxMp * 0.10)); g.mp = Math.min(F.maxMp, g.mp + m); if (h > 0) { log(g, `💀 Reaper's Kiss restores ${h} HP and ${m} MP.`, "heal"); addFx(g, `+${h}`, "heal", "p"); } }
+    if (full(g).sp.includes("reapSoul")) { const F = full(g); const h = healPlayer(g, Math.max(1, Math.round(F.maxHp * 0.08)), false); const m = Math.max(1, Math.round(F.maxMp * 0.10)); g.mp = Math.min(F.maxMp, g.mp + m); if (h > 0) { log(g, `💀 Soul reaping restores ${h} HP and ${m} MP.`, "heal"); addFx(g, `+${h}`, "heal", "p"); } }
     const ex = clampN(Math.floor(e.x ?? g.px + 0.5), 0, W - 1), ey = clampN(Math.floor(e.y ?? g.py + 0.5), 0, H - 1);
     (g.rem = g.rem ?? []).push(`${ey * W + ex}:${sprOf(e)}`);
     if ((g.rem ?? []).length > 120) g.rem.shift();
@@ -5023,7 +5150,7 @@ function doAction(g: Game, kind: string, arg: string): ActRes {
     if (mage) g.mp = Math.min(f.maxMp, g.mp + 2);
     if (g.perks.includes("spellblade")) g.mp = Math.min(f.maxMp, g.mp + 10);
     if (g.perks.includes("doublecut") && t.hp > 0 && Math.random() < 0.2) hitEnemy(g, t, mage ? 0.6 : 1, false, "⚔️ Double Cut");
-    if (f.sp.includes("doubleStrike") && t.hp > 0 && Math.random() < 0.2) hitEnemy(g, t, 1, false, "⚔️ Echo Blade");
+    if (f.sp.includes("doubleStrike") && t.hp > 0 && Math.random() < 0.2) hitEnemy(g, t, 1, false, "⚔️ Second strike");
     if (f.sp.includes("freezeHit") && t.hp > 0 && Math.random() < 0.25) stunE(g, t, 1.5);
     if (f.sp.includes("chainShock")) for (const e of alive(c)) if (e !== t) { const d = Math.max(1, Math.round(f.atk * 0.35 * 60 / (60 + e.def))); e.hp -= d; addFx(g, `-${d}`, "dmg", "e" + e.uid); log(g, `⚡ Lightning arcs to ${e.name} for ${d}.`, "dmg"); }
     if (f.sp.includes("pierce") || f.sp.includes("cleaveHit")) {
@@ -5130,7 +5257,7 @@ const HELP: [string, string][] = [
   ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions go to a dedicated slot (not the bag) and are scarce — regular foes have a 10% chance to drop one, elites and bosses 25%. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its roll range at that Item Level. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Later general sets, rarer than the earlier ones: Gravebloom Vestments (from floor 6), Rimeward Pall (from floor 10), and Ashen Covenant (from floor 14, Endless). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag. The dungeon holds 67 weapons, 42 armor, 37 helmets, 34 rings and 33 amulets, including 73 set pieces across 19 sets, 24 legendaries (uniques), and 11 cursed items."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
-  ["💰 Merchant", "Buy potions, scrolls and gear, sell loot, identify items, and lift curses. Merchants appear on even floors."],
+  ["💰 Merchant", "Buy potions, scrolls and gear, sell loot, identify items, and lift curses. Merchants also offer Stat Transfer (5,000 gold): move one stat or special ability from a source item onto any other piece of gear. The source is destroyed. Unlock and unequip the source first; the destination may be equipped and may already have stats or abilities (same stats add together; different legendary abilities all work). Merchants appear on even floors."],
   ["📖 Story", "10 floors. The Broodmother mini-boss waits on Floor 5 and the Echo Lord on Floor 10. Beat him to win."],
   ["∞ Endless", "☠️ PERMADEATH: Endless autosaves constantly and your run save is deleted the moment you die (revives like Undying, Divine Resurrection or the Phoenix Amulet trigger first). Tokens, upgrades, best depth and codex are kept. Infinite scaling floors with a boss every 5 floors. After each boss pick an in-run perk (rarity-weighted; 10th-floor bosses guarantee an Epic or better). Your best depth is saved."],
   ["💾 Saving", "Your run autosaves every couple of seconds — even mid-fight, with every enemy's position and HP — and on every floor change; tap Continue on the title screen to resume. Tokens, upgrades, best depth and the codex are saved separately and survive death. Use 💾 Save Code to copy a backup code or paste one in on another device."],
@@ -5657,6 +5784,7 @@ function normInv(i: Inv): Inv {
     ilvl: estIlvl(i), affs: affs && affs.length ? affs : undefined, aname: typeof i.aname === "string" && i.aname ? i.aname : undefined,
     mpreg: mpreg || undefined,
     pin: i.pin === true || undefined,
+    sps: ((): string[] | undefined => { const a = Array.isArray(i.sps) ? (i.sps as unknown[]).filter((s: unknown): s is string => typeof s === "string" && !!s) : []; return a.length ? a : undefined; })(),
   };
 }
 function validRun(x: unknown): Game | null {
@@ -5800,6 +5928,7 @@ export default function DungeonOfEchoes() {
   const [treeCls, setTreeCls] = useState<ClassId>("warrior");
   const [confirm, setConfirm] = useState<Mode | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [xfer, setXfer] = useState<{ step: "src" | "dst" | "pick" | "confirm"; src?: number; dst?: number; pick?: XferPick } | null>(null);
   const [reduceFxUi, setReduceFxUi] = useState(() => loadPrefs().reduceFx);
   const [dustAmt, setDustAmt] = useState(1);
   const [joinCode, setJoinCode] = useState("");
@@ -6055,6 +6184,7 @@ export default function DungeonOfEchoes() {
       hold: (x: number, y: number) => { const I = inp.current; I.kx = x; I.ky = y; },
       stop: () => { const I = inp.current; I.kx = 0; I.ky = 0; I.jx = 0; I.jy = 0; I.gx = 0; I.gy = 0; I.atk = false; I.katk = false; },
       cast: (i: number) => { const g = G.current; if (!g) return; const a = barAbs(g)[i]; if (a) rtAbility(g, a.id); refresh(); },
+      TRANSFER_COST, applyTransfer, xferLines, itemSps, srcBlockReason, dstBlockReason, itemStats, itemMpreg, formatStat, spDesc, applyDot, lethal, full, equip, unequip, findOwned,
       migrateSample: () => {
         const g = newGame("warrior", "story");
         g.offers = []; g.startPick = false; g.screen = "map";
@@ -6342,9 +6472,9 @@ export default function DungeonOfEchoes() {
     for (const k of STAT_KEYS) pushDelta(k, k, (newSt[k] ?? 0) - (oldSt[k] ?? 0), shared.has(k));
     pushDelta("mpreg", "mpreg", newMp - oldMp, shared.has("mpreg"));
     if (worn && worn.ident) {
-      const nsp = IT[inv.id].sp, osp = IT[worn.id].sp;
-      if (nsp && nsp !== osp) deltas.push(<span key="sp+" data-delta="sp-new" style={{ color: t.text.success, fontWeight: 600, fontSize: 12 }}>+{IT[inv.id].desc || nsp}</span>);
-      if (osp && osp !== nsp) deltas.push(<span key="sp-" data-delta="sp-old" style={{ color: t.text.danger, fontWeight: 600, fontSize: 12 }}>−{IT[worn.id].desc || osp}</span>);
+      const nsp = itemSps(inv), osp = itemSps(worn);
+      for (const sp of nsp) if (!osp.includes(sp)) deltas.push(<span key={"sp+" + sp} data-delta="sp-new" style={{ color: t.text.success, fontWeight: 600, fontSize: 12 }}>+★ {spDesc(sp)}</span>);
+      for (const sp of osp) if (!nsp.includes(sp)) deltas.push(<span key={"sp-" + sp} data-delta="sp-old" style={{ color: t.text.danger, fontWeight: 600, fontSize: 12 }}>−★ {spDesc(sp)}</span>);
     }
     const before = setBonusStats(setCounts(g));
     const after = setBonusStats(previewSetCounts(g, inv));
@@ -6401,7 +6531,9 @@ export default function DungeonOfEchoes() {
         {affixChips(inv, g.floor, shared)}
         {itemMpreg(inv) !== 0 && !(inv.affs && inv.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div data-stat="mpreg" style={{ fontSize: 13, color: t.text.success, fontWeight: 600 }}>{formatStat("mpreg", itemMpreg(inv))}{sameMark("mpreg", shared)}</div>}
         {it.set && setLines(it.set, sc)}
-        {it.desc && <div style={{ fontSize: 13, color: it.cursed ? t.text.danger : it.r === 4 ? RCOL[4] : t.text.primary }}>{it.sp ? "★ " : ""}{it.desc}</div>}
+        {itemSps(inv).map((sp: string) => <div key={"sp-" + sp} data-sp={sp} style={{ fontSize: 13, color: t.text.primary }}>{("★ " + spDesc(sp))}</div>)}
+        {it.cursed && <div style={{ fontSize: 13, color: t.text.danger }}>{inv.freed ? "Curse lifted." : (it.desc && it.desc.includes("Curse:") ? it.desc.slice(it.desc.indexOf("Curse:")) : (it.desc && itemSps(inv).length === 0 ? it.desc : "Cursed."))}</div>}
+        {!it.cursed && itemSps(inv).length === 0 && it.desc && <div style={{ fontSize: 13, color: t.text.primary }}>{it.desc}</div>}
         {it.cls && !it.cls.includes(g.cls) && <div style={{ fontSize: 12, color: t.text.danger }}>Your class can't equip this (sell it).</div>}
         {compareEl}
       </div>
@@ -7269,11 +7401,110 @@ export default function DungeonOfEchoes() {
     const unid = g.inv.filter((i: Inv) => !i.ident);
     const cursedOn = GEAR.some((k: GearSlot) => { const it = g.eq[k]; return !!it && locked(it); });
     const liftFee = 50 + g.floor * 15;
+    const leaveShop = (): void => { setXfer(null); run((gg: Game) => { gg.screen = "map"; }); };
+    const xferSrc = xfer?.src != null ? findOwned(g, xfer.src) : undefined;
+    const xferDst = xfer?.dst != null ? findOwned(g, xfer.dst) : undefined;
+    const bagGear = g.inv.filter((i: Inv) => isGearInv(i));
+    const wornGear = GEAR.map((k: GearSlot) => g.eq[k]).filter((x: Inv | undefined): x is Inv => !!x);
+    const destPool = [...wornGear, ...bagGear.filter((i: Inv) => !wornGear.some((w: Inv) => w.uid === i.uid))];
+    const xferBack = (): void => {
+      if (!xfer || xfer.step === "src") setXfer(null);
+      else if (xfer.step === "dst") setXfer({ step: "src" });
+      else if (xfer.step === "pick") setXfer({ step: "dst", src: xfer.src });
+      else setXfer({ step: "pick", src: xfer.src, dst: xfer.dst });
+    };
+    const xferItemRow = (inv: Inv, kind: "src" | "dst", blocked: string | null, onPick: () => void): ReactNode => {
+      const st = itemStats(inv);
+      const bits = [
+        ...STAT_KEYS.filter((k: StatKey) => (st[k] ?? 0) !== 0).map((k: StatKey) => formatStat(k, st[k] ?? 0)),
+        ...(itemMpreg(inv) ? [formatStat("mpreg", itemMpreg(inv))] : []),
+        ...itemSps(inv).map((sp: string) => "★ " + spDesc(sp)),
+      ];
+      return (
+        <div key={kind + inv.uid} data-xfer-item={inv.uid} data-xfer-kind={kind} data-xfer-block={blocked ?? ""} style={{ ...card, display: "flex", flexDirection: "column", gap: 6, opacity: blocked ? 0.55 : 1 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+            <div style={{ flex: "1 1 160px", minWidth: 0 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: inv.ident ? RCOL[IT[inv.id].r] : t.text.secondary }}>{inv.pin ? "🔒 " : ""}{itemGlyphInv(inv, 18)} {instName(inv)}</div>
+              <div style={{ fontSize: 12, color: t.text.secondary }}>{inv.ident ? `${RAR[IT[inv.id].r]} ${SLOT_NAME[IT[inv.id].slot]}` : SLOT_NAME[IT[inv.id].slot]}{isEquipped(g, inv) ? " · EQUIPPED" : ""}</div>
+              {inv.ident && bits.length > 0 && <div style={{ fontSize: 13, color: t.text.success, fontWeight: 600 }}>{bits.join(" · ")}</div>}
+            </div>
+          </div>
+          {blocked
+            ? <div style={{ fontSize: 12, color: t.text.danger, fontWeight: 700 }}>{blocked}</div>
+            : btn(kind === "src" ? "Use as source" : "Use as destination", onPick, { tone: "accent", grow: true })}
+        </div>
+      );
+    };
+    const wizard = xfer && (
+      <div data-xfer={xfer.step} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={row}>
+          {btn("Back", xferBack)}
+          <div style={{ ...head, flex: "1 1 auto", margin: 0 }}>Stat Transfer · 5,000g</div>
+        </div>
+        <div style={{ ...card, fontSize: 13, color: t.text.secondary }}>Move one stat or special ability from a source item onto another piece of gear. The source is destroyed. Any stat or ability can go on any slot; same stats add together.</div>
+        {xfer.step === "src" && (
+          <div style={colS}>
+            <div style={head}>1. Choose source (from your bag)</div>
+            {bagGear.length === 0 && <div style={small}>No gear in your bag. Unequip an item first to strip it.</div>}
+            {bagGear.map((inv: Inv) => xferItemRow(inv, "src", srcBlockReason(g, inv), () => setXfer({ step: "dst", src: inv.uid })))}
+            {wornGear.length > 0 && <div style={small}>Equipped gear must be unequipped before it can be a source.</div>}
+          </div>
+        )}
+        {xfer.step === "dst" && xferSrc && (
+          <div style={colS}>
+            <div style={head}>2. Choose destination</div>
+            <div style={small}>Source: {itemGlyphInv(xferSrc, 18)} {instName(xferSrc)}</div>
+            {destPool.filter((inv: Inv) => inv.uid !== xferSrc.uid).map((inv: Inv) => xferItemRow(inv, "dst", dstBlockReason(inv, xferSrc), () => setXfer({ step: "pick", src: xfer.src, dst: inv.uid })))}
+          </div>
+        )}
+        {xfer.step === "pick" && xferSrc && xferDst && (
+          <div style={colS}>
+            <div style={head}>3. Pick one stat or ability to move</div>
+            <div style={small}>From {instName(xferSrc)} onto {instName(xferDst)}</div>
+            {xferLines(xferSrc).map((pick: XferPick) => {
+              const key = pick.kind === "stat" ? "stat:" + pick.stat : "sp:" + pick.sp;
+              return <div key={key} data-xfer-pick={key} style={{ display: "flex" }}>{btn(xferLabel(pick), () => setXfer({ step: "confirm", src: xfer.src, dst: xfer.dst, pick }), { grow: true, tone: "accent" })}</div>;
+            })}
+          </div>
+        )}
+        {xfer.step === "confirm" && xferSrc && xferDst && xfer.pick && (() => {
+          const pick = xfer.pick;
+          const move = xferLabel(pick);
+          let stack: string | null = null;
+          if (pick.kind === "stat") {
+            const cur = pick.stat === "mpreg" ? itemMpreg(xferDst) : (itemStats(xferDst)[pick.stat] ?? 0);
+            if (cur !== 0) stack = `${formatStat(pick.stat, cur)} → ${formatStat(pick.stat, cur + pick.v)}`;
+          }
+          const keepSps = pick.kind === "sp" ? itemSps(xferDst) : [];
+          const short = g.gold < TRANSFER_COST;
+          return (
+            <div style={colS}>
+              <div style={head}>4. Confirm</div>
+              <div style={{ ...card, display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
+                <div>Cost: <b>5,000 gold</b> <span style={{ color: short ? t.text.danger : t.text.secondary }}>(you have {g.gold}g)</span></div>
+                <div>Moving: <b>{move}</b></div>
+                {stack && <div data-xfer-stack="1">On destination: <b>{stack}</b></div>}
+                {pick.kind === "sp" && keepSps.length > 0 && <div>Destination already has {keepSps.map((sp: string) => "★ " + spDesc(sp)).join("; ")}. After this, both will work.</div>}
+                <div style={{ color: t.text.danger, fontWeight: 700 }}>{instName(xferSrc)} will be destroyed.</div>
+                <div style={{ fontSize: 13, color: t.text.secondary }}>Onto: {itemGlyphInv(xferDst, 18)} {instName(xferDst)}{isEquipped(g, xferDst) ? " (equipped)" : ""}</div>
+              </div>
+              {short && <div style={{ fontSize: 13, color: t.text.danger, fontWeight: 700 }}>Need 5,000 gold to confirm.</div>}
+              <div data-xfer-confirm="1" style={{ display: "flex" }}>{btn("Confirm transfer", () => run((gg: Game) => {
+                const r = applyTransfer(gg, xfer.src!, xfer.dst!, pick);
+                if (r !== true) { log(gg, r); return; }
+                setXfer(null);
+              }), { tone: "accent", grow: true, disabled: short })}</div>
+            </div>
+          );
+        })()}
+      </div>
+    );
     return (
-      <div style={root}>{style}
+      <div data-screen="shop" style={root}>{style}
         {hud}
-        <div style={row}><div style={{ ...titleSx, fontSize: 20, flex: "1 1 auto" }}>Merchant</div>{btn("Leave", () => run((gg: Game) => { gg.screen = "map"; }))}</div>
-        <div style={cols}><div style={colS}>
+        <div style={row}><div style={{ ...titleSx, fontSize: 20, flex: "1 1 auto" }}>Merchant</div>{btn("Leave", leaveShop)}</div>
+        {wizard}
+        {!xfer && <div style={cols}><div style={colS}>
         <div style={head}>FOR SALE</div>
         {g.shop.map((inv: Inv, i: number) => {
           const left = g.stock?.[i] ?? 0, out = left <= 0, consumable = IT[inv.id].slot === "consumable";
@@ -7290,13 +7521,17 @@ export default function DungeonOfEchoes() {
               if (!isHealPot(inv.id) && gg.inv.length >= MAXINV) { log(gg, "Your bag is full."); return; }
               gg.gold -= p;
               st[i] = st[i] - 1;
-              addItem(gg, consumable ? makeInst(inv.id, gg.floor, false, "shop") : { ...inv, bon: { ...inv.bon }, affs: inv.affs ? inv.affs.map((a: RolledAff) => ({ ...a })) : undefined, uid: UID++ });
+              addItem(gg, consumable ? makeInst(inv.id, gg.floor, false, "shop") : { ...inv, bon: { ...inv.bon }, affs: inv.affs ? inv.affs.map((a: RolledAff) => ({ ...a })) : undefined, sps: inv.sps ? inv.sps.slice() : undefined, uid: UID++ });
               log(gg, `Bought ${instName(inv)}.${st[i] <= 0 ? " (sold out)" : ""}`, "loot");
             }), { disabled: g.gold < priceOf(inv), tone: "accent" })}
           </div>
           );
         })}
-        {(unid.length > 0 || cursedOn) && <div style={head}>SERVICES</div>}
+        <div style={head}>SERVICES</div>
+        <div data-xfer-open="1" style={{ ...card, display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
+          <div style={{ flex: "1 1 180px", fontSize: 13 }}>✨ Stat Transfer — move one stat or special ability from a source item onto another. The source is destroyed.</div>
+          {btn("Transfer 5,000g", () => setXfer({ step: "src" }), { tone: "accent" })}
+        </div>
         {cursedOn && (
           <div style={{ ...card, ...row }}>
             <div style={{ flex: "1 1 180px", fontSize: 13 }}>🕯️ Lift the curse on your equipped gear so it can be removed.</div>
@@ -7320,7 +7555,7 @@ export default function DungeonOfEchoes() {
           ))}
         </div>
         {notes(g, true)}
-        </div></div>
+        </div></div>}
       </div>
     );
   }
