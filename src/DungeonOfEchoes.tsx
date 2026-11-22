@@ -30,7 +30,7 @@ interface Combat { enemies: Enemy[]; target: number; monId: number; turn: number
 interface Proj { id: number; x: number; y: number; vx: number; vy: number; dmg: number; from: number; life: number; c: string; k?: string; }
 interface Tele { id: number; x: number; y: number; r: number; t: number; max: number; dmg: number; from: number; kind: string; }
 interface Shot { id: number; x1: number; y1: number; x2: number; y2: number; ts: number; c: string; }
-interface Inp { jx: number; jy: number; kx: number; ky: number; gx: number; gy: number; atk: boolean; katk: boolean; gatk: boolean; stepT: number; monT: number; regT: number; alt: boolean; saveT: number; rT: number; slowT: number; shopL: boolean; vx: number; vy: number; idleT: number; }
+interface Inp { jx: number; jy: number; kx: number; ky: number; gx: number; gy: number; atk: boolean; katk: boolean; gatk: boolean; stepT: number; monT: number; regT: number; alt: boolean; saveT: number; rT: number; slowT: number; shopL: boolean; vx: number; vy: number; idleT: number; dashCd?: number; dashT?: number; dvx?: number; dvy?: number; }
 interface Buffs { rage: number; holy: number; evade: number; shield: number; frenzy: number; fury: number; iron: number; defend: boolean; defendT?: number; dotT: number; dotD: number; hex?: number; veil?: number; haste?: number; pethaste?: number; reflect?: number; nextCrit?: number; whirl?: number; }
 // companions that fight on the map
 interface Pet { k: string; hp: number; max: number; x: number; y: number; ko: number; cd: number; aT?: number; tx?: number; ty?: number; tmp?: number; }
@@ -40,15 +40,16 @@ interface Inv { uid: number; id: string; ident: boolean; bon: Stats; freed: bool
 interface LogL { t: string; c: string; ts?: number; }
 interface Fx { id: number; text: string; c: string; at: string; ts: number; }
 interface Full { maxHp: number; maxMp: number; atk: number; def: number; crit: number; dodge: number; ls: number; fire: number; ice: number; holy: number; poison: number; th: number; sp: string[]; curses: string[]; }
-interface Meta { tokens: number; best: number; owned: Record<string, string[]>; disc: string[]; }
+interface Meta { tokens: number; best: number; owned: Record<string, string[]>; disc: string[]; lastName?: string; }
 interface TNode { id: string; tier: number; name: string; icon: string; desc: string; cost: number; req: string; st?: Stats; cap?: string; }
 interface Game {
+  name?: string;
   screen: Screen; prev: Screen; mode: Mode; cls: ClassId; lvl: number; xp: number; hp: number; mp: number; gold: number;
   inv: Inv[]; eq: Partial<Record<GearSlot, Inv>>; floor: number; map: number[][]; seen: boolean[][];
   px: number; py: number; wx?: number; wy?: number; mons: MapMon[]; sx: number; sy: number; log: LogL[]; combat: Combat | null;
   cds: Record<string, number>; buffs: Buffs; perks: string[]; bonus: Stats; goldMult: number; inAb: boolean;
   usedUndying: boolean; usedShadow: boolean; usedPhoenix: boolean; shop: Inv[]; stock?: number[];
-  offers: Perk[]; kills: number; sel: number; fx: Fx[]; turns: number; tokensEarned: number; stains?: number[]; rem?: string[]; hurtTs?: number; usedRes?: boolean; biome?: Biome; bannerTs?: number; qs?: string;
+  offers: Perk[]; kills: number; sel: number; fx: Fx[]; turns: number; tokensEarned: number; stains?: number[]; rem?: string[]; hurtTs?: number; usedRes?: boolean; biome?: Biome; bannerTs?: number; qs?: string; pots?: number;
   pets?: Pet[]; cpet?: string; startPick?: boolean; vaultOffer?: boolean; vaultThen?: Screen; vaultSel?: number;
   skills?: string[]; skillPts?: number; slots?: (string | null)[]; skillVer?: number;
   skillRanks?: Record<string, number>; skillEnh?: string[]; skillPick?: Record<string, string>; skillPass?: Record<string, number>; skillKey?: string | null;
@@ -56,6 +57,7 @@ interface Game {
 }
 
 const W = 32, H = 32, R = 4, MAXINV = 24, STORY_END = 10;
+const POTION_ID = "c_hp1", POTION_HEAL_PCT = 35, POTION_DROP_CHANCE = 0.10, POTION_DROP_ELITE = 0.25;
 const RAR = ["Common", "Uncommon", "Rare", "Epic", "Legendary"];
 const RCOL = ["#9aa0a6", "#22a55b", "#3b82f6", "#a855f7", "#f59e0b"];
 const GEAR: GearSlot[] = ["weapon", "armor", "helmet", "ring", "amulet"];
@@ -209,9 +211,9 @@ const ITEMS: ItemT[] = [
   I("s_wnd_a", "Windstrider Coat", "🧥", "armor", 3, 4, 300, { def: 9, dodge: 5 }, { set: "wind", cls: ["ranger"], ff: 8 }),
   I("s_wnd_h", "Windstrider Cap", "🧢", "helmet", 3, 4, 280, { crit: 6, dodge: 4 }, { set: "wind", cls: ["ranger"], ff: 8 }),
   I("s_wnd_r", "Windstrider Band", "💍", "ring", 3, 4, 280, { atk: 5, crit: 5 }, { set: "wind", cls: ["ranger"], ff: 8 }),
-  I("c_hp1", "Minor Healing Potion", "🧪", "consumable", 0, 1, 15, undefined, { fx: "heal", pw: 35, desc: "Restore 35% HP." }),
-  I("c_hp2", "Healing Potion", "🍷", "consumable", 1, 1, 35, undefined, { fx: "heal", pw: 60, desc: "Restore 60% HP." }),
-  I("c_hp3", "Greater Healing Draught", "💖", "consumable", 2, 2, 80, undefined, { fx: "heal", pw: 100, desc: "Fully restore HP." }),
+  I("c_hp1", "Healing Potion", "🧪", "consumable", 0, 1, 15, undefined, { fx: "heal", pw: 35, desc: "Restore 35% HP. Stored in your potion slot, not the bag." }),
+  I("c_hp2", "Healing Potion", "🍷", "consumable", 1, 1, 35, undefined, { fx: "heal", pw: 60, desc: "Legacy potion; converts into a standard Healing Potion." }),
+  I("c_hp3", "Greater Healing Draught", "💖", "consumable", 2, 2, 80, undefined, { fx: "heal", pw: 100, desc: "Legacy potion; converts into a standard Healing Potion." }),
   I("c_mp1", "Mana Potion", "🔵", "consumable", 0, 1, 15, undefined, { fx: "mana", pw: 50, desc: "Restore 50% MP." }),
   I("c_mp2", "Elixir of Clarity", "💧", "consumable", 1, 1, 35, undefined, { fx: "mana", pw: 100, desc: "Fully restore MP." }),
   I("c_rej", "Rejuvenation Tonic", "🍹", "consumable", 2, 2, 70, undefined, { fx: "both", pw: 60, desc: "Restore 60% HP and MP." }),
@@ -716,7 +718,7 @@ function meta(): Meta {
   const d: Meta = { tokens: 0, best: 0, owned: {}, disc: [] };
   try {
     const s = kvGet(KEY);
-    if (s) { const m = JSON.parse(s) as Partial<Meta>; d.tokens = Number(m.tokens) || 0; d.best = Number(m.best) || 0; d.owned = m.owned ?? {}; d.disc = Array.isArray(m.disc) ? m.disc : []; }
+    if (s) { const m = JSON.parse(s) as Partial<Meta>; d.tokens = Number(m.tokens) || 0; d.best = Number(m.best) || 0; d.owned = m.owned ?? {}; d.disc = Array.isArray(m.disc) ? m.disc : []; const ln = sanitizeName(m.lastName); if (ln) d.lastName = ln; }
   } catch (e) { void e; }
   META = d; return d;
 }
@@ -763,6 +765,20 @@ function rnd(n: number): number { return Math.floor(Math.random() * n); }
 function pick<T>(a: T[]): T { return a[rnd(a.length)]; }
 function shuffle<T>(a: T[]): T[] { const b = a.slice(); for (let i = b.length - 1; i > 0; i--) { const j = rnd(i + 1); const tmp = b[i]; b[i] = b[j]; b[j] = tmp; } return b; }
 function need(l: number): number { return 30 + l * l * 12; }
+const NAME_MAX = 16;
+function defaultName(): string { return "Hero" + String(100 + Math.floor(Math.random() * 900)); }
+function sanitizeName(raw: unknown, fallback = ""): string {
+  let s = typeof raw === "string" ? raw : "";
+  s = s.replace(/<[^>]*>/g, " ").replace(/&[^;]{1,10};/g, " ");
+  s = s.replace(/[^\p{L}\p{N} _.'-]/gu, "");
+  s = s.replace(/\s+/g, " ").trim();
+  if (s.length > NAME_MAX) s = s.slice(0, NAME_MAX).trim();
+  return s.length > 0 ? s : fallback;
+}
+function playerName(g: { name?: string } | null | undefined): string { return sanitizeName(g?.name, "Hero"); }
+function rememberName(name: string): void { const n = sanitizeName(name); if (!n) return; const m = meta(); m.lastName = n; saveMeta(); }
+function lastOrDefaultName(): string { return sanitizeName(meta().lastName, defaultName()); }
+
 const AB_LVLS = [3, 6, 9, 12];
 function abUnlockAt(i: number): number { return AB_LVLS[i] ?? (3 * (i + 1)); }
 function levelAbs(cls: ClassId): Ab[] { return CLS[cls].abs.filter((a: Ab) => !a.tree); }
@@ -2284,7 +2300,34 @@ function vaultTake(g: Game): void {
   log(g, `🏦 You bring ${instName(inv)} out of the Echo Vault.`, "good");
   if (!g.startPick && g.offers.length === 0) g.screen = "map";
 }
+function isHealPot(id: string): boolean { return !!IT[id] && IT[id].fx === "heal"; }
+function potCount(g: Game): number { return Math.max(0, Math.floor(Number(g.pots) || 0)); }
+function addPots(g: Game, n = 1, announce = true): void {
+  const add = Math.max(0, Math.floor(n));
+  if (add <= 0) return;
+  g.pots = potCount(g) + add;
+  discover(POTION_ID);
+  if (announce) {
+    addFx(g, add === 1 ? "+1 Potion" : `+${add} Potion`, "heal", "p");
+    log(g, add === 1 ? "🧪 +1 Potion" : `🧪 +${add} Potions`, "loot");
+  }
+}
+function migratePots(g: Game): void {
+  let n = 0;
+  g.inv = (g.inv ?? []).filter((i: Inv) => { if (i && isHealPot(i.id)) { n++; return false; } return true; });
+  g.pots = potCount(g) + n;
+  if (g.qs && isHealPot(g.qs)) delete g.qs;
+}
+function rollPotionDrop(kind: "mob" | "elite" | "boss"): boolean {
+  return Math.random() < (kind === "mob" ? POTION_DROP_CHANCE : POTION_DROP_ELITE);
+}
+function maybeDropPotion(g: Game, kind: "mob" | "elite" | "boss"): boolean {
+  if (!rollPotionDrop(kind)) return false;
+  addPots(g, 1, true);
+  return true;
+}
 function addItem(g: Game, inv: Inv): void {
+  if (isHealPot(inv.id)) { addPots(g, 1, true); return; }
   if (g.inv.length >= MAXINV) { const p = sellOf(inv); g.gold += p; gain(g, `Bag full: sold ${instName(inv)} +${p} gold`, GOLDC); return; }
   if (inv.ident) discover(inv.id);
   g.inv.push(inv);
@@ -2340,7 +2383,8 @@ function rollRarity(t: number, minR: number): number {
 }
 // per-item drop weight inside a rarity: healing is scarce, utility normal, gear normal
 function dropW(it: ItemT, f = 1): number {
-  if (it.fx === "heal" || it.fx === "both") return 0.45;
+  if (it.fx === "heal") return 0;
+  if (it.fx === "both") return 0.45;
   if (it.fx === "cleanse") return 0.6;
   if (it.fx === "mana" || it.fx === "treat") return 0.8;
   if (it.fx === "pet" || it.fx === "eatk" || it.fx === "ehp") return 0.5;
@@ -2386,11 +2430,11 @@ function rollItem(f: number, minR: number, cls: ClassId, kind: "any" | "gear" | 
   const t = tierOf(f);
   const want = kind === "any" ? (Math.random() < 0.4 ? "cons" : "gear") : kind;
   for (let r = Math.min(maxR, rollRarity(t, minR)); r >= 0; r--) {
-    const c = ITEMS.filter((i: ItemT) => i.r === r && i.minF <= t && (!i.ff || f >= i.ff) && (want === "cons") === (i.slot === "consumable"));
+    const c = ITEMS.filter((i: ItemT) => i.r === r && i.minF <= t && (!i.ff || f >= i.ff) && (want === "cons") === (i.slot === "consumable") && i.fx !== "heal");
     if (c.length === 0) continue;
     return wpick(c, cls, f).id;
   }
-  return "c_hp1";
+  return "c_mp1";
 }
 
 function poolFor(f: number, b?: Biome): MonT[] {
@@ -2488,7 +2532,8 @@ function genFloor(g: Game): void {
     if (!s) s = spot(1, rooms.length - 1);
     if (s) {
       map[s.y][s.x] = 4;
-      const cons = shuffle(ITEMS.filter((i: ItemT) => i.slot === "consumable" && i.r <= 2 && i.minF <= tierOf(g.floor))).slice(0, 5);
+      g.shop.push(makeInst(POTION_ID, g.floor, false, "shop"));
+      const cons = shuffle(ITEMS.filter((i: ItemT) => i.slot === "consumable" && i.fx !== "heal" && i.r <= 2 && i.minF <= tierOf(g.floor))).slice(0, 4);
       for (const c of cons) g.shop.push(makeInst(c.id, g.floor, false, "shop"));
       // regular wares top out at Rare; Epic/Legendary only come from the capped premium rolls below
       for (let k = 0; k < 4; k++) { const id = rollItem(g.floor, k === 0 ? 2 : 1, g.cls, "gear", 2); if (!IT[id].cursed) { const inv = makeInst(id, g.floor, true, "shop"); inv.ident = true; g.shop.push(inv); } }
@@ -2525,12 +2570,12 @@ function newGame(cls: ClassId, mode: Mode): Game {
   const g: Game = {
     screen: "map", prev: "map", mode, cls, lvl: 1, xp: 0, hp: 1, mp: 1, gold: 30, inv: [], eq: {}, floor: 1, map: [], seen: [], px: 0, py: 0, mons: [], sx: 0, sy: 0,
     log: [], combat: null, cds: {}, buffs: freshBuffs(), perks: [], bonus: {}, goldMult: 1, inAb: false, usedUndying: false, usedShadow: false, usedPhoenix: false, skills: [], skillPts: 0, slots: [null, null, null, null, null], skillVer: 3, skillRanks: {}, skillEnh: [], skillPick: {}, skillPass: {}, skillKey: null, sbuff: {}, sval: {},
-    shop: [], stock: [], offers: [], kills: 0, sel: -1, fx: [], turns: 0, tokensEarned: 0,
+    shop: [], stock: [], offers: [], kills: 0, sel: -1, fx: [], turns: 0, tokensEarned: 0, name: lastOrDefaultName(), pots: 2,
   };
   g.eq.weapon = makeInst(c.start[0], 1, false);
   g.eq.armor = makeInst(c.start[1], 1, false);
   discover(c.start[0]); discover(c.start[1]);
-  for (const id of ["c_hp1", "c_hp1", "c_mp1", "c_anti"]) addItem(g, makeInst(id, 1, false));
+  for (const id of ["c_mp1", "c_anti"]) addItem(g, makeInst(id, 1, false));
   if (mode === "endless") {
     const o = owned(cls);
     for (const n of TREE[cls]) if (o.includes(n.id)) { if (n.st) addBonus(g, n.st); if (n.cap) g.perks.push(n.cap); }
@@ -2739,6 +2784,7 @@ function resolveDeaths(g: Game): void {
     if ((g.rem ?? []).length > 120) g.rem.shift();
     const drops: Inv[] = e.minion ? (Math.random() < 0.1 ? lootRoll(g, "mob") : []) : lootRoll(g, e.boss ? "boss" : e.elite ? "elite" : "mob");
     for (const d of drops) { gain(g, `+ ${instName(d)}`, rarCol(d)); addItem(g, d); }
+    maybeDropPotion(g, e.boss ? "boss" : e.elite ? "elite" : "mob");
     if (e.boss) bossDown(g, e);
   }
   const t = c.enemies[c.target];
@@ -2985,13 +3031,20 @@ function rtAbility(g: Game, id: string): void {
   if (c) combatAct(g, "ability", id);
   else useAbility(g, id);
 }
-function rtDodge(g: Game, mx: number, my: number): void {
-  const c = g.combat; if (!c || g.screen !== "map" || (c.dashCd ?? 0) > 0) return;
-  syncPos(g);
+function dashSec(g: Game): number { return (g.cls === "rogue" ? 1.6 : 2.2) * (g.perks.includes("fleet") ? 0.75 : 1); }
+function rtDodge(g: Game, mx: number, my: number, I?: Inp): void {
+  if (g.screen !== "map") return;
+  const c = g.combat;
+  if ((c ? (c.dashCd ?? 0) : (I?.dashCd ?? 0)) > 0) return;
   let vx = mx, vy = my;
-  if (Math.hypot(vx, vy) < 0.2) { const i = nearestIdx(c, 999); const e = i >= 0 ? c.enemies[i] : undefined; vx = e ? (c.px ?? 0) - (e.x ?? 0) : -1; vy = e ? (c.py ?? 0) - (e.y ?? 0) : 0; }
+  if (Math.hypot(vx, vy) < 0.2) {
+    if (c) { const i = nearestIdx(c, 999); const e = i >= 0 ? c.enemies[i] : undefined; vx = e ? (c.px ?? 0) - (e.x ?? 0) : Math.cos(FACE); vy = e ? (c.py ?? 0) - (e.y ?? 0) : Math.sin(FACE); }
+    else { vx = Math.cos(FACE); vy = Math.sin(FACE); }
+  }
   const m = Math.hypot(vx, vy) || 1;
-  c.dvx = vx / m; c.dvy = vy / m; c.dashT = 0.2; c.iT = 0.4; c.dashCd = (g.cls === "rogue" ? 1.6 : 2.2) * (g.perks.includes("fleet") ? 0.75 : 1);
+  const dx = vx / m, dy = vy / m, cd = dashSec(g);
+  if (c) { syncPos(g); c.dvx = dx; c.dvy = dy; c.dashT = 0.2; c.iT = 0.4; c.dashCd = cd; }
+  if (I) { I.dvx = dx; I.dvy = dy; I.dashT = 0.2; I.dashCd = cd; }
 }
 function rtResolve(g: Game, e: Enemy, d: number, reach: number): void {
   const c = g.combat; if (!c) return;
@@ -3820,13 +3873,18 @@ function rtMap(g: Game, dt: number, mx: number, my: number, I: Inp): boolean {
   I.slowT = Math.max(0, I.slowT - dt);
   for (const k of Object.keys(g.cds)) if (g.cds[k] > 0) g.cds[k] = Math.max(0, g.cds[k] - dt);
   const cb = g.combat;
+  I.dashCd = Math.max(0, (I.dashCd ?? 0) - dt);
   const sp = MAP_SPD * (I.slowT > 0 ? 0.45 : 1) * (full(g).curses.includes("c_slow") ? 0.7 : 1) * (cb ? 1 + Math.min(50, full(g).dodge) / 250 : 1);
   const mag = Math.hypot(mx, my);
   let tvx = 0, tvy = 0;
-  if (cb && (cb.dashT ?? 0) > 0) {
-    cb.dashT = Math.max(0, (cb.dashT ?? 0) - dt);
-    slideMove(g, p, (cb.dvx ?? 0) * DASH_SPD, (cb.dvy ?? 0) * DASH_SPD, dt, PR);
-    I.vx = (cb.dvx ?? 0) * sp; I.vy = (cb.dvy ?? 0) * sp; ch = true;
+  const dashOn = (cb && (cb.dashT ?? 0) > 0) || (I.dashT ?? 0) > 0;
+  if (dashOn) {
+    const dvx = (cb && (cb.dashT ?? 0) > 0) ? (cb.dvx ?? 0) : (I.dvx ?? 0);
+    const dvy = (cb && (cb.dashT ?? 0) > 0) ? (cb.dvy ?? 0) : (I.dvy ?? 0);
+    if (cb && (cb.dashT ?? 0) > 0) cb.dashT = Math.max(0, (cb.dashT ?? 0) - dt);
+    I.dashT = Math.max(0, (I.dashT ?? 0) - dt);
+    slideMove(g, p, dvx * DASH_SPD, dvy * DASH_SPD, dt, PR);
+    I.vx = dvx * sp; I.vy = dvy * sp; ch = true;
   } else {
   if (mag > 0.12) { const k = (Math.min(1, mag) / mag) * sp; tvx = mx * k; tvy = my * k; I.idleT = 0; }
   else { I.idleT += dt; if (I.idleT < 0.05) { tvx = I.vx; tvy = I.vy; } }
@@ -4370,11 +4428,25 @@ function qsItem(g: Game): Inv | undefined {
   if (g.qs) { const q = g.inv.find((i: Inv) => i.id === g.qs && ok(i)); if (q) return q; }
   return g.inv.find((i: Inv) => { const t = IT[i.id]; return t.slot === "consumable" && (t.fx === "heal" || t.fx === "both"); });
 }
-function quickUse(g: Game): void {
+function drinkPotion(g: Game): ActRes {
+  if (potCount(g) <= 0) { addFx(g, "no potion", "sys", "p"); log(g, "No healing potions."); return "none"; }
+  g.pots = potCount(g) - 1;
+  const f = full(g);
+  const h = healPlayer(g, Math.round(f.maxHp * POTION_HEAL_PCT / 100 * (g.perks.includes("herbalist") ? 1.25 : 1)), !!g.combat);
+  if (g.perks.includes("alchemist")) g.mp = Math.min(f.maxMp, g.mp + Math.round(f.maxMp * 0.2));
+  log(g, `🧪 Healing Potion: +${h} HP.`, "heal");
+  return "turn";
+}
+function qsUse(g: Game): void {
   const it = qsItem(g);
-  if (!it) { addFx(g, "no potion", "sys", "p"); log(g, "No potion in your bag."); return; }
+  if (!it || isHealPot(it.id)) { addFx(g, "no item", "sys", "p"); log(g, "No quick-slot item."); return; }
   syncPos(g);
   useConsumable(g, it);
+  resolveDeaths(g);
+}
+function quickUse(g: Game): void {
+  syncPos(g);
+  drinkPotion(g);
   resolveDeaths(g);
 }
 
@@ -4420,7 +4492,7 @@ const HELP: [string, string][] = [
   ["🎮 Gamepad", "Left stick or D-pad moves. Exploring: A/✕ trade with a merchant, Y bag, X codex, View/Select full map, R3 (right-stick click) help. In combat: A/✕ attack (hold), B/○ dodge roll, X/□ ability 1, Y/△ ability 2, RB/R1 ability 3, RT/R2 ability 4, LB/L1 switch target, View/Select quick-slot potion. Menus: D-pad/stick moves the highlight, A selects, B goes back, LB/RB switch class tabs. Start/Options opens the Menu when you are not in a fight (title requires a confirm). It does nothing mid-fight."],
   ["🗺️ Exploring", "Fog of war lifts as you walk. 📦 chests hold gold and loot, 💰 is a merchant (stock is limited: each piece of gear sells once, potions and scrolls 1–3 each, then the slot shows SOLD OUT; leaving or reloading doesn't restock — the next merchant floor has fresh wares; Epic/Legendary wares are rare early, more common deeper, at most 2 per shop), 🔽 stairs take you down. Bosses guard the stairs on every 5th floor. You do not regenerate health or mana over time; look for potions, abilities, and gear marked ♻ Mana regen."],
   ["⚔️ Combat", "Fights happen right on the dungeon map — no separate arena. Sleeping monsters notice you within a few steps; awake ones that can see you join the fight, so a careless approach can pull a whole room. Enemies chase you around corners but cannot pass walls, and each one only strays so far from where it lives. A red ring growing around a monster is its wind-up: step out (or dodge roll through it) before it fills. Casters throw bolts you can sidestep or hide behind a wall from. Ranged foes keep their distance: 🏹 archers show a red aim line before loosing a fast arrow, 🐸 Acid Spitters mark a green ring where their acid glob will land, and 🧙 Hex Cultists send a slow purple bolt that hexes you (−25% damage for 4 s). Their aim locks when the wind-up starts, so step aside. ★ Elite monsters (gold glow) are tougher and drop better loot. Your attack auto-targets the nearest foe you can see in range (tap an enemy to pick one): Warrior, Rogue and Cleric must get close, Mage and Ranger shoot from afar. Burn, poison, buffs and pets tick every 1.5 s. There is no Flee button: to escape, run — enemies give up after about 4 seconds without line of sight or when you get far enough away. A Smoke Bomb or Shadowmeld breaks off a fight instantly (not against bosses)."],
-  ["🔒 Combat lockout", "While any monster is fighting you, the bag, codex, help, skills tree, full map, Menu, save-code screen, title button, merchants and the stairs are locked (greyed out and unclickable; no hotkey opens them). You can still move, attack, use abilities, dodge, switch targets and drink from the 🧪 quick-slot (your first healing potion, or any combat consumable you mark with ☆ Quick-slot in the bag). The minimap stays visible. About 1.5 s after the last foe falls or gives up you'll see “Combat over” and everything unlocks."],
+  ["🔒 Combat lockout", "While any monster is fighting you, the bag, codex, help, skills tree, full map, Menu, save-code screen, title button, merchants and the stairs are locked (greyed out and unclickable; no hotkey opens them). You can still move, attack, use abilities, dodge, switch targets and drink a 🧪 Healing Potion from your dedicated potion slot (count on the button; potions never take bag space), or use a combat consumable you mark with ☆ Quick-slot in the bag. The minimap stays visible. About 1.5 s after the last foe falls or gives up you'll see “Combat over” and everything unlocks."],
   ["☠️ Bosses", "The Broodmother (Floor 5) and the Echo Lord (Floor 10) wake when you step into their lair and fight you right there: acid pools, shadow flame and the Echo Lord's CATACLYSM ring land on the map, and spiderlings or Echo Shades crawl out around the boss. The stairs only appear once the boss is dead. Run too far and the boss returns to its lair and recovers fully — no chipping it down from range."],
   ["🐾 Pets", "Rangers start with a Wolf (plus a Hawk with Pack Leader). Anyone can gain a charm pet from a Wolf Pup Whistle, Spirit Owl Feather, Imp Sigil or Bone Hound Totem (one charm pet at a time). Pets path around walls and hazards, trail behind you and catch up if you pull ahead; if they get stuck they re-path, then poof to your side. In a fight they close along that path: melee pets flank, and the Imp keeps a ranged standoff with line of sight before throwing fire bolts. Enemies attack pets that get closer than you — Bone Hounds draw extra attention. A pet at 0 HP is knocked out 💫 for 12 s, then gets back up at 40%; every knocked-out pet recovers at 50% when the fight ends. Pets do not regenerate health on their own; a Pet Treat fully heals and revives them."],
   ["✨ Starting perk", "Every new run (Story and Endless) opens with a choice of 3 random Common perks. The roll is saved, so reloading won't change it."],
@@ -4429,7 +4501,7 @@ const HELP: [string, string][] = [
   ["✨ Abilities", "Each class starts with only a basic attack, which is always free. Every other ability — including former level unlocks such as Shield Bash, Fireball, or Leaping Slam — is learned by spending skill points on the in-run skill tree. Learn skills on the category tree (ranks, Enhanced, and one of two specializations). Equip up to five learned abilities in the Skills loadout; only those appear on the bar (keys 1–5). You can change the loadout out of combat. Every ability can be used while moving (hotkey or tap); movement is not stopped, and aimed skills go to your current or nearest target. Abilities cost MP and have cooldowns in seconds. Mana does not regenerate on its own: use mana potions, staff strikes (Mage), being hit (Warrior), or gear marked ♻ Mana regen. Endless-tree and perk abilities (such as Shadowmeld) are separate and stay as they are."],
   ["🌳 Skill tree", "Each level grants one skill point. Open Skills out of combat to spend them on a category tree (D4-style: not a Paragon board). Basic is open from the start; Core, Defensive, a class path, Mastery, Ultimate and a Key Passive unlock after you have spent 2, 6, 8, 11, 16 and 23 points. Active skills have ranks 1–5, then an Enhanced upgrade, then a choice of two mutually exclusive specializations (respec to change). Passives sit between skills. Equip up to five learned actives in the loadout (keys 1–5). You can pan and pinch-zoom the tree; tap a node for details and Learn/Upgrade. A refund-all respec is available out of combat for a small gold fee (free if you cannot afford it). Existing characters keep the abilities they already had at rank 1, with leftover points refunded. This tree is separate from the Endless token upgrade tree."],
   ["✨ Dust salvage", "In your bag, Break down turns identified unequipped gear into Dust at a flat rarity rate: Common 1, Uncommon 2, Rare 3, Epic 4, Set 5, Legendary 6 (cursed items use the same tier; iLvl does not matter). 1 Dust = 1 gold, added immediately. Each rarity has a Break down all button that shows the item count and total Dust and asks for confirmation. A lock toggle on every item (inventory grid and item details) — and on equipped gear — stops it from being salvaged or sold, including merchant sell-from-bag. Curse-bound and equipped items are also protected. The lock is saved; old items default to unlocked."],
-  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions are scarce — make them count. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its name, roll, and range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Later general sets, rarer than the earlier ones: Gravebloom Vestments (from floor 6), Rimeward Pall (from floor 10), and Ashen Covenant (from floor 14, Endless). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag. The dungeon holds 67 weapons, 42 armor, 37 helmets, 34 rings and 33 amulets, including 73 set pieces across 19 sets, 24 legendaries (uniques), and 11 cursed items."],
+  ["💎 Items & rarities", "Common (gray), Uncommon (green), Rare (blue), Epic (purple), Legendary (gold). Loot is chance-based: ordinary monsters drop an item about 1 time in 5, elites about half the time, chests about 2 times in 3 and bosses always (gold drops are separate). Healing potions go to a dedicated slot (not the bag) and are scarce — regular foes have a 10% chance to drop one, elites and bosses 25%. Gear rolls prefixes and suffixes from a pool that grows with item level (iLvl is the floor the item dropped on, plus a small bonus from elites, chests, and bosses). Common items have no affixes; Uncommon (magic) get 1–2 (at most one prefix and one suffix); Rare get 3–4; Epic get 4–5 with a higher tier floor; set pieces get 1–2 on top of their set bonuses; Legendaries (uniques) keep their fixed named stats and do not roll random affixes. Only affixes whose required level is at or below the item's iLvl can appear, and the roll leans toward the highest legal tier. No two affixes share a stat. Mana regen appears only as a rare, capped suffix (or on the dedicated mana-regen items). Hover or long-press an affix to see its name, roll, and range. Some gear is class-only. Set pieces are rarer than other gear of the same rarity, and newer sets appear on deeper floors (chance ramps in over a few floors). General sets: Ironclad, Shadowstalker, Arcanist, Emberforged Battlegear (from floor 4), Duskward Raiment and Bloodmoon Panoply (from floor 8), and Titanbone Plate (from floor 12, Endless). Class sets: Warlord's Panoply and Berserker's Harness (Warrior), Stormcaller's Regalia (Mage), Nightblade's Shroud and Gloamrunner's Kit (Rogue), Lightbringer's Vestiture and Oathkeeper's Sacrament (Cleric), Beastmaster's Garb and Windstrider's Leaguer (Ranger). Later general sets, rarer than the earlier ones: Gravebloom Vestments (from floor 6), Rimeward Pall (from floor 10), and Ashen Covenant (from floor 14, Endless). Each has 2/3/4-piece bonuses and a full-set special, shown on the item and in the bag. The dungeon holds 67 weapons, 42 armor, 37 helmets, 34 rings and 33 amulets, including 73 set pieces across 19 sets, 24 legendaries (uniques), and 11 cursed items."],
   ["🔍 Identification", "Some drops arrive as 'Unidentified ??? ' with no stats shown. Rarer items are hidden more often; cursed and legendary items almost always are. Equip to reveal (risky!), pay a merchant a fee based on true rarity, or read a Scroll of Identify."],
   ["☠️ Curses", "Cursed items give big bonuses with a nasty downside, and lock on once equipped. Free them with a Scroll of Remove Curse or the merchant's curse-lifting service, then unequip."],
   ["💰 Merchant", "Buy potions, scrolls and gear, sell loot, identify items, and lift curses. Merchants appear on even floors."],
@@ -5024,6 +5096,8 @@ function validRun(x: unknown): Game | null {
   } else g.combat = null;
   if (g.prev !== "map" && g.prev !== "inventory" && g.prev !== "shop") g.prev = "map";
   if (g.screen === "shop" && !nearMerchant(g) && g.shop.length === 0) g.screen = "map";
+  if (typeof g.name === "string" && g.name.trim()) g.name = sanitizeName(g.name); else g.name = undefined;
+  migratePots(g);
   migrateSkills(g);
   return g;
 }
@@ -5091,6 +5165,9 @@ export default function DungeonOfEchoes() {
   const [confirm, setConfirm] = useState<Mode | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [homeAsk, setHomeAsk] = useState(false);
+  const [nameAsk, setNameAsk] = useState<"new" | "load" | "edit" | null>(null);
+  const [nameDraft, setNameDraft] = useState("");
+  const [pendingMode, setPendingMode] = useState<Mode | null>(null);
   const [salvAsk, setSalvAsk] = useState<{ title: string; body: string; uids: number[] } | null>(null);
   const [loadSel, setLoadSel] = useState<number>(0);
   const [treeCat, setTreeCat] = useState<CatId | null>(null);
@@ -5142,6 +5219,46 @@ export default function DungeonOfEchoes() {
   const refresh = useCallback((): void => setTick((n: number) => n + 1), []);
   const run = useCallback((fn: (g: Game) => void): void => { const g = G.current; if (!g) return; fn(g); LAST_SAVE = saveRun(g); refresh(); }, [refresh]);
   const toTitle = (): void => { if (G.current) LAST_SAVE = saveRun(G.current); G.current = null; setConfirm(null); setUi("title"); refresh(); };
+  const openNameAsk = (kind: "new" | "load" | "edit", mode?: Mode): void => {
+    setPendingMode(mode ?? null);
+    setNameDraft(kind === "edit" && G.current ? playerName(G.current) : lastOrDefaultName());
+    setNameAsk(kind);
+  };
+  const maybeAskName = (gg: Game, kind: "load" = "load"): boolean => {
+    if (sanitizeName(gg.name)) return false;
+    openNameAsk(kind);
+    return true;
+  };
+  const confirmName = (raw?: string): void => {
+    const fromArg = typeof raw === "string" ? raw : undefined;
+    const typed = (document.querySelector("[data-name-input='1']") as HTMLInputElement | null)?.value;
+    const n = sanitizeName(fromArg ?? typed ?? nameDraft, defaultName());
+    rememberName(n);
+    const kind = nameAsk;
+    setNameAsk(null);
+    if (kind === "new") {
+      const mode = pendingMode ?? "story";
+      const ng = newGame(pickCls, mode);
+      ng.name = n;
+      G.current = ng;
+      LAST_SAVE = saveRun(ng);
+      setPendingMode(null);
+      setConfirm(null);
+      refresh();
+      return;
+    }
+    const gg = G.current ?? parseRun(rawRun());
+    if (gg) {
+      gg.name = n;
+      G.current = gg;
+      if (kind === "load") log(gg, "Welcome, " + n + "!", "good");
+      LAST_SAVE = saveRun(gg);
+    }
+    setMenuOpen(false);
+    refresh();
+  };
+  useEffect(() => { const gg = G.current; if (gg && !sanitizeName(gg.name)) openNameAsk("load"); }, []);
+
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -5155,7 +5272,7 @@ export default function DungeonOfEchoes() {
     const snap = (g: Game | null) => {
       if (!g) return null;
       return {
-        cls: g.cls, lvl: g.lvl, floor: g.floor, screen: g.screen, hp: g.hp, mp: g.mp,
+        cls: g.cls, name: playerName(g), lvl: g.lvl, floor: g.floor, screen: g.screen, hp: g.hp, mp: g.mp, pots: potCount(g), invN: g.inv.length,
         skillPts: g.skillPts ?? 0, skills: ownedSkills(g).slice(), slots: normSlots(g),
         bar: barAbs(g).map((a: Ab | null) => a ? a.id : null),
         cds: { ...g.cds }, wx: g.wx ?? g.px + 0.5, wy: g.wy ?? g.py + 0.5,
@@ -5171,11 +5288,11 @@ export default function DungeonOfEchoes() {
     };
     w.__G = () => G.current;
     w.__I = inp;
-    w.__T = { run, refresh, boot, toTitle, snap: () => snap(G.current) };
+    w.__T = { run, refresh, boot, toTitle, snap: () => snap(G.current), openNameAsk, sanitizeName, playerName, defaultName, confirmName };
     w.__R = {
-      takeSkill, setSlot, gainXp, descend, engage, rtAbility, canTakeSkill, skillNodesOf, migrateSkills,
+      takeSkill, setSlot, gainXp, descend, engage, rtAbility, rtDodge, canTakeSkill, skillNodesOf, migrateSkills, migratePots, addItem, makeInst, addPots, drinkPotion, rollPotionDrop, maybeDropPotion, potCount, isHealPot, POTION_DROP_CHANCE, POTION_DROP_ELITE, POTION_HEAL_PCT,
       need, levelAbs, canLearnTree, learnTreeNode, respecSkills, skillNodes, setTreeCat, setTreeSel,
-      learn: (id: string) => { const g = G.current; if (!g) return false; const ok = takeSkill(g, id); LAST_SAVE = saveRun(g); refresh(); return ok; },
+      learn: (id: string) => { const g = G.current; if (!g) return false; const ok = learnTreeNode(g, id); LAST_SAVE = saveRun(g); refresh(); return ok; },
       openSkills: () => { const g = G.current; if (!g) return; g.prev = g.screen; g.screen = "skills"; setTreeCat(null); setTreeSel(null); LAST_SAVE = saveRun(g); refresh(); },
       openCat: (id: string) => { setTreeCat(id as CatId); setTreeSel(null); fitCatTree(id as CatId); },
       clearFx: () => { AB_POPS.splice(0, AB_POPS.length); const g = G.current; if (g) { g.fx = []; g.bannerTs = 0; } setToast(""); refresh(); },
@@ -5565,6 +5682,7 @@ export default function DungeonOfEchoes() {
         <div style={{ fontSize: 18, fontWeight: 800 }}>⚙ Menu</div>
         <div style={{ fontSize: 13, color: t.text.secondary }}>Save code and title are only available from this button, and are locked during combat.</div>
         {btn("💾 Save code", openSave, { tall: true })}
+        {btn("✎ Change name", () => { setMenuOpen(false); openNameAsk("edit"); }, { tall: true })}
         {btn("🏠 Title screen", askHome, { tall: true })}
         {btn("Close", () => setMenuOpen(false), { tone: "primary", tall: true })}
       </div>
@@ -5669,7 +5787,24 @@ export default function DungeonOfEchoes() {
       </div>
     </div>
   ) : null;
-  const style = <div style={{ display: "contents" }}>{exitModal}{menuModal}{homeModal}{salvModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5%)}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}@keyframes doeBreath{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-3%) scaleY(1.05)}}@keyframes doeTwitch{0%,82%,100%{transform:rotate(0)}86%{transform:rotate(-4deg)}90%{transform:rotate(3deg)}}@keyframes doeFlicker{0%,100%{opacity:1}35%{opacity:.68}55%{opacity:.92}78%{opacity:.75}}@keyframes doeLean{0%,100%{transform:rotate(-5deg) translateY(0)}50%{transform:rotate(-8deg) translateY(-2%)}}@keyframes doeAura{0%,100%{opacity:.4}50%{opacity:.85}}"}</style></div>;
+  const nameModal = nameAsk ? (
+    <div role="dialog" aria-modal="true" data-noj="1" data-name-ask={nameAsk} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,.65)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, boxSizing: "border-box" }} onClick={() => { if (nameAsk === "edit") setNameAsk(null); }}>
+      <div style={{ ...card, width: "min(420px, 100%)", borderRadius: 14, padding: 16, display: "flex", flexDirection: "column", gap: 10, fontFamily: t.font.family }} onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+        <div style={{ fontSize: 18, fontWeight: 800 }}>{nameAsk === "edit" ? "Change your name" : "What should we call you?"}</div>
+        <div style={{ fontSize: 13, color: t.text.secondary }}>1–16 characters. Letters, numbers, spaces and - _ . ' only. This is saved with your run on this device.</div>
+        <input data-name-input="1" value={nameDraft} maxLength={NAME_MAX} autoComplete="off" autoCorrect="off" spellCheck={false} aria-label="Player name"
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNameDraft(e.target.value)}
+          onKeyDown={(e: React.KeyboardEvent) => { if (e.key === "Enter") { e.preventDefault(); confirmName(); } }}
+          style={{ fontSize: 18, fontWeight: 700, padding: "10px 12px", borderRadius: 8, border: "1px solid rgba(255,230,180,.35)", background: "rgba(0,0,0,.35)", color: "#fff8e8", outline: "none" }} />
+        <div style={{ fontSize: 11, color: t.text.secondary, textAlign: "right" }}>{sanitizeName(nameDraft).length}/{NAME_MAX}</div>
+        <div style={row}>
+          {btn(nameAsk === "edit" ? "Save name" : "That's me", confirmName, { tone: "primary", grow: true, tall: true })}
+          {btn(nameAsk === "edit" ? "Cancel" : "Use default", () => { if (nameAsk === "edit") setNameAsk(null); else confirmName(lastOrDefaultName()); }, { grow: true, tall: true })}
+        </div>
+      </div>
+    </div>
+  ) : null;
+  const style = <div style={{ display: "contents" }}>{exitModal}{menuModal}{homeModal}{nameModal}{salvModal}{sheetEl}{bigMapEl}{toastEl}{joyEl}<style>{"html[data-doe-nav=\"1\"] button:focus,html[data-doe-nav=\"1\"] textarea:focus{outline:3px solid #ffcc4d!important;outline-offset:2px!important;box-shadow:0 0 0 6px rgba(255,204,77,.35)!important}.doe-cols>*{break-inside:avoid;margin-bottom:10px}@keyframes doeFloat{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-26px)}}@keyframes doePulse{0%,100%{opacity:1}50%{opacity:.5}}@keyframes doeFlash{0%{opacity:1}100%{opacity:0}}@keyframes doeSplat{0%{transform:scale(.2);opacity:1}60%{opacity:.95}100%{transform:scale(1.5) translateY(6px);opacity:0}}@keyframes doeDrip{0%,100%{transform:scaleY(.6)}50%{transform:scaleY(1.2)}}@keyframes doeFlick{0%,100%{opacity:1}40%{opacity:.8}70%{opacity:.92}}@keyframes doeBanner{0%{opacity:0;transform:scale(.9)}15%{opacity:1;transform:scale(1)}80%{opacity:1}100%{opacity:0}}@keyframes doeDrift{0%{transform:translate(0,0);opacity:0}15%{opacity:.9}100%{transform:translate(18px,-160px);opacity:0}}@keyframes doeRise{0%{opacity:0;transform:translateY(6px)}12%{opacity:1;transform:translateY(0)}65%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}@keyframes doeNote{0%{opacity:0;transform:translateY(4px)}8%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}@keyframes doeBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5%)}}@keyframes doeMist{0%{transform:translateX(-12%)}100%{transform:translateX(12%)}}@keyframes doeBreath{0%,100%{transform:translateY(0) scaleY(1)}50%{transform:translateY(-3%) scaleY(1.05)}}@keyframes doeTwitch{0%,82%,100%{transform:rotate(0)}86%{transform:rotate(-4deg)}90%{transform:rotate(3deg)}}@keyframes doeFlicker{0%,100%{opacity:1}35%{opacity:.68}55%{opacity:.92}78%{opacity:.75}}@keyframes doeLean{0%,100%{transform:rotate(-5deg) translateY(0)}50%{transform:rotate(-8deg) translateY(-2%)}}@keyframes doeAura{0%,100%{opacity:.4}50%{opacity:.85}}"}</style></div>;
   const back = (): void => { if (g) run((gg: Game) => { gg.screen = gg.prev; }); else setUi("title"); };
   // ---------- INPUT: keyboard, gamepad, real-time loop ----------
   const isPlay = (): boolean => { const gg = G.current; return !!gg && !exitAsk && !sheet && !bigMap && !menuOpen && !homeAsk && !salvAsk && gg.screen === "map"; };
@@ -5715,7 +5850,7 @@ export default function DungeonOfEchoes() {
     run((x: Game) => rtAbility(x, a.id));
   };
   const mvVec = (): [number, number] => { const I = inp.current; let x = I.jx + I.kx + I.gx, y = I.jy + I.ky + I.gy; const m = Math.hypot(x, y); if (m > 1) { x /= m; y /= m; } return [x, y]; };
-  const dodge = (): void => { const [x, y] = mvVec(); run((gg: Game) => rtDodge(gg, x, y)); };
+  const dodge = (): void => { const [x, y] = mvVec(); run((gg: Game) => rtDodge(gg, x, y, inp.current)); };
   const inFight = (): boolean => { const gg = G.current; if (gg && gg.combat && gg.screen === "map") { lockNote(); return true; } return false; };
   const interact = (): void => { if (inFight()) return; run((gg: Game) => { if (gg.screen === "map" && nearMerchant(gg)) { gg.screen = "shop"; gg.sel = -1; inp.current.shopL = true; } }); };
   const openBag = (): void => {
@@ -5980,7 +6115,8 @@ export default function DungeonOfEchoes() {
     const saved = parseRun(rawRun());
     const start = (mode: Mode): void => {
       if (saved && confirm !== mode) { setConfirm(mode); return; }
-      const ng = newGame(pickCls, mode); G.current = ng; LAST_SAVE = saveRun(ng); setConfirm(null); refresh();
+      setConfirm(null);
+      openNameAsk("new", mode);
     };
     return (
       <div className={land ? "doe-cols" : undefined} style={land ? { ...root, display: "block", columnCount: 2, columnGap: 16 } : root}>{style}
@@ -6003,7 +6139,7 @@ export default function DungeonOfEchoes() {
                 <div style={{ fontSize: 13, letterSpacing: 2.2, textTransform: "uppercase", color: "#ffe08a", fontWeight: 800 }}>{saved ? (saved.mode === "story" ? "Floor" : "Depth") : "Best depth"}</div>
                 <div style={{ fontSize: "clamp(52px, 14vw, 80px)", fontWeight: 900, color: "#fff6dc", lineHeight: 0.88, textShadow: "0 2px 0 #000, 0 0 22px rgba(232,195,90,.5)", fontVariantNumeric: "tabular-nums" }}>{saved ? saved.floor : (m.best || "—")}</div>
                 {saved
-                  ? <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, fontSize: 16, fontWeight: 800, color: "#fff8e8" }}><span style={{ display: "inline-block", width: 32, height: 32, flex: "0 0 auto" }}>{spr(saved.cls, 32)}</span>{CLS[saved.cls].name} · {saved.mode === "story" ? "Story" : "Endless"}</div>
+                  ? <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, fontSize: 16, fontWeight: 800, color: "#fff8e8" }}><span style={{ display: "inline-block", width: 32, height: 32, flex: "0 0 auto" }}>{spr(saved.cls, 32)}</span><span data-player-name="1">{playerName(saved)}</span> · {CLS[saved.cls].name} · {saved.mode === "story" ? "Story" : "Endless"}</div>
                   : <div style={{ marginTop: 6, fontSize: 15, fontWeight: 800, color: "#ffe6b0" }}>No run in progress</div>}
               </div>
               <div style={{ display: "flex", flex: "2 1 240px", alignItems: "center", justifyContent: "space-around", gap: 8, flexWrap: "wrap" }}>
@@ -6011,7 +6147,7 @@ export default function DungeonOfEchoes() {
                 {cell("Prestige", `⭐ ${prestige}`)}
                 {cell("Best depth", m.best || "—")}
               </div>
-              {saved && <div style={{ flex: "0 1 auto", marginLeft: "auto" }}>{btn("▶ Continue", () => { const gg = parseRun(rawRun()); if (gg) { G.current = gg; log(gg, "💾 Run loaded. Welcome back!", "good"); LAST_SAVE = saveRun(gg); setConfirm(null); refresh(); } }, { tone: "primary", tall: true })}</div>}
+              {saved && <div style={{ flex: "0 1 auto", marginLeft: "auto" }}>{btn("▶ Continue", () => { const gg = parseRun(rawRun()); if (gg) { G.current = gg; setConfirm(null); if (maybeAskName(gg)) { refresh(); return; } log(gg, "💾 Run loaded. Welcome back, " + playerName(gg) + "!", "good"); LAST_SAVE = saveRun(gg); refresh(); } }, { tone: "primary", tall: true })}</div>}
             </div>
           );
         })()}
@@ -6023,7 +6159,7 @@ export default function DungeonOfEchoes() {
             const r = importCode(s);
             if (!r.startsWith("✅")) { openBox(s, r); return; }
             const gg = parseRun(rawRun());
-            if (gg) { G.current = gg; log(gg, "📋 Save code imported. Welcome back!", "good"); LAST_SAVE = saveRun(gg); }
+            if (gg) { G.current = gg; if (!maybeAskName(gg)) { log(gg, "📋 Save code imported. Welcome back, " + playerName(gg) + "!", "good"); LAST_SAVE = saveRun(gg); } }
             setToast(gg ? "📋 Save code imported — resuming" : "📋 Save code imported"); refresh();
           };
           try {
@@ -6090,7 +6226,7 @@ export default function DungeonOfEchoes() {
       {g.screen !== "map" && fxLayer(g, "p")}
       {g.hurtTs && Date.now() - g.hurtTs < 700 ? splat(g.hurtTs % 100000) : null}
       <div style={{ ...row, justifyContent: "space-between", fontSize: 13 }}>
-        <span style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 42, height: 42, flex: "0 0 auto", borderRadius: 8, background: "radial-gradient(circle at 50% 40%, #3a2a1a, #0d0a10 80%)", border: "1px solid #5a3a2a", overflow: "hidden" }}>{spr(g.cls, 42)}</span>{CLS[g.cls].name} · Lv {g.lvl}</span>
+        <span style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><span style={{ width: 42, height: 42, flex: "0 0 auto", borderRadius: 8, background: "radial-gradient(circle at 50% 40%, #3a2a1a, #0d0a10 80%)", border: "1px solid #5a3a2a", overflow: "hidden" }}>{spr(g.cls, 42)}</span><span data-player-name="1">{playerName(g)}</span> · {CLS[g.cls].name} · Lv {g.lvl}</span>
         <span>{g.mode === "story" ? `🏰 Floor ${g.floor}/${STORY_END}` : `∞ Depth ${g.floor}`}</span>
         <span style={{ color: t.text.warning, fontWeight: 700 }}>💰 {g.gold}</span>
         <span style={{ fontSize: 11, color: LAST_SAVE ? t.text.success : t.text.warning }}>{LAST_SAVE ? "💾 Saved" : "⚠️ Session only"}</span>
@@ -6121,17 +6257,17 @@ export default function DungeonOfEchoes() {
       {g.screen !== "map" && fxLayer(g, "p")}
       <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, width: "100%" }}>
         <span style={{ width: 30, height: 30, flex: "0 0 auto", borderRadius: 6, background: "radial-gradient(circle at 50% 40%, #3a2a1a, #0d0a10 80%)", border: "1px solid #5a3a2a", overflow: "hidden" }}>{spr(g.cls, 30)}</span>
-        <span style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>{CLS[g.cls].name} {g.lvl}</span>
+        <span data-player-name="1" style={{ fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>{playerName(g)} · {CLS[g.cls].name} {g.lvl}</span>
         {!hudNarrow && hudBars}
         {hudMeta}
       </div>
       {hudNarrow && hudBars}
     </div>
   );
-  const playLayout = (g0: Game, viewFn: () => ReactNode, _aspect: number, actions: ReactNode, below: ReactNode) => {
+  const playLayout = (g0: Game, viewFn: () => ReactNode, _aspect: number, actions: ReactNode, below: ReactNode, utils?: ReactNode) => {
     const padT = sa("top", 8), padR = sa("right", 8), padB = sa("bottom", 8), padL = sa("left", 8);
     const mini = Math.max(88, Math.min(132, Math.round(Math.min(vp.w, vp.h) * 0.2)));
-    const panel: CSSProperties = { background: "rgba(10,8,14,.72)", border: "1px solid rgba(255,230,180,.18)", borderRadius: 10, padding: "6px 8px", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", boxShadow: "0 4px 16px rgba(0,0,0,.35)" };
+    const landHud = vp.h <= 480;
     return (
       <div data-joy-layer="1" {...joyH} style={{ position: "fixed", inset: 0, background: "#07060a", color: t.text.primary, fontFamily: t.font.family, userSelect: "none", touchAction: "none", overflow: "hidden" }}>
         {style}
@@ -6139,8 +6275,13 @@ export default function DungeonOfEchoes() {
         <div style={{ position: "absolute", top: padT, left: padL, right: `calc(${padR} + ${mini + 10}px)`, zIndex: 10, pointerEvents: "none" }}>
           <div style={{ pointerEvents: "auto", maxWidth: "100%" }}>{hudC}</div>
         </div>
-        <div data-noj="1" style={{ position: "absolute", right: padR, bottom: padB, zIndex: 10, maxWidth: vp.h <= 480 ? "min(64vw, 340px)" : vp.w < 720 ? "min(92vw, 420px)" : 380, display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", pointerEvents: "auto" }}>
-          <div style={{ ...panel, maxWidth: "100%", maxHeight: vp.h <= 480 ? 52 : undefined, overflow: vp.h <= 480 ? "hidden" : undefined, fontSize: vp.h <= 480 ? 10 : undefined }}>{below}</div>
+        {utils ? (
+          <div data-util-cluster="1" data-noj="1" style={{ position: "absolute", right: padR, top: `calc(${padT} + ${mini + 8}px)`, zIndex: 10, display: "flex", flexDirection: landHud ? "row" : "column", flexWrap: "wrap", justifyContent: "flex-end", alignItems: "flex-end", gap: 4, pointerEvents: "auto", maxWidth: landHud ? "min(56vw, 420px)" : 168 }}>
+            {utils}
+          </div>
+        ) : null}
+        <div data-play-actions="1" data-noj="1" style={{ position: "absolute", right: padR, bottom: padB, zIndex: 10, maxWidth: "min(220px, 58vw)", display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end", pointerEvents: "auto" }}>
+          {below}
           {actions}
         </div>
       </div>
@@ -6154,7 +6295,7 @@ export default function DungeonOfEchoes() {
         <div style={{ textAlign: "center", padding: "24px 0" }}>
           <div style={{ fontSize: 56 }}>🪦</div>
           <div style={{ fontSize: 26, fontWeight: 800 }}>You have fallen</div>
-          <div style={small}>{CLS[g.cls].name} · Level {g.lvl} · {g.mode === "story" ? `Floor ${g.floor}/${STORY_END}` : `Depth ${g.floor} · Best ${m.best} · +${g.tokensEarned} token(s) this run`} · {g.kills} kills</div>
+          <div style={small}>{playerName(g)} · {CLS[g.cls].name} · Level {g.lvl} · {g.mode === "story" ? `Floor ${g.floor}/${STORY_END}` : `Depth ${g.floor} · Best ${m.best} · +${g.tokensEarned} token(s) this run`} · {g.kills} kills</div>
         </div>
         {logBox(g, 6)}
         {btn("Back to title ↻", toTitle, { tone: "primary", tall: true })}
@@ -6170,7 +6311,7 @@ export default function DungeonOfEchoes() {
           <div style={{ display: "flex", justifyContent: "center", alignItems: "flex-end", gap: 4 }}><div style={{ width: 104, height: 104 }}>{spr(g.cls, 104)}</div><div style={{ width: 96, height: 96 }}>{remSvg("lord")}</div></div>
           <div style={{ fontSize: 26, fontWeight: 800 }}>Victory!</div>
           <div style={{ fontSize: 14 }}>The Echo Lord is silenced. The dungeon falls quiet.</div>
-          <div style={small}>{CLS[g.cls].name} · Level {g.lvl} · {g.kills} kills · {g.turns} tiles walked</div>
+          <div style={small}>{playerName(g)} · {CLS[g.cls].name} · Level {g.lvl} · {g.kills} kills · {g.turns} tiles walked</div>
         </div>
         <div style={card}><div style={{ fontWeight: 700 }}>∞ Try Endless</div><div style={small}>Infinite floors, a boss every 5, tokens every 10 floors for permanent class upgrades.</div></div>
         {btn("Back to title", toTitle, { tone: "primary", tall: true })}
@@ -6263,7 +6404,7 @@ export default function DungeonOfEchoes() {
               if ((st[i] ?? 0) <= 0) { log(gg, "Sold out."); return; }
               const p = priceOf(inv);
               if (gg.gold < p) { log(gg, "Not enough gold."); return; }
-              if (gg.inv.length >= MAXINV) { log(gg, "Your bag is full."); return; }
+              if (!isHealPot(inv.id) && gg.inv.length >= MAXINV) { log(gg, "Your bag is full."); return; }
               gg.gold -= p;
               st[i] = st[i] - 1;
               addItem(gg, consumable ? makeInst(inv.id, gg.floor, false, "shop") : { ...inv, bon: { ...inv.bon }, affs: inv.affs ? inv.affs.map((a: RolledAff) => ({ ...a })) : undefined, uid: UID++ });
@@ -6334,7 +6475,7 @@ export default function DungeonOfEchoes() {
       <div style={root}>{style}
         {hud}
         <div style={row}>
-          <div style={{ fontSize: 20, fontWeight: 800, flex: "1 1 auto" }}>🎒 Inventory</div>
+          <div style={{ fontSize: 20, fontWeight: 800, flex: "1 1 auto" }}>🎒 Inventory · <span data-player-name="1">{playerName(g)}</span></div>
           {btn("📖 Codex", () => run((gg: Game) => { gg.prev = "inventory"; gg.screen = "codex"; }))}
           {btn("Back", () => run((gg: Game) => { gg.screen = "map"; gg.sel = -1; }), { tone: "primary" })}
         </div>
@@ -6478,7 +6619,11 @@ export default function DungeonOfEchoes() {
     const onCanvasUp = (ev: React.PointerEvent<HTMLDivElement>): void => {
       const C = treeCam.current;
       if (ev.pointerId === C.p2) { C.p2 = -1; return; }
-      if (ev.pointerId === C.pid) { C.pid = -1; C.p2 = -1; }
+      if (ev.pointerId === C.pid) {
+        C.pid = -1; C.p2 = -1;
+        // Don't leave `moved` sticky: a prior pan was swallowing the next node tap's onClick.
+        window.setTimeout(() => { if (C.pid === -1) C.moved = false; }, 50);
+      }
     };
     const onWheel = (ev: React.WheelEvent<HTMLDivElement>): void => {
       ev.preventDefault();
@@ -6488,10 +6633,10 @@ export default function DungeonOfEchoes() {
       refresh();
     };
     return (
-      <div style={root}>{style}
+      <div data-skills-root="1" style={{ ...root, minHeight: "100dvh", overflowY: "auto", paddingBottom: sel ? 8 : undefined }}>{style}
         {hud}
         <div style={row}>
-          <div style={{ fontSize: 18, fontWeight: 800, flex: "1 1 auto", minWidth: 0 }}>🌳 Skills · {CLS[g.cls].name}{cat ? ` · ${cat.name}` : ""}</div>
+          <div style={{ fontSize: 18, fontWeight: 800, flex: "1 1 auto", minWidth: 0 }}>🌳 Skills · <span data-player-name="1">{playerName(g)}</span> · {CLS[g.cls].name}{cat ? ` · ${cat.name}` : ""}</div>
           <div style={{ fontWeight: 800, color: (g.skillPts ?? 0) > 0 ? t.text.accent : t.text.secondary }}>{g.skillPts ?? 0} unspent · {spent} spent</div>
           {btn(treeCat || treeSel ? "Back" : "Close", goBack, { tone: "primary" })}
         </div>
@@ -6569,7 +6714,7 @@ export default function DungeonOfEchoes() {
                   const p0 = pos(n);
                   const rk = n.kind === "skill" ? rankOf(g as SkillState, n.id) : n.kind === "passive" ? ((g.skillPass ?? {})[n.id] ?? 0) : 0;
                   return (
-                    <button key={n.id} type="button" data-tree-node={n.id} onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => ev.stopPropagation()} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.stopPropagation(); if (treeCam.current.moved) return; setTreeSel(n.id); }} style={{ position: "absolute", left: p0.x, top: p0.y, width: ns, minWidth: 44, height: ns, minHeight: 44, borderRadius: n.kind === "key" ? 18 : n.kind === "passive" ? 12 : 10, border: `2px solid ${stt === "learned" ? "#c9a24a" : stt === "open" ? t.border.strong : t.border.default}`, background: stt === "learned" ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: "pointer", opacity: stt === "locked" ? 0.5 : 1, overflow: "hidden", padding: 4 }}>
+                    <button key={n.id} type="button" data-tree-node={n.id} onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.stopPropagation(); ev.preventDefault(); try { ev.currentTarget.setPointerCapture(ev.pointerId); } catch (err) { void err; } ev.currentTarget.dataset.px = String(ev.clientX); ev.currentTarget.dataset.py = String(ev.clientY); treeCam.current.moved = false; }} onPointerUp={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.stopPropagation(); ev.preventDefault(); const x0 = Number(ev.currentTarget.dataset.px ?? ev.clientX), y0 = Number(ev.currentTarget.dataset.py ?? ev.clientY); if (Math.hypot(ev.clientX - x0, ev.clientY - y0) <= 14) setTreeSel(n.id); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.stopPropagation(); ev.preventDefault(); }} style={{ position: "absolute", left: p0.x, top: p0.y, width: ns, minWidth: 44, height: ns, minHeight: 44, zIndex: 2, borderRadius: n.kind === "key" ? 18 : n.kind === "passive" ? 12 : 10, border: `2px solid ${stt === "learned" ? "#c9a24a" : stt === "open" ? t.border.strong : t.border.default}`, background: stt === "learned" ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", cursor: "pointer", opacity: stt === "locked" ? 0.5 : 1, overflow: "hidden", padding: 4, touchAction: "manipulation", pointerEvents: "auto" }}>
                       <div style={{ fontSize: 16, lineHeight: 1 }}>{n.icon}</div>
                       <div style={{ fontSize: 9, fontWeight: 700, lineHeight: 1.1, marginTop: 2 }}>{n.name}</div>
                       {n.kind === "skill" || n.kind === "passive" ? <div style={{ fontSize: 9, color: t.text.secondary }}>{rk}/{n.ranks ?? (n.kind === "skill" ? 5 : 3)}</div> : null}
@@ -6580,16 +6725,26 @@ export default function DungeonOfEchoes() {
               </div>
             </div>
             {sel ? (
-              <div style={{ ...card, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div data-tree-sheet="1" role="dialog" aria-label={`${sel.name} details`} style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 60, ...card, borderRadius: "16px 16px 0 0", display: "flex", flexDirection: "column", gap: 8, maxHeight: "48vh", overflowY: "auto", pointerEvents: "auto", padding: "12px 12px calc(12px + env(safe-area-inset-bottom))", boxShadow: "0 -8px 28px rgba(0,0,0,.55)", background: t.bg.elevated }}>
                 <div style={{ fontWeight: 800 }}>{sel.icon} {sel.name}{sel.new ? " · New" : ""} {sel.kind === "fork" ? "· Specialization" : sel.kind === "enh" ? "· Enhanced" : sel.kind === "key" ? "· Key Passive" : sel.kind === "passive" ? "· Passive" : "· Skill"}</div>
                 <div style={{ fontSize: 13, color: t.text.secondary }}>{sel.desc}{sel.mp != null ? `  · ${sel.mp} MP, ${sel.cd}s CD` : ""}</div>
                 {sel.kind === "skill" ? <div style={{ fontSize: 12 }}>Rank {rankOf(g as SkillState, sel.id)} / {sel.ranks ?? 5}. Each rank increases power. After rank 1 you may learn Enhanced, then one specialization.</div> : null}
                 {sel.kind === "fork" && (g.skillPick ?? {})[sel.parent ?? ""] && (g.skillPick ?? {})[sel.parent ?? ""] !== sel.id ? <div style={{ fontSize: 12, color: t.text.secondary }}>The other specialization is already chosen. Respec to change.</div> : null}
+                {!canLearnTree(g, sel.id) && (g.skillPts ?? 0) < 1 ? <div style={{ fontSize: 12, color: t.text.secondary }}>You need an unspent skill point.</div> : null}
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  {btn(sel.kind === "skill" && rankOf(g as SkillState, sel.id) > 0 ? `Upgrade (${g.skillPts ?? 0} pts)` : `Learn (${g.skillPts ?? 0} pts)`, () => run((gg: Game) => { learnTreeNode(gg, sel.id); }), { disabled: inFight || !canLearnTree(g, sel.id), tone: "accent", tall: true })}
-                  {sel.kind === "skill" && rankOf(g as SkillState, sel.id) > 0 && !inFight ? btn("Equip in selected slot", () => assign(sel.id), { tall: true }) : null}
+                  <button type="button" data-tree-learn="1" disabled={inFight || !canLearnTree(g, sel.id)} onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); if (inFight || !canLearnTree(g, sel.id)) return; run((gg: Game) => { learnTreeNode(gg, sel.id); }); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} style={{ minHeight: 48, minWidth: 44, padding: "8px 12px", borderRadius: 10, border: `1px solid ${t.border.default}`, background: t.fill.accentSubtle, color: t.text.primary, fontFamily: "inherit", fontWeight: 700, fontSize: 14, cursor: inFight || !canLearnTree(g, sel.id) ? "default" : "pointer", opacity: inFight || !canLearnTree(g, sel.id) ? 0.45 : 1, touchAction: "manipulation" }}>{sel.kind === "skill" && rankOf(g as SkillState, sel.id) > 0 ? `Upgrade (${g.skillPts ?? 0} pts)` : `Learn (${g.skillPts ?? 0} pts)`}</button>
                   {btn("Close details", () => setTreeSel(null), { tall: true })}
                 </div>
+                {sel.kind === "skill" && rankOf(g as SkillState, sel.id) > 0 && !inFight ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <div style={{ fontSize: 12, color: t.text.secondary }}>Equip to a loadout slot so it appears on the combat bar:</div>
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {slots.map((id: string | null, i: number) => (
+                        <button key={i} type="button" data-tree-equip={i} onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); setLoadSel(i); run((gg: Game) => { setSlot(gg, i, sel.id); }); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} style={{ minWidth: 44, minHeight: 44, padding: "6px 8px", borderRadius: 10, border: `2px solid ${id === sel.id ? "#c9a24a" : t.border.default}`, background: id === sel.id ? t.fill.accentSubtle : t.bg.elevated, color: t.text.primary, fontFamily: "inherit", fontWeight: 700, cursor: "pointer", touchAction: "manipulation" }}>Slot {i + 1}{id === sel.id ? " ✓" : ""}</button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -6804,77 +6959,61 @@ export default function DungeonOfEchoes() {
         ) : null; })()}
       </div>
   );
-  const lockStyle: CSSProperties = { opacity: 0.4, filter: "grayscale(1)" };
-  const lk = (label: string, aria: string): ReactNode => <button key={aria} onClick={lockNote} aria-disabled="true" aria-label={`${aria} (locked in combat)`} title="Locked in combat" style={{ ...lockStyle, flex: "1 1 0", minHeight: 38, borderRadius: 10, border: `1px solid ${t.border.default}`, background: t.fill.secondary, color: t.text.primary, fontFamily: "inherit", fontSize: 15, cursor: "not-allowed", padding: 0 }}>{label}</button>;
-  const ring = (fr: number): ReactNode => fr > 0 ? <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `conic-gradient(rgba(0,0,0,.72) ${Math.round(fr * 360)}deg, transparent 0deg)`, pointerEvents: "none" }} /> : null;
-  const roundBtn: CSSProperties = { position: "relative", width: 56, height: 56, borderRadius: "50%", border: "2px solid #c9a24a", background: "radial-gradient(circle at 40% 35%, #3a2a44, #140e1a)", color: "#fff", fontFamily: "inherit", fontSize: 22, cursor: "pointer", overflow: "hidden", touchAction: "manipulation", padding: 0, flex: "0 0 auto" };
+  const HIT = 40, VIS = 32, ATK_HIT = 52, ATK_VIS = 44; // ~55–57% of prior 56/80 visuals; hit ≥40
+  const iconHit = (hit: number): CSSProperties => ({ position: "relative", width: hit, height: hit, minWidth: hit, minHeight: hit, padding: 0, border: "none", background: "transparent", display: "inline-flex", alignItems: "center", justifyContent: "center", flex: "0 0 auto", cursor: "pointer", touchAction: "manipulation", color: "#fff", fontFamily: "inherit", overflow: "visible" });
+  const iconFace = (vis: number, extra?: CSSProperties): CSSProperties => ({ position: "relative", width: vis, height: vis, borderRadius: "50%", border: "1.5px solid #c9a24a", background: "radial-gradient(circle at 40% 35%, #3a2a44, #140e1a)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", fontSize: Math.round(vis * 0.52), pointerEvents: "none", ...extra });
+  const ring = (fr: number): ReactNode => fr > 0 ? <span style={{ position: "absolute", inset: 0, borderRadius: "50%", background: `conic-gradient(rgba(0,0,0,.62) ${Math.round(fr * 360)}deg, transparent 0deg)`, pointerEvents: "none" }} /> : null;
+  const padBtn = (opts: { key?: string | number; aria: string; title?: string; icon: ReactNode; vis?: number; hit?: number; face?: CSSProperties; badge?: ReactNode; sub?: ReactNode; fr?: number; disabled?: boolean; locked?: boolean; onDown?: () => void; hold?: boolean }): ReactNode => {
+    const vis = opts.vis ?? VIS, hit = opts.hit ?? HIT;
+    const down = (ev: React.PointerEvent<HTMLButtonElement>): void => { ev.preventDefault(); ev.stopPropagation(); if (opts.disabled || opts.locked) { if (opts.locked) lockNote(); return; } opts.onDown?.(); };
+    const up = (): void => { if (opts.hold) atkUp(); };
+    return (
+      <button key={opts.key} type="button" data-noj="1" disabled={opts.disabled && !opts.locked} aria-disabled={!!(opts.disabled || opts.locked)} aria-label={opts.aria} title={opts.title ?? opts.aria} onPointerDown={down} onPointerUp={opts.hold ? up : undefined} onPointerCancel={opts.hold ? up : undefined} onPointerLeave={opts.hold ? up : undefined} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} onContextMenu={opts.hold ? (e: { preventDefault: () => void }) => e.preventDefault() : undefined} style={{ ...iconHit(hit), cursor: opts.disabled || opts.locked ? "default" : "pointer", opacity: opts.disabled || opts.locked ? 0.45 : 1, filter: opts.locked ? "grayscale(1)" : undefined }}>
+        <span style={iconFace(vis, opts.face)}>
+          <span>{opts.icon}</span>
+          {ring(opts.fr ?? 0)}
+          {opts.sub}
+        </span>
+        {opts.badge}
+      </button>
+    );
+  };
   const atkUp = (): void => { inp.current.atk = false; };
+  const nPots = potCount(g);
   const qi = qsItem(g);
-  const qn = qi ? g.inv.filter((x: Inv) => x.id === qi.id).length : 0;
-  const combatActions = c ? (
-    <div data-combat-actions="1" style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-        {barAbs(g).map((a: Ab | null, i: number) => {
-          if (!a) return (
-            <button key={"e"+i} type="button" data-noj="1" disabled aria-label={`Empty ability slot ${i + 1}`} title="Empty slot — equip an ability in Skills" style={ { ...roundBtn, borderColor: t.border.default, opacity: 0.4 } }>
-              <span>➕</span>
-              <span style={ { position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#bbb", textShadow: "0 1px 2px #000" } }>empty</span>
-              <span style={ { position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" } }>{i + 1}</span>
-            </button>
-          );
-          const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
-          return (
-            <button key={a.id} type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); abil(i); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={`${a.name} (key ${i + 1})`} title={`${a.name}: ${a.desc}`} style={ { ...roundBtn, borderColor: cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: noMp && cd <= 0 ? 0.55 : 1 } }>
-              <span>{a.icon}</span>{ring(fr)}
-              <span style={ { position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#ffe6b0", textShadow: "0 1px 2px #000" } }>{cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
-              <span style={ { position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" } }>{i + 1}</span>
-            </button>
-          );})}
-      </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
-        <button type="button" data-potion="1" data-noj="1" disabled={!qi} onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); if (qi) quick(); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={qi ? `Quick-slot: ${IT[qi.id].name} ×${qn} (R)` : "No potion"} title={qi ? `${IT[qi.id].name} (R / 4 / Select)` : "No potion"} style={{ ...roundBtn, width: 50, height: 50, borderColor: qi ? "#e5484d" : t.border.default, opacity: qi ? 1 : 0.45, fontSize: 20 }}>
-          <span>{qi ? IT[qi.id].icon : "🧪"}</span>
-          <span style={{ position: "absolute", right: 4, bottom: 2, fontSize: 11, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px #000" }}>{qn}</span>
-        </button>
-        <button type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); dodge(); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label="Dodge roll" style={{ ...roundBtn, borderColor: (c.dashCd ?? 0) > 0 ? t.border.default : "#7ab8ff" }}><span>💨</span>{ring(Math.min(1, (c.dashCd ?? 0) / 2.2))}<span style={{ position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#cfe6ff" }}>Dodge</span></button>
-        <button type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); inp.current.atk = true; run((gg: Game) => rtAttack(gg)); }} onPointerUp={atkUp} onPointerCancel={atkUp} onPointerLeave={atkUp} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} onContextMenu={(e: { preventDefault: () => void }) => e.preventDefault()} aria-label="Attack (hold)" style={{ ...roundBtn, width: 80, height: 80, fontSize: 32, border: "3px solid #e0b25a", background: "radial-gradient(circle at 40% 35%, #8a2a1a, #2a0a08)" }}>
-          <span>{g.cls === "mage" ? "🪄" : g.cls === "ranger" ? "🏹" : g.cls === "cleric" ? "🔨" : g.cls === "rogue" ? "🗡️" : "⚔️"}</span>{ring(Math.min(1, (c.atkCd ?? 0) / ARATE[g.cls]))}
-        </button>
-      </div>
-      {g.perks.includes("shadowmeld") && <div style={{ display: "flex", justifyContent: "flex-end" }}>{btn(g.usedShadow ? "🌫️ used" : "🌫️ Meld", () => run((gg: Game) => combatAct(gg, "vanish", "")), { disabled: g.usedShadow || !!cBoss, key: "vanish" })}</div>}
-      <div data-locked="1" style={{ display: "flex", gap: 6, width: "100%" }}>
-        {lk("🎒", "Bag")}{lk("📖", "Codex")}{lk("❓", "Help")}
-      </div>
+  const qn = qi && !isHealPot(qi.id) ? g.inv.filter((x: Inv) => x.id === qi.id).length : 0;
+  const dcd = c ? (c.dashCd ?? 0) : (inp.current.dashCd ?? 0);
+  const abButtons = (
+    <div data-abil-row="1" style={{ display: "flex", gap: 3, justifyContent: "flex-end", flexWrap: "wrap" }}>
+      {barAbs(g).map((a: Ab | null, i: number) => {
+        if (!a) return padBtn({ key: "e"+i, aria: `Empty ability slot ${i + 1}`, title: "Empty slot — equip an ability in Skills", icon: "➕", face: { borderColor: t.border.default }, disabled: true, sub: <span style={{ position: "absolute", left: 0, right: 0, top: 1, fontSize: 7, color: "#bbb", textAlign: "center" }}>{i + 1}</span> });
+        const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
+        return padBtn({ key: a.id, aria: `${a.name} (key ${i + 1})`, title: `${a.name}: ${a.desc}`, icon: a.icon, face: { borderColor: cd > 0 || noMp ? t.border.default : "#c9a24a" }, disabled: noMp && cd <= 0, fr, onDown: () => abil(i), sub: cd > 0 ? <span style={{ position: "absolute", left: 0, right: 0, bottom: 1, fontSize: 7, fontWeight: 700, color: "#ffe6b0", textShadow: "0 1px 2px #000", textAlign: "center" }}>{Math.ceil(cd)}</span> : <span style={{ position: "absolute", left: 0, right: 0, top: 1, fontSize: 7, color: "#bbb", textAlign: "center" }}>{i + 1}</span> });
+      })}
     </div>
-  ) : null;
-  const mapActions = c ? combatActions : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-            {barAbs(g).map((a: Ab | null, i: number) => {
-              if (!a) return (
-                <button key={"e"+i} type="button" data-noj="1" disabled aria-label={`Empty ability slot ${i + 1}`} title="Empty slot — equip an ability in Skills" style={ { ...roundBtn, borderColor: t.border.default, opacity: 0.4 } }>
-                  <span>➕</span>
-                  <span style={ { position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#bbb", textShadow: "0 1px 2px #000" } }>empty</span>
-                  <span style={ { position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" } }>{i + 1}</span>
-                </button>
-              );
-              const cd = g.cds[a.id] ?? 0; const cost = abCost(g, a); const span = Math.max(0.01, cdSec(g, a)); const fr = cd > 0 ? Math.min(1, cd / span) : 0; const noMp = g.mp < cost;
-              return (
-                <button key={a.id} type="button" data-noj="1" onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); abil(i); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} aria-label={`${a.name} (key ${i + 1})`} title={`${a.name}: ${a.desc}`} style={ { ...roundBtn, borderColor: cd > 0 || noMp ? t.border.default : "#c9a24a", opacity: noMp && cd <= 0 ? 0.55 : 1 } }>
-                  <span>{a.icon}</span>{ring(fr)}
-                  <span style={ { position: "absolute", left: 0, right: 0, bottom: 3, fontSize: 9, fontWeight: 700, color: "#ffe6b0", textShadow: "0 1px 2px #000" } }>{cd > 0 ? `${Math.ceil(cd)}s` : `${cost}MP`}</span>
-                  <span style={ { position: "absolute", left: 0, right: 0, top: 2, fontSize: 9, color: "#bbb" } }>{i + 1}</span>
-                </button>
-              );})}
-          </div>
-          {onMerchant && btn("💰 Trade", interact, { tone: "accent", tall: true })}
-          {btn(`🎒 Bag (${g.inv.length})`, () => run((gg: Game) => { gg.screen = "inventory"; gg.sel = -1; }), { tone: "primary", tall: true })}
-          {btn(`🌳 Skills${(g.skillPts ?? 0) > 0 ? ` (${g.skillPts})` : ""}`, () => run((gg: Game) => { gg.prev = "map"; gg.screen = "skills"; }), { tone: (g.skillPts ?? 0) > 0 ? "accent" : "primary", tall: true })}
-          <div style={row}>
-            {btn("📖", () => run((gg: Game) => { gg.prev = "map"; gg.screen = "codex"; }), { grow: true })}
-            {btn("❓", () => run((gg: Game) => { gg.prev = "map"; gg.screen = "help"; }), { grow: true })}
-          </div>
-        </div>
+  );
+  const mapActions = (
+    <div data-combat-actions="1" style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+      {abButtons}
+      <div data-combat-pad="1" style={{ display: "flex", gap: 3, alignItems: "flex-end", justifyContent: "flex-end" }}>
+        {c ? padBtn({ aria: "Switch target", title: "Switch target", icon: "🎯", onDown: () => cycleTarget(1) }) : null}
+        {padBtn({ aria: nPots ? `Healing Potion ×${nPots} (R)` : "No healing potions", title: nPots ? `Healing Potion · restores ${POTION_HEAL_PCT}% HP (R)` : "No healing potions", icon: "🧪", face: { borderColor: nPots ? "#e5484d" : t.border.default }, disabled: nPots <= 0, onDown: () => { if (nPots > 0) quick(); }, badge: <span data-potion-count={nPots} style={{ position: "absolute", right: 0, bottom: 0, fontSize: 9, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>{nPots}</span> })}
+        {qi && !isHealPot(qi.id) ? padBtn({ aria: `Quick-slot: ${IT[qi.id].name} ×${qn}`, title: `${IT[qi.id].name}`, icon: IT[qi.id].icon, face: { borderColor: "#e5484d" }, disabled: !qn, onDown: () => run((gg: Game) => qsUse(gg)), badge: qn > 0 ? <span style={{ position: "absolute", right: 0, bottom: 0, fontSize: 9, fontWeight: 800, color: "#fff", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>{qn}</span> : null }) : null}
+        {padBtn({ aria: "Dodge roll", icon: "💨", face: { borderColor: dcd > 0 ? t.border.default : "#7ab8ff" }, fr: Math.min(1, dcd / dashSec(g)), onDown: () => dodge() })}
+        {padBtn({ aria: "Attack (hold)", icon: g.cls === "mage" ? "🪄" : g.cls === "ranger" ? "🏹" : g.cls === "cleric" ? "🔨" : g.cls === "rogue" ? "🗡️" : "⚔️", vis: ATK_VIS, hit: ATK_HIT, face: { border: "2px solid #e0b25a", background: "radial-gradient(circle at 40% 35%, #8a2a1a, #2a0a08)", fontSize: 22 }, fr: c ? Math.min(1, (c.atkCd ?? 0) / ARATE[g.cls]) : 0, hold: true, onDown: () => { inp.current.atk = true; run((gg: Game) => rtAttack(gg)); } })}
+      </div>
+      {g.perks.includes("shadowmeld") && !g.usedShadow && !cBoss ? padBtn({ aria: "Shadowmeld", icon: "🌫️", onDown: () => run((gg: Game) => combatAct(gg, "vanish", "")) }) : null}
+    </div>
+  );
+  const utilBtn = (icon: string, aria: string, onDown: () => void, locked: boolean, badge?: ReactNode): ReactNode => padBtn({ aria: locked ? `${aria} (locked in combat)` : aria, icon, locked, onDown, badge });
+  const utilCluster = (
+    <div style={{ display: "flex", flexDirection: "inherit", flexWrap: "wrap", gap: 4, alignItems: "flex-end", justifyContent: "flex-end" }}>
+      {onMerchant && !c ? utilBtn("💰", "Trade", interact, false) : null}
+      {utilBtn("🎒", "Bag", () => run((gg: Game) => { gg.screen = "inventory"; gg.sel = -1; }), !!c, g.inv.length ? <span style={{ position: "absolute", right: -1, bottom: -1, fontSize: 8, fontWeight: 800, color: "#ffe6b0", textShadow: "0 1px 2px #000", pointerEvents: "none" }}>{g.inv.length}</span> : null)}
+      {utilBtn("📖", "Codex", () => run((gg: Game) => { gg.prev = "map"; gg.screen = "codex"; }), !!c)}
+      {utilBtn("❓", "Help", () => run((gg: Game) => { gg.prev = "map"; gg.screen = "help"; }), !!c)}
+      <button type="button" data-noj="1" data-skills-btn="1" aria-label={c ? "Skills locked in combat" : `Skills${(g.skillPts ?? 0) > 0 ? ` (${g.skillPts} unspent)` : ""}`} title={c ? "Locked in combat" : "Skills"} disabled={!!c} onPointerDown={(ev: React.PointerEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); if (c) { lockNote(); return; } run((gg: Game) => { gg.prev = "map"; gg.screen = "skills"; }); }} onClick={(ev: React.MouseEvent<HTMLButtonElement>) => { ev.preventDefault(); ev.stopPropagation(); }} style={{ minHeight: 56, padding: "8px 10px", borderRadius: 10, border: `1px solid ${t.border.default}`, background: (g.skillPts ?? 0) > 0 && !c ? t.fill.accentSubtle : t.fill.primary, color: t.text.onPrimary, fontFamily: "inherit", fontSize: 14, fontWeight: 600, lineHeight: 1.2, cursor: c ? "not-allowed" : "pointer", opacity: c ? 0.4 : 1, touchAction: "manipulation", pointerEvents: c ? "none" : "auto", filter: c ? "grayscale(1)" : undefined }}>🌳 Skills{(g.skillPts ?? 0) > 0 ? ` (${g.skillPts})` : ""}</button>
+    </div>
   );
   const b = g.buffs;
   const chips: string[] = [];
@@ -6893,18 +7032,10 @@ export default function DungeonOfEchoes() {
     if ((b.pethaste ?? 0) > 0) chips.push(`🐺 Beast Frenzy ${fmtBuff(b.pethaste ?? 0)}`);
   }
   if (b.dotT > 0) chips.push(`☠️ DoT ${b.dotD} for ${fmtBuff(b.dotT * 1.5)}`);
-  const legend = c ? (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {chips.length > 0 && <div data-buffs="1" style={{ ...row, gap: 6, flexWrap: "wrap" }}>{chips.map((x: string) => <span key={x} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 999, background: t.fill.secondary, border: "1px solid rgba(255,230,180,.25)", fontWeight: 700 }}>{x}</span>)}</div>}
-      <div style={{ ...small, fontSize: 11 }}>⚔️ <b>In combat</b> — bag, map, codex, shops and stairs are locked. Red rings are incoming hits: step out or dodge. Tap an enemy to target it. Break line of sight for ~4 s to lose pursuers. {CLS[g.cls].passive}</div>
-    </div>
-  ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {chips.length > 0 && <div data-buffs="1" style={{ ...row, gap: 6, flexWrap: "wrap" }}>{chips.map((x: string) => <span key={x} style={{ fontSize: 11, padding: "3px 8px", borderRadius: 999, background: t.fill.secondary, border: "1px solid rgba(255,230,180,.25)", fontWeight: 700 }}>{x}</span>)}</div>}
-            <div style={{ ...small, fontSize: 11 }}><b>{BIOME[bio].name}</b> · {bio === "warren" ? "🕸️ webs slow you and wake the warren" : "🔮 runes drain 8% HP and wake the dead"} · 🔽 stairs · 📦 chest · 💰 merchant (walk onto it){g.floor % 5 === 0 ? ` · ${bossKind(g.floor) === "lord" ? "Echo Lord" : "Broodmother"} guards the stairs` : ""}{g.mode === "endless" ? " · ☠️ permadeath" : ""}{g.perks.length ? ` · ${g.perks.length} perk${g.perks.length > 1 ? "s" : ""}` : ""} · monsters roam in real time</div>
-          </div>
-  );
-  return playLayout(g, mapView, 1, mapActions, legend);
+  const legend = chips.length > 0 ? (
+    <div data-buffs="1" style={{ display: "flex", gap: 4, flexWrap: "wrap", justifyContent: "flex-end", maxWidth: "min(220px, 58vw)" }}>{chips.map((x: string) => <span key={x} style={{ fontSize: 10, padding: "2px 6px", borderRadius: 999, background: "rgba(10,8,14,.78)", border: "1px solid rgba(255,230,180,.25)", fontWeight: 700 }}>{x}</span>)}</div>
+  ) : null;
+  return playLayout(g, mapView, 1, mapActions, legend, utilCluster);
 }
 
 

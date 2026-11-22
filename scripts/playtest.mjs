@@ -9,6 +9,7 @@
 import { spawn } from "node:child_process";
 import { createConnection } from "node:net";
 import path from "node:path";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 import puppeteer from "puppeteer-core";
@@ -249,6 +250,18 @@ async function runDodge(browser) {
     check(key.kx > 0 && key.kxAfter > 0, "WASD still held when Shift dodge fires", JSON.stringify(key));
     check(key.dashT > 0 && key.dvx > 0.5, "Shift dodge uses move-key direction", JSON.stringify(key));
 
+    // Dodge must work on the map with no combat (always-visible dodge button).
+    const explore = await page.evaluate(() => {
+      window.__T.boot("warrior");
+      const g = window.__G();
+      g.combat = null;
+      const x0 = g.wx ?? g.px + 0.5, y0 = g.wy ?? g.py + 0.5;
+      window.__I.current.jx = 1; window.__I.current.jy = 0;
+      window.__R.rtDodge(g, 1, 0, window.__I.current);
+      return { x0, x: window.__G().wx, dashT: window.__I.current.dashT, dashCd: window.__I.current.dashCd, combat: !!window.__G().combat };
+    });
+    check(!explore.combat && (explore.dashT > 0 || explore.dashCd > 0 || (explore.x ?? 0) !== explore.x0), "dodge works out of combat", JSON.stringify(explore));
+
     const pageErrs = errors.filter((e) => !/favicon|ResizeObserver/i.test(e));
     check(pageErrs.length === 0, "dodge no page errors", pageErrs.join(" | "));
   });
@@ -287,7 +300,291 @@ async function runShots(browser) {
   notes.push(`screenshots: ${out}skill-overview-mobile.png , ${out}skill-core-mobile.png`);
 }
 
+
+async function tapSel(page, sel) {
+  const box = await page.evaluate((s) => {
+    const el = document.querySelector(s);
+    if (!el) return null;
+    el.scrollIntoView({ block: "center", inline: "center" });
+    const r = el.getBoundingClientRect();
+    return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height };
+  }, sel);
+  if (!box) return false;
+  // One pointer gesture only — a second dispatch would double-learn.
+  await page.evaluate((s, x, y) => {
+    const el = document.querySelector(s);
+    if (!el) return;
+    const opts = { bubbles: true, cancelable: true, composed: true, clientX: x, clientY: y, pointerId: 7, pointerType: "touch", isPrimary: true, buttons: 1 };
+    el.dispatchEvent(new PointerEvent("pointerdown", opts));
+    el.dispatchEvent(new PointerEvent("pointerup", { ...opts, buttons: 0 }));
+  }, sel, box.x, box.y);
+  return true;
+}
+
+async function runTreeTaps(browser) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle0", timeout: 30000 });
+  await page.waitForFunction(() => typeof window.__T !== "undefined" && typeof window.__R !== "undefined", { timeout: 15000 });
+  try {
+    await page.evaluate(() => {
+      window.__T.boot("warrior");
+      window.__R.lvlTo(5);
+      if (window.__R.clearFx) window.__R.clearFx();
+    });
+    const before = await page.evaluate(() => window.__T.snap());
+    await page.evaluate(() => { window.__R.openSkills(); window.__R.openCat("basic"); });
+    await new Promise((r) => setTimeout(r, 400));
+    const nodeOk = await page.$("[data-tree-node='bash']");
+    check(!!nodeOk, "tree node bash is visible");
+    const tapped = await tapSel(page, "[data-tree-node='bash']");
+    check(tapped, "tree node bash received a tap");
+    await new Promise((r) => setTimeout(r, 250));
+    const sheet = await page.$("[data-tree-sheet='1']");
+    check(!!sheet, "tree node tap opened the action sheet");
+    const out = path.join(ROOT, "playtest-shots");
+    fs.mkdirSync(out, { recursive: true });
+    await page.screenshot({ path: path.join(out, "skill-node-sheet-mobile.png") });
+    const learnVisible = await page.$("[data-tree-learn='1']");
+    check(!!learnVisible, "Learn button is in the action sheet");
+    await tapSel(page, "[data-tree-learn='1']");
+    await new Promise((r) => setTimeout(r, 200));
+    const afterLearn = await page.evaluate(() => {
+      const g = window.__G();
+      return { pts: g.skillPts, rank: (g.skillRanks || {}).bash || 0, slots: (g.slots || []).slice(), skillVer: g.skillVer };
+    });
+    check(afterLearn.rank === 1, "tree Learn raised bash to rank 1", JSON.stringify(afterLearn));
+    check(afterLearn.pts === (before.skillPts - 1), "tree Learn spent 1 skill point", JSON.stringify({ before: before.skillPts, after: afterLearn.pts }));
+    const equipBtn = await page.$("[data-tree-equip='1']");
+    check(!!equipBtn, "Equip slot buttons are in the action sheet");
+    if (equipBtn) {
+      await tapSel(page, "[data-tree-equip='1']");
+      await new Promise((r) => setTimeout(r, 150));
+    }
+    const afterEquip = await page.evaluate(() => window.__T.snap());
+    check(afterEquip.slots && afterEquip.slots[1] === "bash", "tree Equip put bash in slot 2", JSON.stringify(afterEquip.slots));
+    // back to map and fire the slotted skill in combat
+    await page.evaluate(() => {
+      const g = window.__G();
+      g.screen = "map";
+      window.__T.refresh();
+      const m = (g.mons || [])[0];
+      if (m && window.__R.engage) window.__R.engage(g, m);
+      window.__T.refresh();
+    });
+    await new Promise((r) => setTimeout(r, 200));
+    const bar = await page.evaluate(() => window.__T.snap());
+    check(bar.bar && bar.bar.includes("bash"), "equipped bash is on the combat bar", JSON.stringify(bar.bar));
+    const fired = await page.evaluate(() => {
+      const g = window.__G();
+      const e = g.combat && g.combat.enemies.find((x) => !x.dead);
+      if (e) { g.wx = (e.x ?? g.wx) - 0.7; g.wy = e.y ?? g.wy; g.px = Math.floor(g.wx); g.py = Math.floor(g.wy); }
+      const mp0 = g.mp;
+      window.__R.rtAbility(g, "bash");
+      return { mp0, mp: window.__G().mp, cds: { ...window.__G().cds }, combat: !!window.__G().combat, log: (g.log || []).slice(0, 4).map((l) => l.t) };
+    });
+    check(fired.combat && (fired.mp < fired.mp0 || (fired.cds.bash ?? 0) > 0), "casting bash in combat worked", JSON.stringify(fired));
+    check(errors.length === 0, "tree taps no page errors", errors.join(" | "));
+  } finally {
+    await page.close();
+  }
+}
+
+
+async function fillName(page, text) {
+  await page.waitForSelector("[data-name-input='1']", { timeout: 5000 });
+  await page.focus("[data-name-input='1']");
+  await page.evaluate((v) => {
+    const el = document.querySelector("[data-name-input='1']");
+    const last = el.value;
+    const desc = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value");
+    desc.set.call(el, v);
+    const tracker = el._valueTracker;
+    if (tracker) tracker.setValue(last);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+  }, text);
+}
+
+async function runNames(browser) {
+  const out = fileURLToPath(new URL("../playtest-shots/", import.meta.url));
+  fs.mkdirSync(out, { recursive: true });
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle0", timeout: 30000 });
+  await page.waitForFunction(() => typeof window.__T !== "undefined" && typeof window.__R !== "undefined", { timeout: 15000 });
+
+  const sanit = await page.evaluate(() => ({
+    tags: window.__T.sanitizeName("<b>Ava</b>"),
+    long: window.__T.sanitizeName("ThisNameIsWayTooLongXXXX"),
+    empty: window.__T.sanitizeName("   "),
+    punct: window.__T.sanitizeName("Hero!!!"),
+    ok: window.__T.sanitizeName("  Echo-Knight "),
+  }));
+  check(sanit.tags === "Ava", "sanitize strips HTML tags", JSON.stringify(sanit));
+  check(sanit.long === "ThisNameIsWayToo", "sanitize caps at 16 chars", sanit.long);
+  check(sanit.empty === "", "sanitize empty stays empty", sanit.empty);
+  check(sanit.punct === "Hero", "sanitize strips punctuation", sanit.punct);
+  check(sanit.ok === "Echo-Knight", "sanitize trims and keeps hyphen", sanit.ok);
+
+  await page.evaluate(() => window.__T.boot("warrior"));
+  const bootName = await page.evaluate(() => window.__G().name);
+  check(typeof bootName === "string" && /^Hero\d{3}$/.test(bootName) && bootName.length <= 16, "new game default name is Hero###", bootName);
+
+  // first-load prompt for a nameless existing save
+  await page.evaluate(() => {
+    const g = window.__G();
+    g.name = undefined;
+    window.__T.refresh();
+    window.__T.openNameAsk("load");
+  });
+  await page.waitForSelector("[data-name-ask='load']", { timeout: 5000 });
+  await page.screenshot({ path: path.join(out, "username-prompt-mobile.png") });
+  await fillName(page, "Ava<script>x");
+  const typed = await page.evaluate(() => document.querySelector("[data-name-input='1']").value);
+  // confirm via That's me button
+  const confirmed = await page.evaluate(() => {
+    const btns = [...document.querySelectorAll("[data-name-ask] button")];
+    const b = btns.find((el) => /that's me|save name/i.test(el.textContent || ""));
+    if (b) { b.click(); return true; }
+    return false;
+  });
+  check(confirmed, "name prompt confirm button works");
+  await new Promise((r) => setTimeout(r, 250));
+  const after = await page.evaluate(() => ({ name: window.__G()?.name, hud: document.querySelector("[data-player-name]")?.textContent || "" }));
+  check(after.name === "Ava x", "confirm sanitizes and saves name", JSON.stringify(after) + " typed=" + typed);
+  check(after.hud.includes("Ava x"), "HUD shows player name near HP/level", after.hud);
+
+  await page.evaluate(() => { window.__R.openSkills(); });
+  await new Promise((r) => setTimeout(r, 200));
+  const skillsName = await page.evaluate(() => document.querySelector("[data-skills-root] [data-player-name]")?.textContent || "");
+  check(skillsName.includes("Ava x"), "skill tree header shows name", skillsName);
+
+  await page.evaluate(() => { window.__T.run((g) => { g.screen = "inventory"; g.sel = -1; }); window.__T.refresh(); });
+  await new Promise((r) => setTimeout(r, 200));
+  const bagName = await page.evaluate(() => document.querySelector("[data-player-name]")?.textContent || "");
+  check(bagName.includes("Ava x"), "inventory header shows name", bagName);
+
+  // back to map HUD shot
+  await page.evaluate(() => { window.__T.run((g) => { g.screen = "map"; }); if (window.__R.clearFx) window.__R.clearFx(); window.__T.refresh(); });
+  await new Promise((r) => setTimeout(r, 250));
+  await page.screenshot({ path: path.join(out, "username-hud-mobile.png") });
+
+  await page.evaluate(() => window.__T.toTitle());
+  await new Promise((r) => setTimeout(r, 300));
+  const titleName = await page.evaluate(() => document.querySelector("[data-player-name]")?.textContent || "");
+  check(titleName.includes("Ava x"), "title/continue screen shows name", titleName);
+  await page.screenshot({ path: path.join(out, "username-title-mobile.png") });
+
+  // menu change-name path (edit)
+  await page.evaluate(() => {
+    window.__T.boot("warrior");
+    const g = window.__G();
+    g.name = "Avax";
+    window.__T.refresh();
+    window.__T.openNameAsk("edit");
+  });
+  await page.waitForSelector("[data-name-ask='edit']", { timeout: 5000 });
+  await fillName(page, "EchoKnight");
+  await page.evaluate(() => {
+    const btns = [...document.querySelectorAll("[data-name-ask] button")];
+    const b = btns.find((el) => /save name/i.test(el.textContent || ""));
+    if (b) b.click();
+  });
+  await new Promise((r) => setTimeout(r, 250));
+  const renamed = await page.evaluate(() => window.__G()?.name);
+  check(renamed === "EchoKnight", "menu change name saves to the run", renamed);
+
+  check(errors.length === 0, "username flow had no page errors", errors.join(" | "));
+  notes.push(`username screenshots: ${out}username-prompt-mobile.png , ${out}username-hud-mobile.png , ${out}username-title-mobile.png`);
+  await page.close();
+}
+
+async function runPots(browser) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, hasTouch: true, isMobile: true });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "networkidle0", timeout: 30000 });
+  await page.waitForFunction(() => typeof window.__T !== "undefined" && typeof window.__R !== "undefined", { timeout: 15000 });
+  await page.evaluate(() => window.__T.boot("warrior"));
+
+  const start = await page.evaluate(() => {
+    const g = window.__G();
+    const bagPots = (g.inv || []).filter((i) => window.__R.isHealPot(i.id)).length;
+    return { pots: window.__R.potCount(g), invN: g.inv.length, bagPots };
+  });
+  check(start.pots === 2, "new game starts with 2 potions in the slot", JSON.stringify(start));
+  check(start.bagPots === 0, "starting potions are not in the bag", JSON.stringify(start));
+
+  const pick = await page.evaluate(() => {
+    const g = window.__G();
+    const beforeInv = g.inv.length;
+    const beforePots = window.__R.potCount(g);
+    window.__R.addItem(g, window.__R.makeInst("c_hp1", 1, false));
+    window.__R.addItem(g, window.__R.makeInst("c_hp2", 1, false));
+    window.__T.refresh();
+    return { beforeInv, afterInv: g.inv.length, beforePots, afterPots: window.__R.potCount(g), bagPots: (g.inv || []).filter((i) => window.__R.isHealPot(i.id)).length };
+  });
+  await new Promise((r) => setTimeout(r, 80));
+  const hud = await page.evaluate(() => document.querySelector("[data-potion-count]")?.getAttribute("data-potion-count"));
+  check(pick.afterPots === pick.beforePots + 2, "pickup increments potion count (including a legacy tier)", JSON.stringify(pick));
+  check(pick.afterInv === pick.beforeInv && pick.bagPots === 0, "pickup does not use bag space", JSON.stringify(pick));
+  check(String(hud) === String(pick.afterPots), "HUD badge shows potion count", `hud=${hud} pots=${pick.afterPots}`);
+
+  const drank = await page.evaluate(() => {
+    const g = window.__G();
+    const max = g.hp;
+    g.hp = Math.max(1, Math.floor(max * 0.4));
+    const beforeHp = g.hp;
+    const beforePots = window.__R.potCount(g);
+    window.__R.drinkPotion(g);
+    window.__T.refresh();
+    const expected = Math.round(max * (window.__R.POTION_HEAL_PCT / 100));
+    return { beforeHp, afterHp: g.hp, max, beforePots, afterPots: window.__R.potCount(g), heal: g.hp - beforeHp, expected };
+  });
+  check(drank.afterPots === drank.beforePots - 1, "drinking decrements the potion count", JSON.stringify(drank));
+  check(drank.heal === drank.expected && drank.heal > 0, "drinking heals the base 35% amount", JSON.stringify(drank));
+
+  const mig = await page.evaluate(() => {
+    const g = window.__T.boot("mage");
+    const beforeInv = g.inv.length;
+    const beforePots = window.__R.potCount(g);
+    g.inv.push(window.__R.makeInst("c_hp1", 1, false), window.__R.makeInst("c_hp2", 1, false), window.__R.makeInst("c_hp3", 1, false));
+    const midInv = g.inv.length;
+    window.__R.migratePots(g);
+    window.__T.refresh();
+    return {
+      beforeInv, midInv, afterInv: g.inv.length, beforePots, afterPots: window.__R.potCount(g),
+      bagPots: (g.inv || []).filter((i) => window.__R.isHealPot(i.id)).length,
+    };
+  });
+  check(mig.midInv === mig.beforeInv + 3 && mig.afterInv === mig.beforeInv && mig.bagPots === 0, "migration removes bag potions", JSON.stringify(mig));
+  check(mig.afterPots === mig.beforePots + 3, "migration adds bag potions to the slot count", JSON.stringify(mig));
+
+  const rates = await page.evaluate(() => {
+    const N = 4000;
+    let mob = 0, elite = 0, boss = 0;
+    for (let i = 0; i < N; i++) if (window.__R.rollPotionDrop("mob")) mob++;
+    for (let i = 0; i < N; i++) if (window.__R.rollPotionDrop("elite")) elite++;
+    for (let i = 0; i < N; i++) if (window.__R.rollPotionDrop("boss")) boss++;
+    return { N, mob, elite, boss, mobR: mob / N, eliteR: elite / N, bossR: boss / N };
+  });
+  check(rates.mobR >= 0.07 && rates.mobR <= 0.13, "regular drop rate is about 10% over many rolls", JSON.stringify(rates));
+  check(rates.eliteR >= 0.20 && rates.eliteR <= 0.30, "elite drop rate is about 25% over many rolls", JSON.stringify(rates));
+  check(rates.bossR >= 0.20 && rates.bossR <= 0.30, "boss drop rate is about 25% over many rolls", JSON.stringify(rates));
+  notes.push(`potion drop rates over ${rates.N} rolls: mob ${(rates.mobR * 100).toFixed(1)}% (expect 10%), elite ${(rates.eliteR * 100).toFixed(1)}% / boss ${(rates.bossR * 100).toFixed(1)}% (expect 25%)`);
+
+  check(errors.length === 0, "potion flow had no page errors", errors.join(" | "));
+  await page.close();
+}
+
 async function main() {
+
+
 
 
   const vite = startVite();
@@ -312,6 +609,12 @@ async function main() {
     await runMigrate(browser);
     process.stdout.write("\n== dodge ==\n");
     await runDodge(browser);
+    process.stdout.write("\n== tree taps ==\n");
+    await runTreeTaps(browser);
+    process.stdout.write("\n== usernames ==\n");
+    await runNames(browser);
+    process.stdout.write("\n== potions ==\n");
+    await runPots(browser);
     process.stdout.write("\n== shots ==\n");
     await runShots(browser);
   } finally {
