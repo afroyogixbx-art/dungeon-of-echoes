@@ -36,6 +36,41 @@ export function devicePid(): string {
 export function hpMult(n: number): number { return n <= 1 ? 1 : 1 + 0.35 * (n - 1); }
 export function atkMult(n: number): number { return n <= 1 ? 1 : 1 + 0.2 * (n - 1); }
 
+/** Extra ICE from a free Metered/Cloudflare account, if the player set one. No paid keys are shipped. */
+function extraIce(): RTCIceServer[] {
+  const out: RTCIceServer[] = [];
+  const read = (raw: unknown): void => {
+    if (!raw) return;
+    try {
+      const v = typeof raw === "string" ? JSON.parse(raw) : raw;
+      const list = Array.isArray(v) ? v : [v];
+      for (const s of list) if (s && typeof s === "object" && (s as RTCIceServer).urls) out.push(s as RTCIceServer);
+    } catch { /* ignore */ }
+  };
+  try {
+    const w = window as unknown as { __DOE_ICE?: unknown };
+    read(w.__DOE_ICE);
+  } catch { /* ignore */ }
+  try { read(localStorage.getItem("doe-ice")); } catch { /* ignore */ }
+  return out;
+}
+
+/** Free public STUN + PeerJS cloud TURN (username/password published by PeerJS). Open Relay's old shared static login is retired. */
+export const PUBLIC_ICE: RTCIceServer[] = [
+  { urls: "stun:stun.l.google.com:19302" },
+  { urls: "stun:stun1.l.google.com:19302" },
+  { urls: "stun:stun2.l.google.com:19302" },
+  { urls: "stun:stun3.l.google.com:19302" },
+  { urls: "stun:stun4.l.google.com:19302" },
+  { urls: "stun:stun.cloudflare.com:3478" },
+  { urls: "stun:openrelay.metered.ca:80" },
+  { urls: ["turn:eu-0.turn.peerjs.com:3478", "turn:us-0.turn.peerjs.com:3478"], username: "peerjs", credential: "peerjsp" },
+  { urls: "turn:eu-0.turn.peerjs.com:3478?transport=tcp", username: "peerjs", credential: "peerjsp" },
+  { urls: "turn:us-0.turn.peerjs.com:3478?transport=tcp", username: "peerjs", credential: "peerjsp" },
+];
+
+export function iceServers(): RTCIceServer[] { return [...PUBLIC_ICE, ...extraIce()]; }
+
 export function peerOpts(): PeerJSOption {
   // Public PeerJS cloud defaults: broker at 0.peerjs.com plus that cloud's
   // published STUN/TURN (still free, no server of our own).
@@ -46,13 +81,7 @@ export function peerOpts(): PeerJSOption {
     key: "peerjs",
     secure: true,
     debug: 0,
-    config: {
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun.cloudflare.com:3478" },
-        { urls: ["turn:eu-0.turn.peerjs.com:3478", "turn:us-0.turn.peerjs.com:3478"], username: "peerjs", credential: "peerjsp" },
-      ],
-    },
+    config: { iceServers: iceServers() },
   };
 }
 
@@ -62,13 +91,24 @@ export interface CoopPlayer {
   cls: string;
   lvl: number;
   isHost: boolean;
+  held?: boolean;
+  rtt?: number;
 }
-export const COOP_PROTO = 2;
+export const COOP_PROTO = 3;
 export const POS_HZ = 18;
 export const INTERP_MS = 100;
-export const TELEPORT_TILES = 2.5;
-export const EXTRAP_MS = 70;
+export const INTERP_MIN = 80;
+export const INTERP_MAX = 220;
+export const TELEPORT_TILES = 2.5; // kept as a soft-correction threshold; hard snaps are floor/stairs only
+export const EXTRAP_MS = 40;
 export const STOP_SPEED = 0.2;
+export const HOLD_MS = 15000;
+export const PING_MS = 500;
+
+export function interpDelay(rtt = 0, jitter = 0): number {
+  const packet = 1000 / POS_HZ;
+  return Math.max(INTERP_MIN, Math.min(INTERP_MAX, packet * 1.5 + Math.max(0, jitter) * 2 + 16));
+}
 
 export interface CoopInput {
   mx: number; my: number; atk: boolean; dodge: boolean; drink: boolean; abil: number; seq: number;
@@ -82,14 +122,20 @@ export type CoopAnim = "idle" | "walk" | "atk" | "dodge";
 export interface CoopPos {
   typ: "pos"; v: number; t: number; pid: string;
   x: number; y: number; vx: number; vy: number;
-  face: number; mv: boolean; an: CoopAnim; fl?: number; wk?: string;
+  face: number; mv: boolean; an: CoopAnim; fl?: number; wk?: string; warp?: boolean;
 }
 export interface CoopPosUnit {
   k: "p" | "e" | "m"; pid?: string; id?: number;
   x: number; y: number; vx: number; vy: number;
-  face?: number; mv?: boolean; an?: CoopAnim; fl?: number; wk?: string;
+  face?: number; mv?: boolean; an?: CoopAnim; fl?: number; wk?: string; warp?: boolean;
 }
 export interface CoopPosBatch { typ: "posb"; v: number; t: number; p: CoopPosUnit[] }
+export type CoopActKind = "atk" | "dodge" | "abil" | "hit" | "die" | "burst";
+export interface CoopAct {
+  typ: "act"; v: number; t: number; pid: string; k: CoopActKind;
+  dir?: number; tid?: number; ab?: string; face?: number; wk?: string;
+  txt?: string; col?: string; x?: number; y?: number; dmg?: number;
+}
 export type CoopMsg =
   | { typ: "hello"; pid: string; name: string; cls: string; lvl: number; hero?: unknown; rejoin?: boolean; proto?: number }
   | { typ: "welcome"; pid: string; code: string; hostPid: string; players: CoopPlayer[]; playing: boolean; proto?: number }
@@ -101,11 +147,14 @@ export type CoopMsg =
   | { typ: "state"; st: unknown }
   | CoopPos
   | CoopPosBatch
+  | CoopAct
   | { typ: "enter" }
   | { typ: "leave"; pid: string; name: string }
   | { typ: "migrate"; newHostPid: string }
   | { typ: "ended"; reason: string }
-  | { typ: "loot-you"; drops: unknown; pots: number; gold: number; xp: number; text: string };
+  | { typ: "loot-you"; drops: unknown; pots: number; gold: number; xp: number; text: string }
+  | { typ: "ping"; n: number; t: number }
+  | { typ: "pong"; n: number; t: number; t2: number };
 
 
 function relayUrl(): string | null {
@@ -133,35 +182,52 @@ export interface CoopHandlers {
   onBecomeHost?: () => void;
   onLoot?: (payload: Extract<CoopMsg, { typ: "loot-you" }>) => void;
   onPos?: (msg: CoopPos | CoopPosBatch) => void;
+  onAct?: (msg: CoopAct) => void;
   hello?: () => Extract<CoopMsg, { typ: "hello" }>;
 }
 
 export interface PosSnap {
-  t: number; recv: number;
+  t: number; recv: number; local?: number;
   x: number; y: number; vx: number; vy: number;
   face: number; mv: boolean; an: CoopAnim; fl?: number; wk?: string;
   warp?: boolean;
 }
 export interface SampledPos {
   x: number; y: number; face: number; mv: boolean; an: CoopAnim; fl?: number; wk?: string;
-  snapped: boolean; stopped: boolean;
+  snapped: boolean; stopped: boolean; underrun?: boolean;
+}
+export type SnapWhy = "floor" | "stairs" | "unexpected";
+export interface SnapEvent { t: number; why: SnapWhy; key: string; dist: number; x: number; y: number; note?: string }
+export const SNAP_LOG: SnapEvent[] = [];
+export function clearSnapLog(): void { SNAP_LOG.length = 0; }
+export function logSnap(e: Omit<SnapEvent, "t"> & { t?: number }): void {
+  SNAP_LOG.push({ t: e.t ?? (typeof performance !== "undefined" ? performance.now() : 0), ...e });
 }
 
-export function pushSnap(buf: PosSnap[], s: PosSnap, cap = 16): void {
+export function stampOf(s: PosSnap): number { return s.local ?? s.recv; }
+
+/** Accept a snapshot. Drops stale/out-of-order sender timestamps. Hard-warps only on floor change or an explicit stairs warp. */
+export function pushSnap(buf: PosSnap[], s: PosSnap, cap = 16): boolean {
   const prev = buf[buf.length - 1];
-  if (prev && ((s.fl != null && prev.fl != null && s.fl !== prev.fl) || Math.hypot(s.x - prev.x, s.y - prev.y) > TELEPORT_TILES)) {
+  const floorCh = !!(prev && s.fl != null && prev.fl != null && s.fl !== prev.fl);
+  const warp = !!(s.warp || floorCh);
+  if (prev && !warp && s.t <= prev.t) return false;
+  if (warp) {
+    const dist = prev ? Math.hypot(s.x - prev.x, s.y - prev.y) : 0;
     buf.length = 0;
     s = { ...s, warp: true };
+    logSnap({ why: floorCh ? "floor" : "stairs", key: "track", dist, x: s.x, y: s.y });
   }
   buf.push(s);
   if (buf.length > cap) buf.splice(0, buf.length - cap);
+  return true;
 }
 
 export function sampleTrack(buf: PosSnap[], now: number, delay = INTERP_MS): SampledPos | null {
   if (!buf.length) return null;
   const rt = now - delay;
   let i = 0;
-  while (i < buf.length && buf[i].recv < rt) i++;
+  while (i < buf.length && stampOf(buf[i]) < rt) i++;
   const right = buf[i];
   const left = buf[i - 1];
   const pack = (s: PosSnap, extra: Partial<SampledPos>): SampledPos => ({
@@ -170,16 +236,14 @@ export function sampleTrack(buf: PosSnap[], now: number, delay = INTERP_MS): Sam
   if (!left && right) return pack(right, { stopped: !right.mv });
   if (left && !right) {
     const spd = Math.hypot(left.vx, left.vy);
-    if (!left.mv || spd < STOP_SPEED) return pack(left, { mv: false, an: left.an === "atk" || left.an === "dodge" ? left.an : "idle", stopped: true });
-    const ahead = Math.min(EXTRAP_MS, Math.max(0, rt - left.recv)) / 1000;
-    return { x: left.x + left.vx * ahead, y: left.y + left.vy * ahead, face: left.face, mv: true, an: left.an === "idle" ? "walk" : left.an, fl: left.fl, wk: left.wk, snapped: false, stopped: false };
+    if (!left.mv || spd < STOP_SPEED) return pack(left, { mv: false, an: left.an === "atk" || left.an === "dodge" ? left.an : "idle", stopped: true, underrun: true });
+    const ahead = Math.min(EXTRAP_MS, Math.max(0, rt - stampOf(left))) / 1000;
+    return { x: left.x + left.vx * ahead, y: left.y + left.vy * ahead, face: left.face, mv: true, an: left.an === "idle" ? "walk" : left.an, fl: left.fl, wk: left.wk, snapped: false, stopped: false, underrun: true };
   }
-  const dist = Math.hypot(right.x - left.x, right.y - left.y);
-  if ((right.fl != null && left.fl != null && right.fl !== left.fl) || dist > TELEPORT_TILES) {
-    return pack(right, { snapped: true, stopped: !right.mv });
-  }
-  const span = Math.max(1, right.recv - left.recv);
-  const u = Math.max(0, Math.min(1, (rt - left.recv) / span));
+  const floorCh = !!(right.fl != null && left.fl != null && right.fl !== left.fl);
+  if (floorCh || right.warp) return pack(right, { snapped: true, stopped: !right.mv });
+  const span = Math.max(1, stampOf(right) - stampOf(left));
+  const u = Math.max(0, Math.min(1, (rt - stampOf(left)) / span));
   const x = left.x + (right.x - left.x) * u;
   const y = left.y + (right.y - left.y) * u;
   const arrived = u >= 1 - 1e-6;
@@ -222,6 +286,18 @@ class Session {
   relay: WebSocket | null = null;
   relayHostId = "";
   relayFakes = new Map<string, RelaySock>();
+  link: "idle" | "connecting" | "retrying" | "relay" | "connected" | "failed" = "idle";
+  linkText = "";
+  attempt = 0;
+  lastJoin: { code: string; hello: Extract<CoopMsg, { typ: "hello" }> } | null = null;
+  userLeave = false;
+  autoRejoin = false;
+  hostPid = "";
+  held = new Map<string, number>();
+  clocks = new Map<string, { offset: number; rtt: number; jitter: number }>();
+  net: { rtt: number; jitter: number; loss: number } | null = null;
+  pingN = 0;
+  wantPlay = false;
 
   bump(): void { this.handlers.onChange?.(); }
 
@@ -243,6 +319,117 @@ class Session {
   }
   resetStats(): void { this.bytesPos = 0; this.bytesState = 0; this.statT0 = performance.now(); }
 
+  simulateNet(cfg: { rtt: number; jitter: number; loss: number } | null): void { this.net = cfg; }
+  pings(): Array<{ pid: string; rtt: number; jitter: number }> {
+    return [...this.clocks.entries()].map(([pid, c]) => ({ pid, rtt: Math.round(c.rtt), jitter: Math.round(c.jitter) }));
+  }
+  rttOf(pid: string): number { return this.clocks.get(pid)?.rtt ?? 0; }
+  jitterOf(pid: string): number { return this.clocks.get(pid)?.jitter ?? 0; }
+  offsetFor(pid: string): number { return this.clocks.get(pid)?.offset ?? 0; }
+  hasClock(pid: string): boolean { return this.clocks.has(pid); }
+  interpMs(pid?: string): number {
+    if (pid) return interpDelay(this.rttOf(pid), this.jitterOf(pid));
+    let rtt = 0, jit = 0;
+    for (const c of this.clocks.values()) { rtt = Math.max(rtt, c.rtt); jit = Math.max(jit, c.jitter); }
+    return interpDelay(rtt, jit);
+  }
+  linkStatus(): { link: Session["link"]; text: string; attempt: number; canRetry: boolean } {
+    return { link: this.link, text: this.linkText || this.linkLabel(), attempt: this.attempt, canRetry: this.link === "failed" && !!this.lastJoin };
+  }
+  linkLabel(): string {
+    if (this.link === "relay") return "Trying relay…";
+    if (this.link === "retrying") return "Connecting… retrying";
+    if (this.link === "connected") return "Connected";
+    if (this.link === "failed") return "Failed";
+    if (this.link === "connecting") return "Connecting…";
+    return "";
+  }
+  setLink(link: Session["link"], text = ""): void {
+    this.link = link; this.linkText = text || this.linkLabel(); this.bump();
+  }
+
+  private deferSend(kind: "ctrl" | "data", fn: () => void): void {
+    const n = this.net;
+    if (!n) { fn(); return; }
+    if (kind === "data" && n.loss > 0 && Math.random() < n.loss) return;
+    const delay = Math.max(0, n.rtt / 2 + (Math.random() * 2 - 1) * n.jitter);
+    if (delay < 1) { fn(); return; }
+    window.setTimeout(fn, delay);
+  }
+
+  private startWatch(): void {
+    if (this.watch) window.clearInterval(this.watch);
+    this.watch = window.setInterval(() => this.tickWatch(), PING_MS);
+  }
+  private tickWatch(): void {
+    if (this.peer && this.peer.disconnected) {
+      try { this.peer.reconnect(); } catch { /* ignore */ }
+    }
+    const now = Date.now();
+    if (this.isHost()) {
+      for (const [pid, until] of [...this.held]) {
+        if (now >= until) {
+          this.held.delete(pid);
+          const pl = this.players.find((p) => p.pid === pid);
+          this.players = this.players.filter((p) => p.pid !== pid);
+          if (pl) {
+            this.event(`${pl.name} left`, "leave");
+            this.broadcast({ typ: "players", players: this.players });
+            this.handlers.onLeave?.(pid, pl.name);
+          }
+          this.bump();
+        }
+      }
+      for (const pid of this.conns.keys()) this.sendPingTo(pid);
+    } else if (this.isGuest() && (this.hostConn?.open || (this.relay && this.relay.readyState === WebSocket.OPEN))) {
+      this.sendPingTo(this.hostPid || "host");
+    }
+  }
+  private sendPingTo(pid: string): void {
+    const msg: CoopMsg = { typ: "ping", n: ++this.pingN, t: performance.now() };
+    if (this.isGuest()) this.deferSend("ctrl", () => {
+      if (this.relay && this.relay.readyState === WebSocket.OPEN) {
+        try { this.relay.send(JSON.stringify({ typ: "data", to: this.relayHostId || "host", data: msg })); } catch { /* ignore */ }
+      } else if (this.hostConn?.open) {
+        try { this.hostConn.send(msg); } catch { /* ignore */ }
+      }
+    });
+    else this.deferSend("ctrl", () => { this.sendToRaw(pid, msg); });
+  }
+  private sendToRaw(pid: string, msg: CoopMsg): void {
+    if (this.relay && this.relay.readyState === WebSocket.OPEN) {
+      const dest = (pid === "host" && this.relayHostId) ? this.relayHostId : pid;
+      try { this.relay.send(JSON.stringify({ typ: "data", to: dest, data: msg })); } catch { /* ignore */ }
+      return;
+    }
+    const c = this.conns.get(pid);
+    try { if (c?.open) c.send(msg); } catch { /* ignore */ }
+  }
+  private onPing(from: string, msg: Extract<CoopMsg, { typ: "ping" }>): void {
+    const pong: CoopMsg = { typ: "pong", n: msg.n, t: msg.t, t2: performance.now() };
+    if (this.isGuest()) {
+      this.deferSend("ctrl", () => {
+        if (this.relay && this.relay.readyState === WebSocket.OPEN) {
+          try { this.relay.send(JSON.stringify({ typ: "data", to: this.relayHostId || "host", data: pong })); } catch { /* ignore */ }
+        } else if (this.hostConn?.open) {
+          try { this.hostConn.send(pong); } catch { /* ignore */ }
+        }
+      });
+    } else this.deferSend("ctrl", () => this.sendToRaw(from, pong));
+  }
+  private onPong(from: string, msg: Extract<CoopMsg, { typ: "pong" }>): void {
+    const now = performance.now();
+    const rtt = Math.max(0, now - msg.t);
+    const offset = msg.t2 - msg.t - rtt / 2;
+    const prev = this.clocks.get(from);
+    const jitter = prev ? Math.abs(rtt - prev.rtt) * 0.25 + prev.jitter * 0.75 : 0;
+    const ema = prev ? prev.rtt * 0.6 + rtt * 0.4 : rtt;
+    const off = prev ? prev.offset * 0.6 + offset * 0.4 : offset;
+    this.clocks.set(from, { offset: off, rtt: ema, jitter });
+    const pl = this.players.find((p) => p.pid === from);
+    if (pl) pl.rtt = Math.round(ema);
+  }
+
   private markProto(v?: number): void {
     const n = typeof v === "number" ? v : 1;
     this.theirProto = n;
@@ -254,19 +441,21 @@ class Session {
 
   sendFast(msg: CoopPos | CoopPosBatch): void {
     this.noteBytes("pos", msg);
-    if (this.relay && this.relay.readyState === WebSocket.OPEN) {
-      try { this.relay.send(JSON.stringify({ typ: "data", to: this.isHost() ? "*" : (this.relayHostId || "host"), data: msg })); } catch { /* ignore */ }
-      return;
-    }
-    const trySend = (c: DataConnection | null | undefined, fallback?: DataConnection | null): void => {
-      const dest = c?.open ? c : (fallback?.open ? fallback : null);
-      if (!dest) return;
-      try { dest.send(msg); } catch { /* ignore */ }
-    };
-    if (this.isGuest()) { trySend(this.posHost, this.hostConn); return; }
-    if (this.isHost()) {
-      for (const [pid, rel] of this.conns) trySend(this.posConns.get(pid), rel);
-    }
+    this.deferSend("data", () => {
+      if (this.relay && this.relay.readyState === WebSocket.OPEN) {
+        try { this.relay.send(JSON.stringify({ typ: "data", to: this.isHost() ? "*" : (this.relayHostId || "host"), data: msg })); } catch { /* ignore */ }
+        return;
+      }
+      const trySend = (c: DataConnection | null | undefined, fallback?: DataConnection | null): void => {
+        const dest = c?.open ? c : (fallback?.open ? fallback : null);
+        if (!dest) return;
+        try { dest.send(msg); } catch { /* ignore */ }
+      };
+      if (this.isGuest()) { trySend(this.posHost, this.hostConn); return; }
+      if (this.isHost()) {
+        for (const [pid, rel] of this.conns) trySend(this.posConns.get(pid), rel);
+      }
+    });
   }
 
   active(): boolean { return this.phase !== "idle" && this.phase !== "ended"; }
@@ -275,23 +464,21 @@ class Session {
   partyN(): number { return this.active() ? Math.max(1, this.players.length) : 1; }
 
   broadcast(msg: CoopMsg, exceptPid?: string): void {
-    if (this.relay && this.relay.readyState === WebSocket.OPEN) {
-      try { this.relay.send(JSON.stringify({ typ: "data", to: "*", except: exceptPid || "", data: msg })); } catch { /* ignore */ }
-      return;
-    }
-    for (const [pid, c] of this.conns) {
-      if (exceptPid && pid === exceptPid) continue;
-      try { if (c.open) c.send(msg); } catch { /* ignore */ }
-    }
+    const kind = (msg.typ === "state" || msg.typ === "pos" || msg.typ === "posb" || msg.typ === "input") ? "data" : "ctrl";
+    this.deferSend(kind, () => {
+      if (this.relay && this.relay.readyState === WebSocket.OPEN) {
+        try { this.relay.send(JSON.stringify({ typ: "data", to: "*", except: exceptPid || "", data: msg })); } catch { /* ignore */ }
+        return;
+      }
+      for (const [pid, c] of this.conns) {
+        if (exceptPid && pid === exceptPid) continue;
+        try { if (c.open) c.send(msg); } catch { /* ignore */ }
+      }
+    });
   }
   sendTo(pid: string, msg: CoopMsg): void {
-    if (this.relay && this.relay.readyState === WebSocket.OPEN) {
-      const dest = (pid === "host" && this.relayHostId) ? this.relayHostId : pid;
-      try { this.relay.send(JSON.stringify({ typ: "data", to: dest, data: msg })); } catch { /* ignore */ }
-      return;
-    }
-    const c = this.conns.get(pid);
-    try { if (c?.open) c.send(msg); } catch { /* ignore */ }
+    const kind = (msg.typ === "state" || msg.typ === "pos" || msg.typ === "posb" || msg.typ === "input") ? "data" : "ctrl";
+    this.deferSend(kind, () => this.sendToRaw(pid, msg));
   }
   event(text: string, kind: CoopEventKind): void {
     this.handlers.onEvent?.(text, kind);
@@ -323,31 +510,39 @@ class Session {
       this.pending.delete(pid);
       this.posConns.delete(pid);
       const pl = this.players.find((p) => p.pid === pid);
-      const name = pl?.name || "A player";
-      this.players = this.players.filter((p) => p.pid !== pid);
-      if (this.isHost() && pl) {
-        this.event(`${name} left`, "leave");
-        this.broadcast({ typ: "players", players: this.players });
-        this.handlers.onLeave?.(pid, name);
+      if (this.isHost() && pl && !pl.isHost) {
+        const intentional = this.lastInput.has("__leave_" + pid) || false;
+        if (intentional || this.userLeave) {
+          this.players = this.players.filter((p) => p.pid !== pid);
+          this.held.delete(pid);
+          this.event(`${pl.name} left`, "leave");
+          this.broadcast({ typ: "players", players: this.players });
+          this.handlers.onLeave?.(pid, pl.name);
+        } else {
+          pl.held = true;
+          this.held.set(pid, Date.now() + HOLD_MS);
+          this.lastInput.set(pid, { mx: 0, my: 0, atk: false, dodge: false, drink: false, abil: -1, seq: 0 });
+          this.event(`${pl.name} lost connection — holding their slot…`, "sys");
+          this.broadcast({ typ: "players", players: this.players });
+        }
       }
       this.bump();
     }
     if (this.role === "guest" && conn === this.hostConn) {
       this.hostConn = null;
-      if (this.phase === "migrate") return;
-      this.failSafe("The host disconnected.");
+      if (this.phase === "migrate" || this.userLeave) return;
+      void this.tryAutoRejoin();
     }
   }
 
   private onData(conn: DataConnection, raw: unknown, pidHint?: string): void {
     const msg = raw as CoopMsg;
     if (!msg || typeof msg !== "object" || !("typ" in msg)) return;
-    if (this.role === "host") this.hostHandle(conn, msg);
+    if (this.role === "host") this.hostHandle(conn, msg, pidHint);
     else this.guestHandle(msg);
-    void pidHint;
   }
 
-  private hostHandle(conn: DataConnection, msg: CoopMsg): void {
+  private hostHandle(conn: DataConnection, msg: CoopMsg, pidHint?: string): void {
     if (msg.typ === "hello") {
       this.markProto(msg.proto);
       if (this.players.length >= COOP_MAX && !this.players.some((p) => p.pid === msg.pid)) {
@@ -369,6 +564,8 @@ class Session {
         this.event(`${msg.name} joined`, "join");
       } else {
         existing.name = msg.name; existing.cls = msg.cls; existing.lvl = msg.lvl;
+        existing.held = false;
+        this.held.delete(msg.pid);
         this.event(`${msg.name} rejoined`, "join");
       }
       try {
@@ -380,12 +577,22 @@ class Session {
     }
     if (msg.typ === "pos" || msg.typ === "posb") {
       this.handlers.onPos?.(msg);
+      const except = msg.typ === "pos" ? msg.pid : (this.pidOf(conn) || pidHint);
+      this.broadcast(msg, except);
       return;
     }
-    const pid = this.pidOf(conn);
+    if (msg.typ === "act") {
+      this.handlers.onAct?.(msg);
+      this.broadcast(msg, msg.pid);
+      return;
+    }
+    const pid = this.pidOf(conn) || pidHint;
+    if (msg.typ === "ping" && pid) { this.onPing(pid, msg); return; }
+    if (msg.typ === "pong" && pid) { this.onPong(pid, msg); return; }
     if (!pid) return;
     if (msg.typ === "input") this.lastInput.set(pid, msg.inp);
     if (msg.typ === "leave") {
+      this.lastInput.set("__leave_" + pid, { mx: 0, my: 0, atk: false, dodge: false, drink: false, abil: -1, seq: 0 });
       conn.close();
       this.onConnClose(conn);
     }
@@ -395,11 +602,15 @@ class Session {
   private guestHandle(msg: CoopMsg): void {
     if (msg.typ === "welcome") {
       this.markProto(msg.proto);
+      this.hostPid = msg.hostPid || this.hostPid;
       this.phase = msg.playing ? "play" : "lobby";
       this.playing = msg.playing;
       this.players = msg.players;
       this.err = "";
+      this.link = "connected";
+      this.linkText = "Connected";
       this.lastHostAt = Date.now();
+      this.startWatch();
       this.bump();
       return;
     }
@@ -408,6 +619,9 @@ class Session {
       this.handlers.onPos?.(msg);
       return;
     }
+    if (msg.typ === "act") { this.handlers.onAct?.(msg); return; }
+    if (msg.typ === "ping") { this.onPing(this.hostPid || "host", msg); return; }
+    if (msg.typ === "pong") { this.onPong(this.hostPid || "host", msg); return; }
     if (msg.typ === "full") { this.failSafe("The room is full (max 4)."); return; }
     if (msg.typ === "reject") { this.failSafe(msg.reason || "Join rejected."); return; }
     if (msg.typ === "players") { this.players = msg.players; this.bump(); return; }
@@ -444,8 +658,11 @@ class Session {
       const ok = await this.listenAsHost(code);
       if (ok) {
         this.code = code;
-        this.phase = "lobby";
+        this.phase = alreadyPlaying ? "play" : "lobby";
         if (alreadyPlaying) this.playing = true;
+        this.link = "connected";
+        this.linkText = "Connected";
+        this.startWatch();
         this.bump();
         return code;
       }
@@ -491,28 +708,58 @@ class Session {
   async joinRoom(code: string, hello: Extract<CoopMsg, { typ: "hello" }>): Promise<void> {
     const c = normCode(code);
     if (c.length < 4) throw new Error("Enter a valid room code.");
-    await this.destroyPeer();
+    this.lastJoin = { code: c, hello };
+    this.userLeave = false;
     this.pid = hello.pid || devicePid();
     this.role = "guest";
-    this.phase = "connecting";
     this.code = c;
     this.err = "";
     this.ended = "";
-    this.playing = false;
-    this.bump();
-    const relay = relayUrl();
-    if (relay) {
-      await this.joinRelay(c, hello, relay);
-      return;
+    const keepPlay = this.wantPlay || this.playing;
+    let lastErr = "Could not reach the room. Check the code and your connection.";
+    for (let attempt = 0; attempt < 4; attempt++) {
+      this.attempt = attempt + 1;
+      this.phase = keepPlay ? (this.phase === "play" ? "play" : "connecting") : "connecting";
+      this.setLink(attempt === 0 ? "connecting" : "relay", attempt === 0 ? "Connecting…" : "Trying relay…");
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 700 * (2 ** (attempt - 1))));
+      await this.destroyPeer();
+      this.role = "guest";
+      this.code = c;
+      this.pid = hello.pid || devicePid();
+      try {
+        const relay = relayUrl();
+        if (relay) await this.joinRelay(c, hello, relay, 8000);
+        else await this.joinPeer(c, hello, 8000);
+        this.link = "connected";
+        this.linkText = "Connected";
+        this.startWatch();
+        this.bump();
+        return;
+      } catch (e) {
+        lastErr = e instanceof Error ? e.message : lastErr;
+      }
     }
-    await new Promise<void>((resolve, reject) => {
+    this.link = "failed";
+    this.linkText = "Failed";
+    this.err = lastErr;
+    this.bump();
+    if (!keepPlay) {
+      this.phase = "idle";
+      this.role = null;
+    }
+    throw new Error(lastErr);
+  }
+
+  private joinPeer(c: string, hello: Extract<CoopMsg, { typ: "hello" }>, timeoutMs: number): Promise<void> {
+    return new Promise((resolve, reject) => {
       const peer = new Peer(peerOpts());
       this.peer = peer;
       let settled = false;
       const fail = (m: string): void => {
-        if (settled) return; settled = true; this.failSafe(m); reject(new Error(m));
+        if (settled) return; settled = true; reject(new Error(m));
       };
-      const t = window.setTimeout(() => fail("Could not reach the room. Check the code and your connection."), 25000);
+      const t = window.setTimeout(() => fail("Could not reach the room. Check the code and your connection."), timeoutMs);
+      peer.on("disconnected", () => { try { peer.reconnect(); } catch { /* ignore */ } });
       peer.on("error", (e: { type?: string; message?: string }) => {
         fail(e?.type === "peer-unavailable" ? "No host found for that code." : (e?.message || "Join failed."));
       });
@@ -524,15 +771,55 @@ class Session {
           window.clearTimeout(t);
           if (settled) return;
           settled = true;
-          try { conn.send({ ...hello, typ: "hello", pid: this.pid, proto: COOP_PROTO }); } catch { /* ignore */ }
+          try { conn.send({ ...hello, typ: "hello", pid: this.pid, proto: COOP_PROTO, rejoin: !!hello.rejoin || this.wantPlay }); } catch { /* ignore */ }
           this.openPosChannel(peer, roomPeerId(c));
-          this.phase = "lobby";
+          if (!this.wantPlay) this.phase = "lobby";
           this.bump();
           resolve();
         });
         conn.on("error", () => fail("Could not connect to the host."));
       });
     });
+  }
+
+  async retry(): Promise<void> {
+    if (!this.lastJoin) throw new Error("Enter a valid room code.");
+    this.wantPlay = this.wantPlay || this.playing;
+    await this.joinRoom(this.lastJoin.code, { ...this.lastJoin.hello, rejoin: true });
+  }
+
+  private rejoinLock = false;
+  private async tryAutoRejoin(): Promise<void> {
+    if (this.rejoinLock) return;
+    if (this.userLeave || this.phase === "migrate" || !this.lastJoin) {
+      if (!this.lastJoin && !this.userLeave) this.failSafe("The host disconnected.");
+      return;
+    }
+    this.rejoinLock = true;
+    this.autoRejoin = true;
+    this.wantPlay = true;
+    this.setLink("retrying", "Reconnecting…");
+    try {
+      await this.joinRoom(this.lastJoin.code, { ...this.lastJoin.hello, rejoin: true, pid: this.pid });
+    } catch {
+      this.setLink("failed", "Failed");
+    } finally {
+      this.rejoinLock = false;
+    }
+  }
+
+  simDisconnect(): void {
+    this.userLeave = false;
+    this.wantPlay = this.playing;
+    const r = this.relay;
+    this.relay = null;
+    if (r) { try { r.close(); } catch { /* ignore */ } }
+    if (this.hostConn) {
+      const c = this.hostConn;
+      this.hostConn = null;
+      try { c.close(); } catch { /* ignore */ }
+    }
+    void this.tryAutoRejoin();
   }
 
   startPlay(): void {
@@ -543,8 +830,28 @@ class Session {
   }
 
   sendInput(inp: CoopInput): void {
-    if (!this.isGuest() || !this.hostConn?.open) return;
-    try { this.hostConn.send({ typ: "input", inp }); } catch { /* ignore */ }
+    if (!this.isGuest()) return;
+    const msg: CoopMsg = { typ: "input", inp };
+    const send = (): void => {
+      if (this.relay && this.relay.readyState === WebSocket.OPEN) {
+        try { this.relay.send(JSON.stringify({ typ: "data", to: this.relayHostId || "host", data: msg })); } catch { /* ignore */ }
+        return;
+      }
+      try { if (this.hostConn?.open) this.hostConn.send(msg); } catch { /* ignore */ }
+    };
+    this.deferSend("data", send);
+    if (inp.atk || inp.dodge || inp.drink || inp.abil >= 0) this.deferSend("ctrl", send);
+  }
+  sendAct(act: CoopAct): void {
+    if (!this.active()) return;
+    if (this.isHost()) this.broadcast(act);
+    else this.deferSend("ctrl", () => {
+      if (this.relay && this.relay.readyState === WebSocket.OPEN) {
+        try { this.relay.send(JSON.stringify({ typ: "data", to: this.relayHostId || "host", data: act })); } catch { /* ignore */ }
+        return;
+      }
+      try { if (this.hostConn?.open) this.hostConn.send(act); } catch { /* ignore */ }
+    });
   }
 
   sendState(st: unknown): void {
@@ -561,6 +868,10 @@ class Session {
   }
 
   async leave(reason = "You left the party."): Promise<void> {
+    this.userLeave = true;
+    this.autoRejoin = false;
+    this.wantPlay = false;
+    this.link = "idle";
     if (this.isHost() && this.players.some((p) => !p.isHost)) {
       const next = this.players.find((p) => p.pid !== this.pid);
       if (next) {
@@ -569,8 +880,16 @@ class Session {
       } else {
         this.broadcast({ typ: "ended", reason: "The host left. Progress saved." });
       }
-    } else if (this.isGuest() && this.hostConn?.open) {
-      try { this.hostConn.send({ typ: "leave", pid: this.pid, name: this.players.find((p) => p.pid === this.pid)?.name || "Player" }); } catch { /* ignore */ }
+    } else if (this.isGuest()) {
+      const leaveMsg: CoopMsg = { typ: "leave", pid: this.pid, name: this.players.find((p) => p.pid === this.pid)?.name || "Player" };
+      try {
+        if (this.relay && this.relay.readyState === WebSocket.OPEN) {
+          this.relay.send(JSON.stringify({ typ: "data", to: this.relayHostId || "host", data: leaveMsg }));
+        } else if (this.hostConn?.open) {
+          this.hostConn.send(leaveMsg);
+        }
+      } catch { /* ignore */ }
+      await new Promise((r) => setTimeout(r, 80));
     }
     await this.destroyPeer();
     this.role = null;
@@ -683,15 +1002,15 @@ class Session {
     });
   }
 
-  private joinRelay(code: string, hello: Extract<CoopMsg, { typ: "hello" }>, url: string): Promise<void> {
+  private joinRelay(code: string, hello: Extract<CoopMsg, { typ: "hello" }>, url: string, timeoutMs = 8000): Promise<void> {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(url);
       this.relay = ws;
       let settled = false;
       const fail = (m: string): void => {
-        if (settled) return; settled = true; this.failSafe(m); reject(new Error(m));
+        if (settled) return; settled = true; reject(new Error(m));
       };
-      const t = window.setTimeout(() => fail("Could not reach the room. Check the code and your connection."), 15000);
+      const t = window.setTimeout(() => fail("Could not reach the room. Check the code and your connection."), timeoutMs);
       ws.onerror = () => fail("Could not connect to the host.");
       ws.onopen = () => {
         try { ws.send(JSON.stringify({ typ: "join", to: roomPeerId(code), from: this.pid })); } catch { fail("Could not connect to the host."); }
@@ -706,7 +1025,7 @@ class Session {
           this.relayHostId = roomPeerId(code);
           const conn = this.fakeRelayConn(this.relayHostId);
           this.hostConn = conn;
-          try { conn.send({ ...hello, typ: "hello", pid: this.pid }); } catch { /* ignore */ }
+          try { conn.send({ ...hello, typ: "hello", pid: this.pid, proto: COOP_PROTO, rejoin: !!hello.rejoin || this.wantPlay }); } catch { /* ignore */ }
           this.phase = "lobby";
           this.bump();
           resolve();
@@ -715,9 +1034,14 @@ class Session {
         if (msg.typ === "nohost") { window.clearTimeout(t); fail("No host found for that code."); return; }
         if (msg.typ === "data" && msg.data) this.guestHandle(msg.data);
         if (msg.typ === "close") {
-          if (this.phase === "migrate") return;
-          this.failSafe("The host disconnected.");
+          if (this.phase === "migrate" || this.userLeave) return;
+          if (settled) void this.tryAutoRejoin();
         }
+      };
+      ws.onclose = () => {
+        if (this.userLeave || this.phase === "migrate" || !settled) return;
+        if (this.relay === ws) this.relay = null;
+        void this.tryAutoRejoin();
       };
     });
   }
@@ -777,10 +1101,20 @@ export const coop = {
   sendState: (st: unknown): void => S.sendState(st),
   sendPos: (pos: CoopPos): void => S.sendPos(pos),
   sendPosBatch: (batch: CoopPosBatch): void => S.sendPosBatch(batch),
+  sendAct: (act: CoopAct): void => S.sendAct(act),
   stats: (): ReturnType<Session["stats"]> => S.stats(),
   resetStats: (): void => S.resetStats(),
   proto: (): number => COOP_PROTO,
   theirProto: (): number => S.theirProto,
+  simulateNet: (cfg: { rtt: number; jitter: number; loss: number } | null): void => S.simulateNet(cfg),
+  simDisconnect: (): void => S.simDisconnect(),
+  retry: (): Promise<void> => S.retry(),
+  linkStatus: (): ReturnType<Session["linkStatus"]> => S.linkStatus(),
+  pings: (): ReturnType<Session["pings"]> => S.pings(),
+  rttOf: (pid: string): number => S.rttOf(pid),
+  interpMs: (pid?: string): number => S.interpMs(pid),
+  offsetFor: (pid: string): number => S.offsetFor(pid),
+  hasClock: (pid: string): boolean => S.hasClock(pid),
   sendLoot: (pid: string, payload: Omit<Extract<CoopMsg, { typ: "loot-you" }>, "typ">): void => S.sendLoot(pid, payload),
   event: (text: string, kind: CoopEventKind): void => S.event(text, kind),
   takeInput: (pid: string): CoopInput | undefined => S.takeInput(pid),

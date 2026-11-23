@@ -899,6 +899,104 @@ async function runTransfer(browser) {
   await page.close();
 }
 
+async function runShopSell(browser) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(String(e)));
+  await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  await page.goto(`http://127.0.0.1:${PORT}/`, { waitUntil: "domcontentloaded", timeout: 30000 });
+  await page.waitForFunction(() => typeof window.__T !== "undefined" && typeof window.__R !== "undefined", { timeout: 15000 });
+  await page.evaluate(() => window.__T.boot("warrior"));
+  const setup = await page.evaluate(() => {
+    const g = window.__G();
+    for (const k of Object.keys(g.eq || {})) delete g.eq[k];
+    g.eq.weapon = { uid: 8101, id: "w_club", ident: true, bon: {}, freed: false, ilvl: 1 };
+    g.inv = [
+      { uid: 8102, id: "w_echo", ident: true, bon: { atk: 3 }, freed: false, ilvl: 5 },
+      { uid: 8103, id: "w_dagger", ident: true, bon: { crit: 4 }, freed: false, ilvl: 2 },
+    ];
+    g.gold = 250;
+    g.shop = [];
+    g.stock = [];
+    g.sel = -1;
+    g.screen = "shop";
+    window.__T.refresh();
+    return { gold: g.gold, invN: g.inv.length };
+  });
+  check(setup.invN === 2, "shop sell fixture loaded", JSON.stringify(setup));
+  await new Promise((r) => setTimeout(r, 80));
+  const row = await page.$("[data-shop-sell='8102']");
+  check(!!row, "sell-side bag row is shown");
+  check(!(await page.$("[data-shop-sell-detail='8102']")), "sell details start closed");
+  const quick = await page.$("[data-shop-sell-quick='8102']");
+  check(!!quick, "quick Sell button is kept on the row");
+
+  await page.$eval("[data-shop-sell-item='8102']", (el) => {
+    el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true }));
+  });
+  await new Promise((r) => setTimeout(r, 120));
+  const afterTap = await page.evaluate(() => {
+    const g = window.__G();
+    const det = document.querySelector("[data-shop-sell-detail='8102']");
+    return {
+      gold: g.gold,
+      still: g.inv.some((i) => i.uid === 8102),
+      open: det && det.getAttribute("data-shop-sell-open") !== "closed",
+      openAttr: document.querySelector("[data-shop-sell='8102']")?.getAttribute("data-shop-sell-open"),
+      stats: [...(det?.querySelectorAll("[data-stat]") || [])].map((n) => n.getAttribute("data-stat")),
+      badge: !!det?.querySelector("[data-slot-badge]"),
+      rarity: (det?.textContent || "").includes("Legendary"),
+      slot: (det?.textContent || "").includes("Weapon"),
+      sp: !!det?.querySelector("[data-sp='doubleStrike']"),
+      spText: (det?.textContent || "").includes("20% chance to strike twice"),
+      compare: !!det?.querySelector("[data-compare]"),
+      price: det?.querySelector("[data-shop-sell-price]")?.getAttribute("data-shop-sell-price") || "",
+      priceText: (det?.querySelector("[data-shop-sell-price]")?.textContent || ""),
+      detailSell: !!(det && [...det.querySelectorAll("button")].some((b) => /Sell \d+g/.test(b.textContent || ""))),
+      invN: g.inv.length,
+    };
+  });
+  check(afterTap.still && afterTap.gold === 250 && afterTap.invN === 2, "tapping a sell-side item does not instantly sell", JSON.stringify(afterTap));
+  check(afterTap.openAttr === "1" && !!afterTap.price, "tapping opens sell item details", JSON.stringify(afterTap));
+  check(afterTap.stats.length > 0 && afterTap.badge && afterTap.rarity && afterTap.slot, "sell details show plain stats, slot badge, and rarity", JSON.stringify(afterTap));
+  check(afterTap.sp && afterTap.spText, "sell details show legendary ability text", JSON.stringify(afterTap));
+  check(afterTap.compare, "sell details compare against equipped item", JSON.stringify(afterTap));
+  check(afterTap.detailSell && /Sell price:/.test(afterTap.priceText), "sell details show sell price and a Sell button", JSON.stringify(afterTap));
+
+  const out = path.join(path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."), "playtest-shots");
+  fs.mkdirSync(out, { recursive: true });
+  await page.screenshot({ path: path.join(out, "shop-sell-detail-mobile.png") });
+  check(true, "shop sell details mobile screenshot");
+
+  await page.evaluate(() => {
+    const det = document.querySelector("[data-shop-sell-detail='8102']");
+    const b = det && [...det.querySelectorAll("button")].find((el) => /Sell \d+g/.test(el.textContent || ""));
+    if (b) b.click();
+  });
+  await new Promise((r) => setTimeout(r, 120));
+  const sold = await page.evaluate(() => {
+    const g = window.__G();
+    return { gold: g.gold, gone: !g.inv.some((i) => i.uid === 8102), left: g.inv.map((i) => i.uid), detail: !!document.querySelector("[data-shop-sell-detail='8102']") };
+  });
+  check(sold.gone && sold.gold > 250 && sold.left.includes(8103), "Sell inside details sells the item", JSON.stringify(sold));
+
+  const goldMid = sold.gold;
+  await page.evaluate(() => {
+    const b = document.querySelector("[data-shop-sell-quick='8103'] button") || document.querySelector("[data-shop-sell-quick='8103']");
+    const btn = b && (b.tagName === "BUTTON" ? b : b.querySelector("button"));
+    if (btn) btn.click();
+  });
+  await new Promise((r) => setTimeout(r, 120));
+  const quickSold = await page.evaluate((g0) => {
+    const g = window.__G();
+    return { gold: g.gold, gone: !g.inv.some((i) => i.uid === 8103), more: g.gold > g0 };
+  }, goldMid);
+  check(quickSold.gone && quickSold.more, "quick Sell on the row still works", JSON.stringify(quickSold));
+
+  check(errors.length === 0, "shop sell details had no page errors", errors.join(" | "));
+  await page.close();
+}
+
 
 async function runBosses(browser) {
   await withPage(browser, async (page, errors) => {
@@ -1180,6 +1278,8 @@ async function main() {
     await runPots(browser);
     process.stdout.write("\n== stat transfer ==\n");
     await runTransfer(browser);
+    process.stdout.write("\n== shop sell details ==\n");
+    await runShopSell(browser);
     process.stdout.write("\n== bosses ==\n");
     await runBosses(browser);
     process.stdout.write("\n== curse lift ==\n");
