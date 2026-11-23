@@ -518,6 +518,19 @@ async function runNames(browser) {
   check(!!fire && fire.text.includes("-4") && fire.same === "0", "one-sided loss -4 Fire", JSON.stringify(cmp.deltas));
   check(!!atk && atk.same === "1" && atk.text.includes("⇄"), "same-stat ATK net delta is marked ⇄", JSON.stringify(cmp.deltas));
   check(cmp.marks >= 3, "⇄ appears on both item lists and the net delta", String(cmp.marks));
+  const bagLabels = await page.evaluate(() => {
+    const root = document.querySelector("[data-compare='weapon']");
+    const labels = [...(root?.querySelectorAll("[data-compare-label]") || [])].map((el) => ({ k: el.getAttribute("data-compare-label"), text: (el.textContent || "").trim() }));
+    const rule = root?.querySelector("[data-compare-rule]");
+    const cs = rule ? getComputedStyle(rule) : null;
+    const bars = rule ? [...rule.querySelectorAll("span")].map((el) => getComputedStyle(el).height) : [];
+    return { labels, hasRule: !!rule, ruleH: cs ? cs.height : "", bars };
+  });
+  check(bagLabels.labels.some((l) => l.k === "equipped" && l.text === "Equipped"), "bag comparison labels the equipped item", JSON.stringify(bagLabels));
+  check(bagLabels.labels.some((l) => l.k === "this" && l.text === "This item"), "bag comparison labels this item's deltas", JSON.stringify(bagLabels));
+  check(bagLabels.hasRule, "bag comparison shows a divider between equipped and this item", JSON.stringify(bagLabels));
+  await page.screenshot({ path: path.join(out, "compare-bag-mobile.png") });
+  check(true, "bag comparison mobile screenshot");
 
   await page.evaluate(() => { window.__T.run((g) => { g.sel = 9103; }); window.__T.refresh(); });
   await new Promise((r) => setTimeout(r, 150));
@@ -528,6 +541,15 @@ async function runNames(browser) {
   });
   check(empty.has && empty.empty === "1", "empty slot comparison is all-positive", JSON.stringify(empty));
   check(empty.deltas.some((t) => t.includes("+") && t.includes("Defense")), "empty helmet shows +Defense", JSON.stringify(empty.deltas));
+  const emptyLabs = await page.evaluate(() => {
+    const root = document.querySelector("[data-compare='helmet']");
+    return {
+      this: root?.querySelector("[data-compare-label='this']")?.textContent?.trim() || "",
+      equipped: !!root?.querySelector("[data-compare-label='equipped']"),
+      rule: !!root?.querySelector("[data-compare-rule]"),
+    };
+  });
+  check(emptyLabs.this === "This item" && emptyLabs.rule && !emptyLabs.equipped, "empty-slot comparison still has a divider and This item label", JSON.stringify(emptyLabs));
 
   check(cmp.orderOk && cmp.dustAfter, "Dust section sits below the bag item list", JSON.stringify({ orderOk: cmp.orderOk, dustAfter: cmp.dustAfter }));
   check(cmp.hasSac && cmp.tiers === 6 && !cmp.ladder, "condensed Dust row has sacrifice + rarity chips, no ladder text", JSON.stringify(cmp));
@@ -962,11 +984,19 @@ async function runShopSell(browser) {
   check(afterTap.sp && afterTap.spText, "sell details show legendary ability text", JSON.stringify(afterTap));
   check(afterTap.compare, "sell details compare against equipped item", JSON.stringify(afterTap));
   check(afterTap.detailSell && /Sell price:/.test(afterTap.priceText), "sell details show sell price and a Sell button", JSON.stringify(afterTap));
+  const shopLabs = await page.evaluate(() => {
+    const root = document.querySelector("[data-shop-sell-detail] [data-compare]");
+    const labels = [...(root?.querySelectorAll("[data-compare-label]") || [])].map((el) => ({ k: el.getAttribute("data-compare-label"), text: (el.textContent || "").trim() }));
+    return { labels, hasRule: !!root?.querySelector("[data-compare-rule]"), deltas: !!root?.querySelector("[data-compare-deltas]") };
+  });
+  check(shopLabs.labels.some((l) => l.k === "equipped" && l.text === "Equipped") && shopLabs.labels.some((l) => l.k === "this" && l.text === "This item") && shopLabs.hasRule && shopLabs.deltas, "shop sell comparison has Equipped / divider / This item", JSON.stringify(shopLabs));
 
   const out = path.join(path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."), "playtest-shots");
   fs.mkdirSync(out, { recursive: true });
   await page.screenshot({ path: path.join(out, "shop-sell-detail-mobile.png") });
   check(true, "shop sell details mobile screenshot");
+  await page.screenshot({ path: path.join(out, "compare-shop-mobile.png") });
+  check(true, "shop comparison mobile screenshot");
 
   await page.evaluate(() => {
     const det = document.querySelector("[data-shop-sell-detail='8102']");

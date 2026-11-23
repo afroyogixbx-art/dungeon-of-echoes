@@ -7251,18 +7251,28 @@ export default function DungeonOfEchoes() {
       setDeltas.push(<span key={"set-" + k} data-delta={"set-" + k} style={{ color: d > 0 ? t.text.success : t.text.danger, fontWeight: 700, fontSize: 12 }}>{formatStat(k, d)} <span style={{ fontWeight: 500, color: t.text.tertiary }}>set</span></span>);
     }
     const empty = !worn;
+    const labelSx: CSSProperties = { fontSize: 11, fontWeight: 800, letterSpacing: 0.6, color: t.text.accent, textTransform: "none", lineHeight: 1.2 };
     return (
       <div data-compare={slot} data-compare-empty={empty ? "1" : "0"} style={{ marginTop: 4, paddingTop: 4, borderTop: `1px solid ${t.border.default}`, display: "flex", flexDirection: "column", gap: 3 }}>
         <div style={{ fontSize: 11, color: t.text.secondary, fontWeight: 700 }}>
           {empty ? `Vs empty ${SLOT_NAME[slot].toLowerCase()}` : `Vs worn: ${instName(worn!)}${locked(worn!) ? " (cursed, locked)" : !worn!.ident ? " (unidentified)" : ""}`}
         </div>
         {worn && worn.ident && (
-          <div data-compare-worn={worn.uid} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {statChips(IT[worn.id].st, shared)}
-            {affixChips(worn, g.floor, shared)}
-            {itemMpreg(worn) !== 0 && !(worn.affs && worn.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div data-stat="mpreg" style={{ fontSize: 12, color: t.text.success, fontWeight: 600 }}>{formatStat("mpreg", itemMpreg(worn))}{sameMark("mpreg", shared)}</div>}
-          </div>
+          <>
+            <div data-compare-label="equipped" style={labelSx}>Equipped</div>
+            <div data-compare-worn={worn.uid} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {statChips(IT[worn.id].st, shared)}
+              {affixChips(worn, g.floor, shared)}
+              {itemMpreg(worn) !== 0 && !(worn.affs && worn.affs.some((a: RolledAff) => a.stat === "mpreg")) && <div data-stat="mpreg" style={{ fontSize: 12, color: t.text.success, fontWeight: 600 }}>{formatStat("mpreg", itemMpreg(worn))}{sameMark("mpreg", shared)}</div>}
+            </div>
+          </>
         )}
+        <div data-compare-rule="1" role="separator" aria-label="Compared with this item" style={{ display: "flex", alignItems: "center", gap: 8, margin: "6px 0 2px", pointerEvents: "none" }}>
+          <span style={{ flex: 1, height: 2, borderRadius: 1, background: `linear-gradient(90deg, transparent, ${t.border.strong}, #c4a574)` }} />
+          <span style={{ width: 6, height: 6, transform: "rotate(45deg)", background: "#c4a574", boxShadow: "0 0 4px rgba(196,165,116,.55)", flex: "0 0 auto" }} />
+          <span style={{ flex: 1, height: 2, borderRadius: 1, background: `linear-gradient(90deg, #c4a574, ${t.border.strong}, transparent)` }} />
+        </div>
+        <div data-compare-label="this" style={labelSx}>This item</div>
         {(deltas.length > 0 || empty) && (
           <div data-compare-deltas="1" style={{ display: "flex", flexWrap: "wrap", gap: "2px 8px" }}>{deltas}</div>
         )}
